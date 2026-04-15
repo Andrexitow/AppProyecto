@@ -1,4 +1,4 @@
-<div class="p-6 max-w-7xl mx-auto">
+<div class="p-6 w-full">
 
     <!-- HEADER -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -31,6 +31,7 @@
                         <th class="px-6 py-4 text-center font-medium">Registrado</th>
                         <th class="px-6 py-4 text-left font-medium">Usuario</th>
                         <th class="px-6 py-4 text-left font-medium">Fecha</th>
+                        <th class="px-6 py-4 text-center font-medium">Acciones</th>
                     </tr>
                 </thead>
 
@@ -40,9 +41,7 @@
                         <tr class="hover:bg-gray-50">
 
                             <td class="px-6 py-4">{{ $a->prefijo }}</td>
-
                             <td class="px-6 py-4">{{ $a->numero }}</td>
-
                             <td class="px-6 py-4">{{ $a->observaciones }}</td>
 
                             <td class="px-6 py-4 text-right font-medium">
@@ -65,10 +64,34 @@
                                 {{ $a->fecha }}
                             </td>
 
+                            <td class="px-6 py-4 text-center">
+                                @if (!$a->registrado)
+                                    <button onclick="retomarAjuste({{ $a->id }})"
+                                        class="text-blue-600 hover:underline text-sm">
+                                        Completar
+                                    </button>
+
+                                    <button onclick="eliminarAjuste({{ $a->id }})"
+                                        class="text-red-600 hover:underline text-sm ml-2">
+                                        Eliminar
+                                    </button>
+                                @else
+                                    <button onclick="verAjuste({{ $a->id }})"
+                                        class="text-gray-600 hover:underline text-sm">
+                                        Ver
+                                    </button>
+
+                                    <button onclick="revertirAjuste({{ $a->id }})"
+                                        class="text-red-600 hover:underline text-sm ml-2">
+                                        Revertir
+                                    </button>
+                                @endif
+                            </td>
+
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center py-6 text-gray-500">
+                            <td colspan="8" class="text-center py-6 text-gray-500">
                                 No hay ajustes registrados
                             </td>
                         </tr>
@@ -123,6 +146,18 @@
                             class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500">
                     </div>
 
+                    <!-- Bodega -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Bodega</label>
+                        <select id="bodega_id"
+                            class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500">
+                            <option value="">Seleccione una bodega</option>
+                            @foreach ($bodegas as $b)
+                                <option value="{{ $b->id }}">{{ $b->descripcion }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- Tercero - Búsqueda por Documento -->
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Tercero</label>
@@ -151,7 +186,7 @@
                     <!-- Contrapartida -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contrapartida</label>
-                        <input type="text" id="contrapartida" placeholder="Cuenta contable"
+                        <input type="text" id="contraparte" placeholder="Cuenta contable"
                             class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500">
                     </div>
 
@@ -207,9 +242,11 @@
 
                 <!-- BOTONES FINALES -->
                 <div class="flex justify-between items-center">
+                    <!-- PASO 2 — botón Volver con aviso -->
                     <button onclick="volverPaso1()"
                         class="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-2">
                         ← Volver
+                        <span class="text-xs text-gray-400">(el ajuste ya fue guardado)</span>
                     </button>
 
                     <button onclick="guardarAjuste()"
@@ -241,5 +278,42 @@
                 </button>
             </div>
         </div>
+    </div>
+</div>
+
+<div id="modalVerAjuste" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white w-full max-w-3xl rounded-3xl shadow-2xl">
+
+        <div class="flex justify-between items-center border-b p-5">
+            <h2 class="text-xl font-bold">Detalle del Ajuste</h2>
+            <button onclick="closeModalVerAjuste()" class="text-2xl">✕</button>
+        </div>
+
+        <div class="p-6 space-y-4 text-sm">
+
+            <div><b>Documento:</b> <span id="ver_doc"></span></div>
+            <div><b>Fecha:</b> <span id="ver_fecha"></span></div>
+            <div><b>Tercero:</b> <span id="ver_tercero"></span></div>
+            <div><b>Observaciones:</b> <span id="ver_obs"></span></div>
+            <div><b>Total:</b> <span id="ver_total"></span></div>
+
+            <!-- FUTURO: TABLA PRODUCTOS -->
+            <div>
+                <h3 class="font-semibold mt-4">Productos</h3>
+                <table class="w-full text-sm mt-2 border">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-2 text-left">Producto</th>
+                            <th class="p-2 text-center">Cantidad</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ver_detalles">
+                        <!-- luego lo llenamos -->
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
     </div>
 </div>

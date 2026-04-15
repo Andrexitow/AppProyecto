@@ -5,20 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="{{-- {{ asset('logos/logo.svg') }} --}}" type="image/x-icon">
+    <link rel="icon" href="{{ asset('imgs/Logo.png') }}" type="image/x-icon">
     <title> {{ $title ?? 'example' }} </title>
 </head>
 
 <body class="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
     <main class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <div class="text-center">
-            <img src="{{-- {{ asset('logos/logo.svg') }} --}}" alt="Logo de AppAuto" class="w-24 h-24 mx-auto mb-4">
+            <img src="{{ asset('imgs/Simbolo.png') }}" alt="Logo de AppSystem" class="w-34 h-24 mx-auto mb-4">
 
-{{--             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Bienvenido a <span><img src="{{ asset('logos/text.svg') }}" alt="Logo de AppAuto" class="mb-2"></span> </h1>
- --}}            @if ($errors->any())
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Bienvenido a <span><img
+                        src="{{ asset('imgs/LogoLetras.png') }}" alt="Logo de AppSystem" class="mb-2"></span> </h1>
+            @if ($errors->any())
                 <div
                     class="p-4 mb-4 text-sm rounded-lg 
-                bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200">
+        bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200">
                     <ul class="list-disc pl-5">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -29,7 +30,7 @@
 
             <p class="text-sm text-gray-600 dark:text-gray-400">Inicia sesión para continuar</p>
         </div>
-        <form action=" {{-- {{ route('login.authenticate') }}  --}}" method="POST" class="space-y-6">
+        <form action="{{ url('/login') }}" method="POST" class="space-y-6">
             @csrf
             <div>
                 <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo

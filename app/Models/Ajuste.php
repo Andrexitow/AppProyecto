@@ -15,7 +15,8 @@ class Ajuste extends Model
         'observaciones',
         'total',
         'registrado',
-        'user_id'
+        'user_id',
+        'bodega_id'
     ];
 
     public function user()
@@ -31,5 +32,10 @@ class Ajuste extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function tercero()
+    {
+        return $this->belongsTo(Tercero::class);
     }
 }

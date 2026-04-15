@@ -46,7 +46,9 @@
                         <td class="px-4 py-2">{{ $producto->codigo }}</td>
                         <td class="px-4 py-2">{{ $producto->descripcion }}</td>
                         <td class="px-4 py-2">{{ $producto->und_detal }}</td>
-                        <td class="px-4 py-2">0</td> <!-- luego inventario -->
+                        <td class="px-4 py-2">
+                            {{ $producto->inventarios->sum('stock') }}
+                        </td>
                         <td class="px-4 py-2">
                             ${{ number_format($producto->precio, 0, ',', '.') }}
                         </td>

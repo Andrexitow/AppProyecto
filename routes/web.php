@@ -7,45 +7,50 @@ use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\TerceroController;
 use App\Models\Bodega;
 use App\Models\Producto;
+use App\Http\Controllers\AuthController;
 
-Route::get('/', function () {
-    return view('home');
+// LOGIN
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/', function () {
+        return view('home');
+    });
+
+    Route::get('/views/productos', function () {
+        $productos = Producto::all();
+        return view('productos.index', compact('productos'));
+    });
+
+    Route::post('/productos', [ProductoController::class, 'store']);
+    Route::get('/productos/buscar', [ProductoController::class, 'buscar']);
+
+    // Bodegas
+    Route::get('/views/bodegas', function () {
+        $bodegas = Bodega::all();
+        return view('bodegas.index', compact('bodegas'));
+    });
+
+    // Ajustes
+    Route::get('/views/ajustes', function () {
+        $bodegas = Bodega::all();
+        $ajustes = \App\Models\Ajuste::with('user')->latest()->get();
+
+        return view('ajustes.index', compact('ajustes', 'bodegas'));
+    });
+
+    Route::post('/bodegas', [BodegaController::class, 'store']);
+
+    Route::post('/ajustes', [AjusteController::class, 'store']);
+    Route::get('/ajustes/siguiente-numero', [AjusteController::class, 'siguienteNumero']);
+    Route::get('/ajustes/{id}', [AjusteController::class, 'show']);
+    Route::put('/ajustes/{id}', [AjusteController::class, 'update']);
+    Route::post('/ajustes/{id}/detalles', [AjusteController::class, 'registrar']);
+    
+
+    Route::get('/terceros/buscar', [TerceroController::class, 'buscar']);
+    Route::get('/terceros/buscar-doc', [TerceroController::class, 'buscarPorDocumento']);
 });
-
-
-Route::get('/views/productos', function () {
-    $productos = Producto::all();
-    return view('productos.index', compact('productos'));
-});
-
-Route::post('/productos', [ProductoController::class, 'store']);
-Route::get('/productos/buscar', [ProductoController::class, 'buscar']);
-
-
-
-//Bodega
-Route::get('/views/bodegas', function () {
-
-    // return view('bodegas.index');
-    $bodegas = Bodega::all();
-    return view('bodegas.index', compact('bodegas'));
-});
-
-Route::get('/views/ajustes', function () {
-
-    $ajustes = \App\Models\Ajuste::with('user')
-        ->latest()
-        ->get();
-
-    return view('ajustes.index', compact('ajustes'));
-});
-
-// Route::get('/ajustes', [AjusteController::class, 'index']);
-
-Route::post('/bodegas', [BodegaController::class, 'store']);
-
-Route::get('/terceros/buscar', [TerceroController::class, 'buscar']);
-Route::get('/terceros/buscar-doc', [TerceroController::class, 'buscarPorDocumento']);
-
-Route::post('/ajustes', [AjusteController::class, 'store']);
-Route::get('/ajustes/siguiente-numero', [AjusteController::class, 'siguienteNumero']);

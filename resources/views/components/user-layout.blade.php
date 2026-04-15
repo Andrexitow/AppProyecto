@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>AppSystem</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    {{-- <script src="https://cdn.tailwindcss.com"></script> --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
 <body class="bg-gray-100">
@@ -17,7 +18,7 @@
 
             <div class="flex items-center space-x-6">
                 <div class="flex items-center space-x-2">
-                    <img src="{{ asset('logos/logo.svg') }}" class="w-10 h-10">
+                    <img src="{{ asset('imgs/LogoSystem.png') }}" class="w-10 h-10">
                     <span class="font-bold text-gray-800 text-lg">AppSystem</span>
                 </div>
 
@@ -26,9 +27,9 @@
                 </button>
             </div>
 
-            <form method="POST">
+            <form method="POST" action="/logout">
                 @csrf
-                <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm">
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm">
                     Cerrar sesión
                 </button>
             </form>
@@ -112,7 +113,7 @@
 
                     <button class="flex flex-col items-center w-24 p-2 hover:bg-gray-100 rounded">
                         <span class="text-2xl">💲</span>
-                        <span class="text-xs">Editor precios</span>
+                        <span class="text-xs">Facturación</span>
                     </button>
 
                     <div class="border-l mx-2"></div>
@@ -182,7 +183,7 @@
 
                 <div class="mt-3 pt-2 border-t text-center text-xs text-gray-500">
                     Tablas Comunes
-                </div> 
+                </div>
 
             </div>
 
@@ -194,7 +195,8 @@
     <div id="main-content" class="p-6">
         <!-- Aquí se cargan las vistas -->
     </div>
-    <script src="{{ asset('js/app.js') }}"></script>
+    {{-- <script src="{{ asset('js/app.js') }}"></script> --}}
+    @vite('resources/js/app.js')
 </body>
 
 </html>

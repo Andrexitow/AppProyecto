@@ -48,4 +48,9 @@ class Producto extends Model
         'iva_compras' => 'decimal:2',
         'ico_compras' => 'decimal:2',
     ];
+
+    public function inventarios()
+    {
+        return $this->hasMany(Inventario::class);
+    }
 }
