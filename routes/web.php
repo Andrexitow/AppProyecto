@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/ajustes/siguiente-numero', [AjusteController::class, 'siguienteNumero']);
     Route::get('/ajustes/{id}', [AjusteController::class, 'show']);
     Route::put('/ajustes/{id}', [AjusteController::class, 'update']);
+    Route::delete('/ajustes/{id}', [AjusteController::class, 'destroy']);
     Route::post('/ajustes/{id}/detalles', [AjusteController::class, 'registrar']);
     
 

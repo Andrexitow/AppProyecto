@@ -1,5 +1,5 @@
 <div class="p-6 w-full">
-
+    <div id="notificaciones" class="fixed top-5 right-5 z-[9999] space-y-3"></div>
     <!-- HEADER -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 class="text-3xl font-bold text-gray-800">Ajustes de Inventario</h1>
@@ -69,6 +69,11 @@
                                     <button onclick="retomarAjuste({{ $a->id }})"
                                         class="text-blue-600 hover:underline text-sm">
                                         Completar
+                                    </button>
+
+                                    <button onclick="editarAjuste({{ $a->id }})"
+                                        class="text-yellow-600 hover:underline text-sm ml-2">
+                                        Editar
                                     </button>
 
                                     <button onclick="eliminarAjuste({{ $a->id }})"
@@ -200,59 +205,71 @@
 
                 </div>
 
-                <!-- Botón Siguiente -->
                 <div class="flex justify-end mt-8">
-                    <button onclick="irPaso2()"
+                    <button onclick="guardarCabecera()"
                         class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-2xl font-medium flex items-center gap-2 transition-all">
-                        Siguiente <span class="text-lg">→</span>
+                        💾 Guardar Ajuste
                     </button>
                 </div>
             </div>
 
             <!-- PASO 2 -->
-            <div id="paso2" class="hidden">
+            <div id="paso2" class="hidden space-y-6">
 
-                <!-- BUSCADOR PRODUCTO -->
-                <div class="mb-5">
+                <!-- BUSCADOR -->
+                <div class="bg-gray-50 p-4 rounded-2xl border">
+                    <label class="block text-sm font-medium text-gray-600 mb-2">
+                        Buscar producto
+                    </label>
+
                     <input type="text" id="buscarProducto" onkeyup="buscarProducto()"
-                        placeholder="Buscar producto..."
-                        class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500">
+                        placeholder="Escribe el nombre del producto..."
+                        class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 shadow-sm">
 
                     <div id="resultadosProducto"
-                        class="border rounded-lg bg-white shadow mt-1 hidden max-h-60 overflow-y-auto">
+                        class="border rounded-xl bg-white shadow mt-2 hidden max-h-60 overflow-y-auto">
                     </div>
                 </div>
 
-                <!-- TABLA PRODUCTOS -->
-                <div class="overflow-x-auto rounded-2xl border border-gray-200 mb-6">
-                    <table class="w-full text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="p-4 text-left">Producto</th>
-                                <th class="p-4 text-center w-32">Cantidad</th>
-                                <th class="p-4 text-center w-40">Tipo de Ajuste</th>
-                                <th class="p-4 text-center w-24">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tablaProductos" class="divide-y">
-                            <!-- Las filas se agregan dinámicamente con JavaScript -->
-                        </tbody>
-                    </table>
+                <!-- TABLA -->
+                <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+
+                    <!-- Header -->
+                    <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-700">Productos del ajuste</h3>
+                        <span class="text-sm text-gray-400">Agrega productos abajo</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-gray-700">
+
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left font-medium">Producto</th>
+                                    <th class="px-6 py-3 text-center w-32">Cantidad</th>
+                                    <th class="px-6 py-3 text-center w-40">Tipo</th>
+                                    <th class="px-6 py-3 text-center w-24">Acción</th>
+                                </tr>
+                            </thead>
+
+                            <tbody id="tablaProductos" class="divide-y">
+                                <!-- dinámico -->
+                            </tbody>
+
+                        </table>
+                    </div>
+
                 </div>
 
-                <!-- BOTONES FINALES -->
-                <div class="flex justify-between items-center">
-                    <!-- PASO 2 — botón Volver con aviso -->
-                    <button onclick="volverPaso1()"
-                        class="text-gray-600 hover:text-gray-800 font-medium flex items-center gap-2">
-                        ← Volver
-                        <span class="text-xs text-gray-400">(el ajuste ya fue guardado)</span>
-                    </button>
+                <!-- FOOTER -->
+                <div class="flex justify-between items-center pt-2 border-t">
+
 
                     <button onclick="guardarAjuste()"
-                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-2xl font-medium shadow-md transition-colors">
+                        class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-2xl font-medium shadow-md transition-all">
                         Guardar Ajuste
                     </button>
+
                 </div>
 
             </div>
@@ -294,6 +311,7 @@
             <div><b>Documento:</b> <span id="ver_doc"></span></div>
             <div><b>Fecha:</b> <span id="ver_fecha"></span></div>
             <div><b>Tercero:</b> <span id="ver_tercero"></span></div>
+            <div><b>Bodega:</b> <span id="ver_bodega"></span></div>
             <div><b>Observaciones:</b> <span id="ver_obs"></span></div>
             <div><b>Total:</b> <span id="ver_total"></span></div>
 
@@ -308,7 +326,6 @@
                         </tr>
                     </thead>
                     <tbody id="ver_detalles">
-                        <!-- luego lo llenamos -->
                     </tbody>
                 </table>
             </div>

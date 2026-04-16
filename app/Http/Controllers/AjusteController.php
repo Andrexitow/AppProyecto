@@ -48,7 +48,6 @@ class AjusteController extends Controller
 
         $ajuste->update($request->only([
             'prefijo',
-            'numero',
             'fecha',
             'tercero_id',
             'bodega_id',
@@ -130,8 +129,23 @@ class AjusteController extends Controller
 
     public function show($id)
     {
-        $ajuste = Ajuste::with('tercero')->findOrFail($id);
+        $ajuste = Ajuste::with(['tercero', 'bodega', 'detalles.producto'])->findOrFail($id);
 
         return response()->json($ajuste);
+    }
+
+    public function destroy($id)
+    {
+        $ajuste = Ajuste::findOrFail($id);
+
+        if ($ajuste->registrado) {
+            return response()->json([
+                'error' => 'No puedes eliminar un ajuste registrado'
+            ], 422);
+        }
+
+        $ajuste->delete();
+
+        return response()->json(['ok' => true]);
     }
 }

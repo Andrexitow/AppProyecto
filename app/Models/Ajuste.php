@@ -38,4 +38,9 @@ class Ajuste extends Model
     {
         return $this->belongsTo(Tercero::class);
     }
+
+    public function bodega()
+    {
+        return $this->belongsTo(Bodega::class);
+    }
 }

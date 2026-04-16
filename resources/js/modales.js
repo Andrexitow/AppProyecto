@@ -29,6 +29,8 @@ window.openModalAjuste = function () {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
+    document.querySelector('#modalAjuste h2').innerText = 'Nuevo Ajuste';
+
     document.getElementById('paso1').classList.remove('hidden');
     document.getElementById('paso2').classList.add('hidden');
     obtenerSiguienteNumero();
@@ -64,23 +66,23 @@ function resetModalAjuste() {
     if (tbody) tbody.innerHTML = '';
 }
 
-window.irPaso2 = function () {
-    const paso1 = document.getElementById('paso1');
-    const paso2 = document.getElementById('paso2');
+// window.irPaso2 = function () {
+//     const paso1 = document.getElementById('paso1');
+//     const paso2 = document.getElementById('paso2');
 
-    if (!document.getElementById('tercero_id')?.value) {
-        alert('Debes seleccionar un tercero antes de continuar');
-        return;
-    }
+//     if (!document.getElementById('tercero_id')?.value) {
+//         alert('Debes seleccionar un tercero antes de continuar');
+//         return;
+//     }
 
-    paso1?.classList.add('hidden');
-    paso2?.classList.remove('hidden');
-};
+//     paso1?.classList.add('hidden');
+//     paso2?.classList.remove('hidden');
+// };
 
-window.volverPaso1 = function () {
-    document.getElementById('paso1')?.classList.remove('hidden');
-    document.getElementById('paso2')?.classList.add('hidden');
-};
+// window.volverPaso1 = function () {
+//     document.getElementById('paso1')?.classList.remove('hidden');
+//     document.getElementById('paso2')?.classList.add('hidden');
+// };
 
 window.openModalVerAjuste = function () {
     document.getElementById('modalVerAjuste').classList.remove('hidden');

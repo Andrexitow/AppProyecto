@@ -29,3 +29,38 @@ window.toggleTab = function (tabId) {
     document.getElementById(tabId).classList.remove('hidden');
     activeTab = tabId;
 };
+
+window.mostrarNotificacion = function (mensaje, tipo = 'info') {
+
+    const contenedor = document.getElementById('notificaciones');
+
+    const colores = {
+        success: 'bg-green-500',
+        error: 'bg-red-500',
+        warning: 'bg-yellow-500',
+        info: 'bg-blue-500'
+    };
+
+    const div = document.createElement('div');
+    div.className = `${colores[tipo]} text-white px-6 py-4 rounded-2xl shadow-lg transform transition-all duration-300 opacity-0 translate-y-2`;
+
+    div.innerText = mensaje;
+
+    contenedor.appendChild(div);
+
+    // animación entrada
+    setTimeout(() => {
+        div.classList.remove('opacity-0', 'translate-y-2');
+    }, 50);
+
+    // auto eliminar
+    setTimeout(() => {
+        div.classList.add('opacity-0', 'translate-y-2');
+
+        setTimeout(() => {
+            div.remove();
+        }, 300);
+
+    }, 3000);
+};
+

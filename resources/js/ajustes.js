@@ -1,4 +1,5 @@
 window.obtenerSiguienteNumero = function () {
+
     let prefijo = document.getElementById('prefijo').value;
 
     fetch(`/ajustes/siguiente-numero?prefijo=${prefijo}`)
@@ -7,6 +8,7 @@ window.obtenerSiguienteNumero = function () {
             let numeroFormateado = String(data.numero).padStart(4, '0');
             document.getElementById('numero').value = numeroFormateado;
         });
+
 };
 
 document.addEventListener('change', function (e) {
@@ -41,20 +43,21 @@ window.agregarFilaTabla = function (a) {
     tbody.insertAdjacentHTML('afterbegin', fila);
 }
 
-// PASO 1 — Guarda o actualiza cabecera y avanza
-window.irPaso2 = function () {
+window.guardarCabecera = function () {
 
     const tercero_id = document.getElementById('tercero_id')?.value;
     const bodega_id = document.getElementById('bodega_id')?.value;
     const fecha = document.getElementById('fecha')?.value;
     const prefijo = document.getElementById('prefijo')?.value;
     const numero = document.getElementById('numero')?.value;
-    const contraparte = document.getElementById('contraparte')?.value;
-    const observaciones = document.getElementById('observaciones')?.value;
+    const contraparte = document.getElementById('contraparte')?.value || null;
+    const observaciones = document.getElementById('observaciones')?.value || null;
 
+    // Validaciones básicas
     if (!tercero_id) return alert('Debes seleccionar un tercero');
     if (!bodega_id) return alert('Debes seleccionar una bodega');
     if (!fecha) return alert('Debes ingresar una fecha');
+    if (!prefijo || !numero) return alert('Error con el documento');
 
     const data = {
         prefijo,
@@ -66,23 +69,27 @@ window.irPaso2 = function () {
         observaciones
     };
 
-    if (window.ajusteActivoId) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+    if (window.ajusteActivoId) {
+        // === ACTUALIZAR AJUSTE EXISTENTE ===
         fetch(`/ajustes/${window.ajusteActivoId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify(data)
         })
             .then(async res => {
                 const response = await res.json();
-                if (!res.ok) throw new Error(response.error || 'Error al actualizar');
+                if (!res.ok) throw new Error(response.error || 'Error al actualizar el ajuste');
                 return response;
             })
             .then(() => {
-                pasarPaso2();
+                alert('Ajuste actualizado correctamente');
+                closeModalAjuste();
+                loadView('ajustes');        // recarga la tabla
             })
             .catch(err => {
                 console.error(err);
@@ -90,31 +97,28 @@ window.irPaso2 = function () {
             });
 
     } else {
-
-        // 🆕 CREAR NUEVO
+        // === CREAR NUEVO AJUSTE ===
         fetch('/ajustes', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': csrfToken
             },
             body: JSON.stringify(data)
         })
             .then(async res => {
                 const response = await res.json();
-                if (!res.ok) throw new Error(response.error || 'Error al guardar');
+                if (!res.ok) throw new Error(response.error || 'Error al guardar el ajuste');
                 return response;
             })
             .then(ajuste => {
-
-                window.ajusteActivoId = ajuste.id;
-
-                // 🔥 solo si quieres verlo sin recargar
+                window.ajusteActivoId = ajuste.id;   // por si lo necesitas después
                 if (typeof agregarFilaTabla === 'function') {
                     agregarFilaTabla(ajuste);
                 }
-
-                pasarPaso2();
+                alert('Ajuste guardado correctamente');
+                closeModalAjuste();
+                loadView('ajustes');
             })
             .catch(err => {
                 console.error(err);
@@ -124,12 +128,6 @@ window.irPaso2 = function () {
 };
 
 
-// 🔁 cambio de vista (reutilizable)
-function pasarPaso2() {
-    document.getElementById('paso1').classList.add('hidden');
-    document.getElementById('paso2').classList.remove('hidden');
-}
-
 window.retomarAjuste = function (id) {
 
     fetch(`/ajustes/${id}`, {
@@ -137,8 +135,6 @@ window.retomarAjuste = function (id) {
     })
         .then(res => res.json())
         .then(a => {
-
-            console.log('AJUSTE:', a); // 🔍 debug
 
             // 🔥 TODO VA AQUÍ ADENTRO
             window.ajusteActivoId = a.id;
@@ -152,7 +148,6 @@ window.retomarAjuste = function (id) {
 
             document.getElementById('tercero_id').value = a.tercero_id;
 
-            // 🔥 IMPORTANTE: usa nombre_completo
             document.getElementById('inputNombre').value = a.tercero?.nombre_completo || '';
             document.getElementById('inputDocumento').value = a.tercero?.cedula || a.tercero?.nit || '';
 
@@ -169,6 +164,7 @@ window.retomarAjuste = function (id) {
 };
 
 // PASO 2 — Guarda detalles y registra
+
 window.guardarAjuste = function () {
     const filas = document.querySelectorAll('#tablaProductos tr');
 
@@ -209,32 +205,171 @@ window.guardarAjuste = function () {
             alert(err.message);
         });
 
-    window.verAjuste = function (id) {
+};
+
+window.verAjuste = function (id) {
+
+    fetch(`/ajustes/${id}`, {
+        credentials: 'same-origin'
+    })
+        .then(res => res.json())
+        .then(a => {
+
+            console.log('VER AJUSTE:', a);
+
+            openModalVerAjuste();
+
+            // ================= CABECERA =================
+            document.getElementById('ver_doc').innerText =
+                a.prefijo + '-' + String(a.numero).padStart(4, '0');
+
+            document.getElementById('ver_fecha').innerText = a.fecha;
+
+            document.getElementById('ver_tercero').innerText =
+                a.tercero?.nombre_completo || '';
+
+            document.getElementById('ver_bodega').innerText =
+                a.bodega?.descripcion || 'Sin bodega';
+
+            document.getElementById('ver_obs').innerText =
+                a.observaciones ?? '';
+
+            document.getElementById('ver_total').innerText =
+                '$' + Number(a.total).toLocaleString();
+
+            // ================= DETALLES (🔥 LO QUE TE FALTABA) =================
+            const tbody = document.getElementById('ver_detalles');
+            tbody.innerHTML = '';
+
+            if (!a.detalles || a.detalles.length === 0) {
+                tbody.innerHTML = `
+                <tr>
+                    <td colspan="2" class="text-center p-3 text-gray-400">
+                        Sin productos
+                    </td>
+                </tr>
+            `;
+                return;
+            }
+
+            a.detalles.forEach(d => {
+                tbody.innerHTML += `
+                <tr class="border-t">
+                    <td class="p-2">
+                        ${d.producto?.descripcion ?? 'Sin nombre'}
+                    </td>
+                    <td class="p-2 text-center">
+                        ${d.cantidad}
+                    </td>
+                </tr>
+            `;
+            });
+
+        })
+        .catch(err => {
+            console.error(err);
+            mostrarNotificacion(err.message, 'error');
+        });
+};
+
+window.editarAjuste = function (id) {
+
+    fetch(`/ajustes/${id}`, {
+        credentials: 'same-origin'
+    })
+        .then(res => res.json())
+        .then(a => {
+
+            window.ajusteActivoId = a.id;
+
+            openModalAjuste();
+
+            document.querySelector('#modalAjuste h2').innerText = 'Editar Ajuste';
+
+            document.getElementById('prefijo').value = a.prefijo;
+            document.getElementById('numero').value = String(a.numero).padStart(4, '0');
+            document.getElementById('fecha').value = a.fecha;
+            document.getElementById('bodega_id').value = a.bodega_id;
+
+            document.getElementById('tercero_id').value = a.tercero_id;
+            document.getElementById('inputNombre').value = a.tercero?.nombre_completo || '';
+            document.getElementById('inputDocumento').value = a.tercero?.cedula || a.tercero?.nit || '';
+
+            document.getElementById('observaciones').value = a.observaciones ?? '';
+            document.getElementById('contraparte').value = a.contraparte ?? '';
+
+            document.getElementById('paso1').classList.remove('hidden');
+            document.getElementById('paso2').classList.add('hidden');
+
+        })
+        .catch(err => {
+            console.error(err);
+            mostrarNotificacion(err.message, 'error');
+        });
+};
+
+window.eliminarAjuste = function (id) {
+
+    abrirConfirm('¿Seguro que deseas eliminar este ajuste?', () => {
 
         fetch(`/ajustes/${id}`, {
-            credentials: 'same-origin'
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
         })
-            .then(res => res.json())
-            .then(a => {
+            .then(async res => {
+                const response = await res.json();
+                if (!res.ok) throw new Error(response.error || 'Error al eliminar');
+                return response;
+            })
+            .then(() => {
 
-                console.log('VER AJUSTE:', a);
+                const btn = document.querySelector(`button[onclick="eliminarAjuste(${id})"]`);
+                const fila = btn.closest('tr');
+                fila.remove();
 
-                openModalVerAjuste();
-
-                // CABECERA
-                document.getElementById('ver_doc').innerText = a.prefijo + '-' + String(a.numero).padStart(4, '0');
-                document.getElementById('ver_fecha').innerText = a.fecha;
-                document.getElementById('ver_tercero').innerText = a.tercero?.nombre_completo || '';
-                document.getElementById('ver_obs').innerText = a.observaciones ?? '';
-                document.getElementById('ver_total').innerText = '$' + Number(a.total).toLocaleString();
-
-                // 🔥 SI LUEGO TRAES DETALLES:
-                // renderDetalles(a.detalles);
+                mostrarNotificacion('Ajuste eliminado correctamente', 'success');
 
             })
             .catch(err => {
                 console.error(err);
-                alert('Error cargando ajuste');
+                mostrarNotificacion(err.message, 'error');
             });
-    };
+
+    });
+
 };
+
+let accionConfirmada = null;
+
+window.abrirConfirm = function (mensaje, callback) {
+
+    const modal = document.getElementById('modalConfirm');
+
+    if (!modal) return console.error('NO EXISTE modalConfirm');
+
+    document.getElementById('confirmMensaje').innerText = mensaje;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    accionConfirmada = callback;
+};
+
+window.cerrarConfirm = function () {
+    const modal = document.getElementById('modalConfirm');
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex'); // 👈 importante
+
+    accionConfirmada = null;
+};
+
+// botón confirmar (versión PRO)
+document.addEventListener('click', function (e) {
+    if (e.target.closest('#btnConfirmarAccion')) {
+        if (accionConfirmada) accionConfirmada();
+        cerrarConfirm();
+    }
+});

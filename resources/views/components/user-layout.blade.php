@@ -18,7 +18,7 @@
 
             <div class="flex items-center space-x-6">
                 <div class="flex items-center space-x-2">
-                    <img src="{{ asset('imgs/LogoSystem.png') }}" class="w-10 h-10">
+                    <img src="{{ asset('imgs/Logo.png') }}" class="w-10 h-10">
                     <span class="font-bold text-gray-800 text-lg">AppSystem</span>
                 </div>
 
@@ -198,5 +198,23 @@
     {{-- <script src="{{ asset('js/app.js') }}"></script> --}}
     @vite('resources/js/app.js')
 </body>
+<!-- MODAL CONFIRM GLOBAL -->
+<div id="modalConfirm" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-[9999]">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-scaleIn">
+
+        <p id="confirmMensaje" class="text-gray-700 mb-6 text-center"></p>
+
+        <div class="flex justify-end gap-3">
+            <button onclick="cerrarConfirm()" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">
+                Cancelar
+            </button>
+
+            <button id="btnConfirmarAccion" class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700">
+                Confirmar
+            </button>
+        </div>
+
+    </div>
+</div>
 
 </html>

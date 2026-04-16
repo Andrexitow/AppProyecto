@@ -18,4 +18,9 @@ class AjusteDetalle extends Model
     {
         return $this->belongsTo(Ajuste::class);
     }
+
+    public function producto()
+    {
+        return $this->belongsTo(Producto::class);
+    }
 }
