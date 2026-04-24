@@ -8,6 +8,7 @@ use App\Http\Controllers\TerceroController;
 use App\Models\Bodega;
 use App\Models\Producto;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ExistenciaController;
 
 // LOGIN
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -49,9 +50,18 @@ Route::middleware('auth')->group(function () {
     Route::get('/ajustes/{id}', [AjusteController::class, 'show']);
     Route::put('/ajustes/{id}', [AjusteController::class, 'update']);
     Route::delete('/ajustes/{id}', [AjusteController::class, 'destroy']);
+    Route::post('/ajustes/{id}/revertir', [AjusteController::class, 'revertir']);
     Route::post('/ajustes/{id}/detalles', [AjusteController::class, 'registrar']);
-    
+
 
     Route::get('/terceros/buscar', [TerceroController::class, 'buscar']);
     Route::get('/terceros/buscar-doc', [TerceroController::class, 'buscarPorDocumento']);
+
+    Route::get('/views/existencias', [ExistenciaController::class, 'index'])->name('existencias.index');
+    Route::get('/existencias/data', [ExistenciaController::class, 'data'])->name('existencias.data');
+
+    Route::post('/terceros', [TerceroController::class, 'store'])->name('terceros.store');
+    Route::get('/views/terceros', [TerceroController::class, 'index'])->name('terceros.index');
+
+
 });

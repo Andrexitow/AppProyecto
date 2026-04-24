@@ -53,11 +53,25 @@ window.guardarCabecera = function () {
     const contraparte = document.getElementById('contraparte')?.value || null;
     const observaciones = document.getElementById('observaciones')?.value || null;
 
-    // Validaciones básicas
-    if (!tercero_id) return alert('Debes seleccionar un tercero');
-    if (!bodega_id) return alert('Debes seleccionar una bodega');
-    if (!fecha) return alert('Debes ingresar una fecha');
-    if (!prefijo || !numero) return alert('Error con el documento');
+    if (!tercero_id) {
+        mostrarNotificacion('Debes seleccionar un tercero', 'error');
+        return;
+    }
+
+    if (!bodega_id) {
+        mostrarNotificacion('Debes seleccionar una bodega', 'error');
+        return;
+    }
+
+    if (!fecha) {
+        mostrarNotificacion('Debes ingresar una fecha', 'error');
+        return;
+    }
+
+    if (!prefijo || !numero) {
+        mostrarNotificacion('Error con el documento', 'error');
+        return;
+    }
 
     const data = {
         prefijo,
@@ -72,7 +86,6 @@ window.guardarCabecera = function () {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
     if (window.ajusteActivoId) {
-        // === ACTUALIZAR AJUSTE EXISTENTE ===
         fetch(`/ajustes/${window.ajusteActivoId}`, {
             method: 'PUT',
             headers: {
@@ -87,9 +100,9 @@ window.guardarCabecera = function () {
                 return response;
             })
             .then(() => {
-                alert('Ajuste actualizado correctamente');
+                mostrarNotificacion('Ajuste actualizado correctamente', 'success');
                 closeModalAjuste();
-                loadView('ajustes');        // recarga la tabla
+                loadView('ajustes');
             })
             .catch(err => {
                 console.error(err);
@@ -116,7 +129,7 @@ window.guardarCabecera = function () {
                 if (typeof agregarFilaTabla === 'function') {
                     agregarFilaTabla(ajuste);
                 }
-                alert('Ajuste guardado correctamente');
+                mostrarNotificacion('Ajuste guardado correctamente', 'success');
                 closeModalAjuste();
                 loadView('ajustes');
             })
@@ -178,9 +191,9 @@ window.guardarAjuste = function () {
             producto_id: fila.id.replace('prod_', ''),
             cantidad: parseFloat(fila.querySelector('.cantidad').value) || 0,
             precio: parseFloat(fila.querySelector('.precio').value) || 0,
+            tipo: fila.querySelector('.tipo').value,
         });
     });
-
     fetch(`/ajustes/${window.ajusteActivoId}/detalles`, {
         method: 'POST',
         headers: {
@@ -191,7 +204,12 @@ window.guardarAjuste = function () {
     })
         .then(async res => {
             const response = await res.json();
-            if (!res.ok) throw new Error(response.error || 'Error al registrar');
+
+            if (!res.ok) {
+                const msg = response.error?.detalle || response.error?.mensaje || response.error || 'Error al registrar';
+                throw new Error(msg);
+            }
+
             return response;
         })
         .then(() => {
@@ -202,11 +220,11 @@ window.guardarAjuste = function () {
         })
         .catch(err => {
             console.error(err);
-            alert(err.message);
+            mostrarNotificacion(err.message, 'error');
         });
 
-};
 
+}
 window.verAjuste = function (id) {
 
     fetch(`/ajustes/${id}`, {
@@ -214,8 +232,6 @@ window.verAjuste = function (id) {
     })
         .then(res => res.json())
         .then(a => {
-
-            console.log('VER AJUSTE:', a);
 
             openModalVerAjuste();
 
@@ -271,6 +287,8 @@ window.verAjuste = function (id) {
             mostrarNotificacion(err.message, 'error');
         });
 };
+
+
 
 window.editarAjuste = function (id) {
 
@@ -373,3 +391,34 @@ document.addEventListener('click', function (e) {
         cerrarConfirm();
     }
 });
+
+window.revertirAjuste = function (id) {
+
+    abrirConfirm('¿Seguro que deseas revertir este ajuste?', () => {
+
+        fetch(`/ajustes/${id}/revertir`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+            .then(async res => {
+                const response = await res.json();
+                if (!res.ok) throw new Error(response.error || 'Error al revertir');
+                return response;
+            })
+            .then(() => {
+
+                mostrarNotificacion('Ajuste revertido correctamente', 'success');
+
+                // 🔥 recargar vista
+                loadView('ajustes');
+
+            })
+            .catch(err => {
+                console.error(err);
+                mostrarNotificacion(err.message, 'error');
+            });
+
+    });
+};

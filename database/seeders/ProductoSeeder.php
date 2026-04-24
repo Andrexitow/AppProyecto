@@ -12,51 +12,81 @@ class ProductoSeeder extends Seeder
         DB::table('productos')->insert([
 
             [
-                'codigo' => 'P001',
-                'descripcion' => 'Arroz 1kg',
+                'codigo' => 'C001',
+                'descripcion' => 'Cerveza Aguila 330ml',
                 'und_detal' => 'Unidad',
-                'categoria' => 'General',
+                'categoria' => 'Cervezas',
                 'precio' => 3500,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
 
             [
-                'codigo' => 'P002',
-                'descripcion' => 'Azúcar 1kg',
+                'codigo' => 'C002',
+                'descripcion' => 'Cerveza Aguila Light 330ml',
                 'und_detal' => 'Unidad',
-                'categoria' => 'General',
-                'precio' => 3200,
+                'categoria' => 'Cervezas',
+                'precio' => 3500,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
 
             [
-                'codigo' => 'P003',
-                'descripcion' => 'Aceite 900ml',
+                'codigo' => 'C003',
+                'descripcion' => 'Cerveza Poker 330ml',
                 'und_detal' => 'Unidad',
-                'categoria' => 'General',
-                'precio' => 8500,
+                'categoria' => 'Cervezas',
+                'precio' => 3500,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
 
             [
-                'codigo' => 'P004',
-                'descripcion' => 'Leche Entera',
+                'codigo' => 'C004',
+                'descripcion' => 'Cerveza Club Colombia Dorada 330ml',
                 'und_detal' => 'Unidad',
-                'categoria' => 'Lácteos',
-                'precio' => 4000,
+                'categoria' => 'Cervezas',
+                'precio' => 4500,
                 'created_at' => now(),
                 'updated_at' => now()
             ],
 
             [
-                'codigo' => 'P005',
-                'descripcion' => 'Pan tajado',
+                'codigo' => 'C005',
+                'descripcion' => 'Cerveza Club Colombia Negra 330ml',
                 'und_detal' => 'Unidad',
-                'categoria' => 'Panadería',
+                'categoria' => 'Cervezas',
+                'precio' => 4500,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+
+            [
+                'codigo' => 'C006',
+                'descripcion' => 'Cerveza Heineken 330ml',
+                'und_detal' => 'Unidad',
+                'categoria' => 'Cervezas',
                 'precio' => 5000,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+
+            [
+                'codigo' => 'C007',
+                'descripcion' => 'Cerveza Corona 355ml',
+                'und_detal' => 'Unidad',
+                'categoria' => 'Cervezas',
+                'precio' => 5500,
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+
+            [
+                'codigo' => 'C008',
+                'descripcion' => 'Cerveza Budweiser 330ml',
+                'und_detal' => 'Unidad',
+                'categoria' => 'Cervezas',
+                'precio' => 4500,
                 'created_at' => now(),
                 'updated_at' => now()
             ],

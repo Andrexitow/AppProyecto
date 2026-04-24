@@ -11,6 +11,7 @@ class AjusteDetalle extends Model
         'ajuste_id',
         'producto_id',
         'cantidad',
+        'tipo',
         'precio'
     ];
 

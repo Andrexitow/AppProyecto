@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ajuste;
 use App\Models\AjusteDetalle;
 use App\Models\Inventario;
+use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -58,11 +59,10 @@ class AjusteController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // PASO 2 — Guarda detalles, actualiza inventario y marca como registrado
     public function registrar(Request $request, $id)
     {
         $request->validate([
-            'detalles'   => 'required|array|min:1',
+            'detalles' => 'required|array|min:1',
         ]);
 
         DB::beginTransaction();
@@ -76,18 +76,11 @@ class AjusteController extends Controller
             }
 
             $total = 0;
-
+            AjusteDetalle::where('ajuste_id', $ajuste->id)->delete();
             foreach ($request->detalles as $d) {
-                AjusteDetalle::create([
-                    'ajuste_id'   => $ajuste->id,
-                    'producto_id' => $d['producto_id'],
-                    'cantidad'    => $d['cantidad'],
-                    'precio'      => $d['precio'] ?? 0,
-                ]);
 
-                $total += $d['cantidad'] * ($d['precio'] ?? 0);
-
-                // Actualizar inventario
+                // 🔥 Buscar inventario
+                $cantidad = abs($d['cantidad']);
                 $inventario = Inventario::where('producto_id', $d['producto_id'])
                     ->where('bodega_id', $ajuste->bodega_id)
                     ->first();
@@ -99,9 +92,42 @@ class AjusteController extends Controller
                         'stock'       => 0,
                     ]);
                 }
+                $producto = Producto::find($d['producto_id']);
+                $nombre = $producto->descripcion ?? 'Producto';
 
-                $inventario->stock += $d['cantidad'];
+                // 🔥 calcular exceso
+                $exceso = $cantidad - $inventario->stock;
+
+                // 🔥 VALIDAR ANTES DE RESTAR
+                if ($d['tipo'] === 'salida' && $inventario->stock < $cantidad) {
+                    return response()->json([
+                        'error' => [
+                            'mensaje' => "Stock insuficiente",
+                            'detalle' => "Intentas sacar {$cantidad}, disponible {$inventario->stock}, exceso {$exceso}",
+                            'producto' => $nombre
+                        ]
+                    ], 422);
+                }
+
+                // 🔥 GUARDAR DETALLE
+                AjusteDetalle::create([
+                    'ajuste_id'   => $ajuste->id,
+                    'producto_id' => $d['producto_id'],
+                    'cantidad'    => $cantidad,
+                    'tipo'        => $d['tipo'],
+                    'precio'      => $d['precio'] ?? 0,
+                ]);
+
+                // 🔥 ACTUALIZAR INVENTARIO
+                if ($d['tipo'] === 'entrada') {
+                    $inventario->stock += $cantidad;
+                } else {
+                    $inventario->stock -= $cantidad;
+                }
+
                 $inventario->save();
+
+                $total += $cantidad * ($d['precio'] ?? 0);
             }
 
             $ajuste->update([
@@ -147,5 +173,54 @@ class AjusteController extends Controller
         $ajuste->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    public function revertir($id)
+    {
+        $ajuste = Ajuste::with('detalles')->findOrFail($id);
+
+        if (!$ajuste->registrado) {
+            return response()->json([
+                'error' => 'Este ajuste ya está sin registrar'
+            ], 400);
+        }
+
+        foreach ($ajuste->detalles as $detalle) {
+
+            $inventario = Inventario::where('producto_id', $detalle->producto_id)
+                ->where('bodega_id', $ajuste->bodega_id)
+                ->first();
+
+            if (!$inventario) {
+                return response()->json([
+                    'error' => 'No existe inventario para este producto en la bodega'
+                ], 400);
+            }
+
+            // 🔥 REVERSA REAL
+            if ($detalle->tipo == 'entrada') {
+                // antes sumaste → ahora restas
+                $inventario->stock -= $detalle->cantidad;
+            } else {
+                // antes restaste → ahora sumas
+                $inventario->stock += $detalle->cantidad;
+            }
+
+            // 🔒 evitar negativos
+            if ($inventario->stock < 0) {
+                return response()->json([
+                    'error' => 'Stock negativo no permitido'
+                ], 400);
+            }
+
+            $inventario->save();
+        }
+
+        $ajuste->registrado = 0;
+        $ajuste->save();
+
+        return response()->json([
+            'success' => true
+        ]);
     }
 }

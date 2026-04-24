@@ -41,8 +41,8 @@ window.agregarProducto = function (id, descripcion, precio) {
             </td>
             <td class="p-4">
                 <select class="tipo border rounded">
-                    <option value="1">+ Entrada</option>
-                    <option value="-1">- Salida</option>
+                    <option value="entrada">+ Entrada</option>
+                    <option value="salida">- Salida</option>
                 </select>
             </td>
             <td class="p-4 text-center">

@@ -15,10 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
         $this->call(ProductoSeeder::class);
         $this->call(BodegaSeeder::class);
         $this->call(TerceroSeeder::class);
         $this->call(UserSeeder::class);
+        $this->call(InventarioSeeder::class);
     }
 }

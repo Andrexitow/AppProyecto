@@ -33,6 +33,10 @@ window.toggleTab = function (tabId) {
 window.mostrarNotificacion = function (mensaje, tipo = 'info') {
 
     const contenedor = document.getElementById('notificaciones');
+    if (!contenedor) {
+        console.warn('Contenedor de notificaciones no encontrado');
+        return;
+    }
 
     const colores = {
         success: 'bg-green-500',
@@ -42,9 +46,10 @@ window.mostrarNotificacion = function (mensaje, tipo = 'info') {
     };
 
     const div = document.createElement('div');
-    div.className = `${colores[tipo]} text-white px-6 py-4 rounded-2xl shadow-lg transform transition-all duration-300 opacity-0 translate-y-2`;
+    div.className = `${colores[tipo] || colores.info} text-white px-6 py-4 rounded-2xl shadow-lg transform transition-all duration-300 opacity-0 translate-y-2`;
 
-    div.innerText = mensaje;
+    // 🔥 IMPORTANTE: permitir HTML (para <br>)
+    div.innerHTML = mensaje;
 
     contenedor.appendChild(div);
 
@@ -61,6 +66,5 @@ window.mostrarNotificacion = function (mensaje, tipo = 'info') {
             div.remove();
         }, 300);
 
-    }, 3000);
+    }, 3500);
 };
-

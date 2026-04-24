@@ -17,6 +17,7 @@ window.openModalBodega = function () {
 }
 
 window.closeModalBodega = function () {
+    window.ajusteActivoId = null;
     const modal = document.getElementById('modalBodega');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
@@ -37,6 +38,7 @@ window.openModalAjuste = function () {
 };
 
 window.closeModalAjuste = function () {
+    window.ajusteActivoId = null;
     const modal = document.getElementById('modalAjuste');
     if (!modal) return;
 
@@ -66,23 +68,6 @@ function resetModalAjuste() {
     if (tbody) tbody.innerHTML = '';
 }
 
-// window.irPaso2 = function () {
-//     const paso1 = document.getElementById('paso1');
-//     const paso2 = document.getElementById('paso2');
-
-//     if (!document.getElementById('tercero_id')?.value) {
-//         alert('Debes seleccionar un tercero antes de continuar');
-//         return;
-//     }
-
-//     paso1?.classList.add('hidden');
-//     paso2?.classList.remove('hidden');
-// };
-
-// window.volverPaso1 = function () {
-//     document.getElementById('paso1')?.classList.remove('hidden');
-//     document.getElementById('paso2')?.classList.add('hidden');
-// };
 
 window.openModalVerAjuste = function () {
     document.getElementById('modalVerAjuste').classList.remove('hidden');

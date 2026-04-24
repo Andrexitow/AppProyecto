@@ -23,6 +23,7 @@ return new class extends Migration
                 ->cascadeOnDelete();
 
             $table->integer('cantidad');
+            $table->enum('tipo', ['entrada', 'salida']);
             $table->decimal('precio', 12, 2)->default(0);
 
             $table->timestamps();

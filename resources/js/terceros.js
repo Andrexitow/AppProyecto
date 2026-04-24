@@ -85,10 +85,23 @@ window.buscarTercero = debounce(function () {
 }, 300);
 
 window.seleccionarTercero = function (id, documento, nombre) {
-    document.getElementById('inputDocumento').value = documento;
-    document.getElementById('inputNombre').value = nombre;
-    document.getElementById('tercero_id').value = id;
-    document.getElementById('resultadosTercero')?.classList.add('hidden');
+
+    const inputDoc = document.getElementById('inputDocumento');
+    const inputNombre = document.getElementById('inputNombre');
+    const hiddenId = document.getElementById('tercero_id');
+    const resultados = document.getElementById('resultadosTercero');
+
+    // 🔥 Validación clave
+    if (!inputDoc || !inputNombre || !hiddenId) {
+        console.warn('No estás en una vista con inputs de tercero');
+        return;
+    }
+
+    inputDoc.value = documento;
+    inputNombre.value = nombre;
+    hiddenId.value = id;
+
+    resultados?.classList.add('hidden');
 };
 
 window.abrirModalTerceros = function () {
@@ -136,4 +149,104 @@ window.buscarTerceroModal = debounce(function (query) {
 window.seleccionarDesdeModal = function (id, documento, nombre) {
     seleccionarTercero(id, documento, nombre);
     cerrarModalTerceros();
+};
+
+window.toggleTipoTercero = function (tipo) {
+    const camposPersona = document.querySelectorAll('.campo-persona');
+    const camposEmpresa = document.querySelectorAll('.campo-empresa');
+
+    if (tipo === 'persona') {
+        camposPersona.forEach(el => el.classList.remove('hidden'));
+        camposEmpresa.forEach(el => el.classList.add('hidden'));
+    } else {
+        camposPersona.forEach(el => el.classList.add('hidden'));
+        camposEmpresa.forEach(el => el.classList.remove('hidden'));
+    }
+}
+
+window.openModalNuevoTercero = function () {
+    document.getElementById('modalNuevoTercero').classList.remove('hidden');
+    document.getElementById('modalNuevoTercero').classList.add('flex');
+}
+
+window.closeModalNuevoTercero = function () {
+    document.getElementById('modalNuevoTercero').classList.add('hidden');
+    document.getElementById('modalNuevoTercero').classList.remove('flex');
+    document.getElementById('formTercero').reset();
+    toggleTipoTercero('persona'); // Reset a persona por defecto
+}
+
+window.guardarTercero = function () {
+
+    const form = document.getElementById('formTercero');
+    if (!form) return;
+
+    const btn = form.querySelector('button');
+    const formData = new FormData(form);
+
+    // 🔥 evitar doble click
+    btn.disabled = true;
+
+    fetch('/terceros', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(async res => {
+
+            // 🔥 VALIDACIONES LARAVEL
+            if (res.status === 422) {
+                const data = await res.json();
+
+                let mensajes = [];
+
+                for (let campo in data.errors) {
+                    mensajes.push(data.errors[campo][0]);
+                }
+
+                mostrarNotificacion(mensajes.join('<br>'), 'error');
+                throw new Error('Validación fallida');
+            }
+
+            // 🔥 OTROS ERRORES (500, etc)
+            if (!res.ok) {
+                let errorText = await res.text();
+                mostrarNotificacion('Error del servidor', 'error');
+                throw new Error(errorText);
+            }
+
+            return res.json();
+        })
+        .then(data => {
+
+            const nombreCompleto = data.data.razon_social
+                ? data.data.razon_social
+                : `${data.data.nombre || ''} ${data.data.apellido || ''}`.trim();
+
+            const documento = data.data.cedula || data.data.nit;
+
+            // 🔥 puede fallar si no estás en esa vista (ya lo corregimos antes)
+            if (typeof seleccionarTercero === 'function') {
+                seleccionarTercero(data.data.id, documento, nombreCompleto);
+            }
+
+            closeModalNuevoTercero();
+
+            mostrarNotificacion(data.message || 'Guardado correctamente', 'success');
+
+            form.reset();
+
+        })
+        .catch(error => {
+            if (error.message !== 'Validación fallida') {
+                console.error('Error inesperado:', error);
+            }
+        })
+        .finally(() => {
+        // 🔥 volver a habilitar botón SIEMPRE
+        btn.disabled = false;
+    });
 };
