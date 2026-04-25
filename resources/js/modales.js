@@ -76,3 +76,39 @@ window.openModalVerAjuste = function () {
 window.closeModalVerAjuste = function () {
     document.getElementById('modalVerAjuste').classList.add('hidden');
 };
+
+// Abrir el modal
+window.openModalUsuario = function() {
+    const modal = document.getElementById('modalUsuario');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+};
+
+// Cerrar el modal
+window.closeModalUsuario = function() {
+    const modal = document.getElementById('modalUsuario');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+};
+
+// Abrir el modal
+window.openModalRol = function() {
+    const modal = document.getElementById('modalRol');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+};
+
+// Cerrar el modal
+window.closeModalRol = function() {
+    const modal = document.getElementById('modalRol');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+};

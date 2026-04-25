@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @method bool tienePermiso(string $permiso)
+ */
+
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -20,8 +24,12 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'email',
+        'username',
         'password',
+        'role',
+        'rol_id',
+        'activo',
+        'email',
     ];
 
     /**
@@ -45,5 +53,27 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+    public function rol()
+    {
+        return $this->belongsTo(Roles::class, 'rol_id');
+    }
+
+    /**
+     * Verifica si el usuario tiene un permiso por slug.
+     *
+     * @param string $slug
+     * @return bool
+     */
+
+    public function tienePermiso($slug)
+    {
+        // 1. Verifica si el usuario tiene un rol asignado
+        if (!$this->rol) {
+            return false;
+        }
+
+        // 2. Verifica si dentro de los permisos de ese rol existe el slug buscado
+        return $this->rol->permisos->contains('slug', $slug);
     }
 }

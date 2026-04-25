@@ -12,7 +12,8 @@ class BodegaController extends Controller
      */
     public function index()
     {
-        //
+        $bodegas = Bodega::all();
+        return view('bodegas.index', compact('bodegas'));
     }
 
     /**

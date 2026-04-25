@@ -1,14 +1,15 @@
 <?php
 
-use App\Http\Controllers\AjusteController;
-use App\Http\Controllers\BodegaController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProductoController;
-use App\Http\Controllers\TerceroController;
-use App\Models\Bodega;
-use App\Models\Producto;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ExistenciaController;
+use App\Http\Controllers\{
+    AuthController,
+    AjusteController,
+    BodegaController,
+    ProductoController,
+    TerceroController,
+    ExistenciaController,
+    UsuarioController
+};
 
 // LOGIN
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -19,49 +20,47 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', function () {
         return view('home');
-    });
+    })->name('home');
 
-    Route::get('/views/productos', function () {
-        $productos = Producto::all();
-        return view('productos.index', compact('productos'));
-    });
-
+    // Productos
+    Route::get('/views/productos', [ProductoController::class, 'index'])->name('productos.index');
     Route::post('/productos', [ProductoController::class, 'store']);
     Route::get('/productos/buscar', [ProductoController::class, 'buscar']);
+    Route::get('/productos/{id}/edit', [ProductoController::class, 'edit'])->name('productos.edit');
+    Route::put('/productos/{id}', [ProductoController::class, 'update'])->name('productos.update');
+    Route::put('/productos/{id}/estado', [ProductoController::class, 'cambiarEstado']);
+    Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
+        ->name('productos.destroy');
+    Route::get('/productos/buscar-admin', [ProductoController::class, 'buscarAdmin']);
 
     // Bodegas
-    Route::get('/views/bodegas', function () {
-        $bodegas = Bodega::all();
-        return view('bodegas.index', compact('bodegas'));
-    });
-
-    // Ajustes
-    Route::get('/views/ajustes', function () {
-        $bodegas = Bodega::all();
-        $ajustes = \App\Models\Ajuste::with('user')->latest()->get();
-
-        return view('ajustes.index', compact('ajustes', 'bodegas'));
-    });
-
+    Route::get('/views/bodegas', [BodegaController::class, 'index'])->name('bodegas.index');
     Route::post('/bodegas', [BodegaController::class, 'store']);
 
-    Route::post('/ajustes', [AjusteController::class, 'store']);
+    // Ajustes
+    Route::get('/views/ajustes', [AjusteController::class, 'index'])->name('ajustes.index');
     Route::get('/ajustes/siguiente-numero', [AjusteController::class, 'siguienteNumero']);
-    Route::get('/ajustes/{id}', [AjusteController::class, 'show']);
-    Route::put('/ajustes/{id}', [AjusteController::class, 'update']);
-    Route::delete('/ajustes/{id}', [AjusteController::class, 'destroy']);
     Route::post('/ajustes/{id}/revertir', [AjusteController::class, 'revertir']);
     Route::post('/ajustes/{id}/detalles', [AjusteController::class, 'registrar']);
+    Route::resource('ajustes', AjusteController::class)->only(['store', 'show', 'update', 'destroy']);
 
-
+    // Terceros
+    Route::get('/views/terceros', [TerceroController::class, 'index'])->name('terceros.index');
     Route::get('/terceros/buscar', [TerceroController::class, 'buscar']);
     Route::get('/terceros/buscar-doc', [TerceroController::class, 'buscarPorDocumento']);
+    Route::post('/terceros', [TerceroController::class, 'store'])->name('terceros.store');
 
+    // Existencias
     Route::get('/views/existencias', [ExistenciaController::class, 'index'])->name('existencias.index');
     Route::get('/existencias/data', [ExistenciaController::class, 'data'])->name('existencias.data');
 
-    Route::post('/terceros', [TerceroController::class, 'store'])->name('terceros.store');
-    Route::get('/views/terceros', [TerceroController::class, 'index'])->name('terceros.index');
+    // Usuarios
+    Route::get('/views/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
+    Route::post('/usuarios/store', [UsuarioController::class, 'store'])->name('usuarios.store');
+    Route::get('/usuarios/{id}/edit', [UsuarioController::class, 'edit']);
+    Route::post('/usuarios/update/{id}', [UsuarioController::class, 'update']);
+    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
 
-
+    Route::get('/roles/{id}/edit', [UsuarioController::class, 'editRole']);
+    Route::put('/roles/{id}', [UsuarioController::class, 'updateRole']);
 });

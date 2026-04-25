@@ -14,9 +14,13 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('username')->unique(); // Campo para el login
             $table->string('password');
+            $table->string('role')->default('mesero'); // <--- ESTE ES EL QUE FALTA
+            $table->boolean('activo')->default(true);  // <--- ESTE TAMBIÉN LO USA EL SEEDER
+            $table->string('email')->nullable()->unique();
+            $table->foreignId('rol_id')->nullable()->constrained('roles')->onDelete('set null');
+            $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

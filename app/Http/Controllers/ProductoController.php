@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductoController extends Controller
 {
@@ -12,7 +13,8 @@ class ProductoController extends Controller
      */
     public function index()
     {
-        return view('productos.index');
+        $productos = Producto::all();
+        return view('productos.index', compact('productos'));
     }
 
     /**
@@ -29,14 +31,27 @@ class ProductoController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'codigo' => 'required|unique:productos',
+            'codigo' => 'required|unique:productos,codigo',
             'descripcion' => 'required',
-            'und_detal' => 'required',
+            'precio' => 'required|numeric|min:0',
+            'afecta_inventario' => 'required|in:0,1'
         ]);
 
-        $producto = Producto::create($request->all());
+        Producto::create([
+            'codigo' => $request->codigo,
+            'descripcion' => $request->descripcion,
+            'categoria' => $request->categoria,
+            'und_detal' => $request->und_detal,
+            'precio' => $request->precio,
+            'caracteristicas' => $request->caracteristicas,
+            'afecta_inventario' => $request->afecta_inventario,
+            'inactivo' => 0
+        ]);
 
-        return response()->json($producto);
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto guardado correctamente'
+        ]);
     }
 
     public function buscar(Request $request)
@@ -66,24 +81,106 @@ class ProductoController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit($id)
     {
-        //
+        $producto = Producto::findOrFail($id);
+
+        return response()->json($producto);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, $id)
     {
-        //
+        $producto = Producto::findOrFail($id);
+
+        $request->validate([
+            'codigo' => 'required|unique:productos,codigo,' . $id,
+            'descripcion' => 'required',
+            'precio' => 'required|numeric|min:0',
+            'afecta_inventario' => 'required|in:0,1'
+        ]);
+
+        $producto->update([
+            'codigo' => $request->codigo,
+            'descripcion' => $request->descripcion,
+            'categoria' => $request->categoria,
+            'und_detal' => $request->und_detal,
+            'precio' => $request->precio,
+            'caracteristicas' => $request->caracteristicas,
+            'afecta_inventario' => $request->afecta_inventario
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto actualizado correctamente'
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function cambiarEstado($id)
     {
-        //
+        $producto = Producto::findOrFail($id);
+
+        // alternar valor
+        $producto->inactivo = $producto->inactivo == 0 ? 1 : 0;
+
+        $producto->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $producto->inactivo == 1
+                ? 'Producto desactivado correctamente'
+                : 'Producto activado correctamente'
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $producto = Producto::findOrFail($id);
+
+        // Validar stock en inventario
+        $tieneStock = DB::table('inventarios')
+            ->where('producto_id', $id)
+            ->where('stock', '>', 0)
+            ->exists();
+
+        if ($tieneStock) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar. El producto tiene existencias en inventario.'
+            ], 422);
+        }
+
+        // // Validar movimientos
+        // $tieneMovimientos = DB::table('movimientos')
+        //     ->where('producto_id', $id)
+        //     ->exists();
+
+        // if ($tieneMovimientos) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'No se puede eliminar. El producto ya tiene movimientos registrados.'
+        //     ], 422);
+        // }
+
+        $producto->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Producto eliminado correctamente.'
+        ]);
+    }
+
+    public function buscarAdmin(Request $request)
+    {
+        $texto = $request->texto;
+
+        $productos = Producto::with('inventarios')
+            ->where('codigo', 'like', "%{$texto}%")
+            ->orWhere('descripcion', 'like', "%{$texto}%")
+            ->get();
+
+        return view('Productos.partials.tabla', compact('productos'));
     }
 }

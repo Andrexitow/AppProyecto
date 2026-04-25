@@ -68,3 +68,36 @@ window.mostrarNotificacion = function (mensaje, tipo = 'info') {
 
     }, 3500);
 };
+
+window.abrirConfirm = function (mensaje, callback) {
+
+    const modal = document.getElementById('modalConfirm');
+    const texto = document.getElementById('confirmMensaje');
+    const btn = document.getElementById('btnConfirmarAccion');
+
+    if (!modal || !texto || !btn) {
+        console.warn('Modal confirmación no encontrado');
+        return;
+    }
+
+    texto.innerText = mensaje;
+
+    // limpiar click anterior
+    btn.onclick = null;
+
+    btn.onclick = function () {
+        callback();
+        cerrarConfirm();
+    };
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+};
+
+window.cerrarConfirm = function () {
+
+    const modal = document.getElementById('modalConfirm');
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+};

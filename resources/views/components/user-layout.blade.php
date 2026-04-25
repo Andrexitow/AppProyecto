@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>AppSystem</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body class="bg-gray-100 font-sans antialiased">
@@ -26,13 +27,34 @@
                 </button>
             </div>
 
-            <form method="POST" action="/logout">
-                @csrf
-                <button type="submit"
-                    class="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-red-100 shadow-sm">
-                    Cerrar sesión
-                </button>
-            </form>
+            {{-- Nueva sección de Perfil de Usuario --}}
+            <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-3 border-r border-gray-100 pr-6">
+                    <div class="text-right">
+                        {{-- Nombre del usuario logueado --}}
+                        <p class="text-sm font-black text-gray-800 leading-none">
+                            {{ auth()->user()->name }}
+                        </p>
+                        {{-- Nombre del rol --}}
+                        <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">
+                            {{ auth()->user()->rol->nombre ?? 'Usuario' }}
+                        </p>
+                    </div>
+                    {{-- Avatar con inicial --}}
+                    <div
+                        class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-100">
+                        {{ substr(auth()->user()->name, 0, 1) }}
+                    </div>
+                </div>
+
+                <form method="POST" action="/logout">
+                    @csrf
+                    <button type="submit"
+                        class="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all border border-red-100 shadow-sm">
+                        Cerrar sesión
+                    </button>
+                </form>
+            </div>
 
         </div>
     </div>
@@ -45,7 +67,7 @@
                 class="inline-flex flex-col justify-between border border-gray-200 px-4 py-4 rounded-xl bg-gray-50/50 shadow-sm min-h-[150px]">
 
                 <div class="flex items-start">
-                    <button
+                    <button onclick="loadView('usuarios')"
                         class="flex flex-col items-center w-24 p-2 hover:bg-white hover:shadow-md hover:text-blue-600 rounded-xl transition-all group">
                         <span class="text-3xl mb-1 group-hover:scale-110 transition-transform">📊</span>
                         <span class="text-[11px] font-bold text-gray-700">Cuentas</span>

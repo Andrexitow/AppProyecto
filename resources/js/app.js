@@ -4,6 +4,7 @@ import './terceros.js';
 import './productos.js';
 import './ajustes.js';
 import './existencia.js';
+import './usuarios.js';
 
 window.loadView = function (view) {
     fetch(`/views/${view}`)

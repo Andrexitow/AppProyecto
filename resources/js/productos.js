@@ -1,27 +1,227 @@
+window.guardarProducto = function () {
+
+    const form = document.getElementById('formProducto');
+    const id = document.getElementById('producto_id').value;
+
+    if (!form) return;
+
+    const formData = new FormData(form);
+
+    let url = '/productos';
+
+    // EDITAR
+    if (id) {
+        url = `/productos/${id}`;
+        formData.append('_method', 'PUT');
+    }
+
+    // VALIDACIONES FRONT
+    const codigo = formData.get('codigo')?.trim();
+    const descripcion = formData.get('descripcion')?.trim();
+    const precio = formData.get('precio')?.trim();
+    const afecta = formData.get('afecta_inventario');
+
+    let errores = [];
+
+    if (!codigo) errores.push('El código es obligatorio.');
+    if (!descripcion) errores.push('La descripción es obligatoria.');
+    if (!precio || Number(precio) < 0) errores.push('Ingrese un precio válido.');
+    if (afecta === null || afecta === '') errores.push('Seleccione si afecta inventario.');
+
+    if (errores.length > 0) {
+        mostrarNotificacion(errores.join('\n'), 'error');
+        return;
+    }
+
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(async res => {
+
+            const data = await res.json();
+
+            // VALIDACIONES LARAVEL
+            if (res.status === 422) {
+
+                let mensajes = [];
+
+                if (data.errors) {
+                    for (let campo in data.errors) {
+                        mensajes.push(data.errors[campo][0]);
+                    }
+                } else {
+                    mensajes.push(data.message || 'Error de validación.');
+                }
+
+                mostrarNotificacion(mensajes.join('\n'), 'error');
+                throw new Error('Validación fallida');
+            }
+
+            if (!res.ok) {
+                mostrarNotificacion(data.message || 'Error al guardar producto.', 'error');
+                throw new Error(data.message);
+            }
+
+            return data;
+        })
+        .then(data => {
+
+            mostrarNotificacion(data.message, 'success');
+
+            form.reset();
+
+            document.getElementById('producto_id').value = '';
+
+            // dejar por defecto SI afecta inventario
+            const select = form.querySelector('[name="afecta_inventario"]');
+            if (select) select.value = '1';
+
+            closeModalProducto();
+
+            loadView('productos');
+
+        })
+        .catch(err => {
+            console.error('Error guardarProducto:', err);
+        });
+};
+
+window.editarProducto = function (id) {
+
+    fetch(`/productos/${id}/edit`)
+        .then(res => res.json())
+        .then(data => {
+
+            document.getElementById('producto_id').value = data.id;
+            document.querySelector('[name="codigo"]').value = data.codigo;
+            document.querySelector('[name="categoria"]').value = data.categoria;
+            document.querySelector('[name="descripcion"]').value = data.descripcion;
+            document.querySelector('[name="und_detal"]').value = data.und_detal;
+            document.querySelector('[name="precio"]').value = data.precio;
+            document.querySelector('[name="caracteristicas"]').value = data.caracteristicas ?? '';
+
+            openModalProducto();
+
+        })
+        .catch(error => {
+            console.error(error);
+            mostrarNotificacion('Error cargando producto', 'error');
+        });
+};
+
+window.cambiarEstadoProducto = function (id) {
+
+    abrirConfirm(
+        '¿Deseas cambiar el estado de este producto?',
+        function () {
+
+            fetch(`/productos/${id}/estado`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new URLSearchParams({
+                    _method: 'PUT'
+                })
+            })
+                .then(async res => {
+
+                    if (!res.ok) throw new Error(await res.text());
+
+                    return res.json();
+                })
+                .then(data => {
+
+                    mostrarNotificacion(data.message, 'success');
+
+                    loadView('productos');
+
+                })
+                .catch(error => {
+                    console.error(error);
+                    mostrarNotificacion('Error al cambiar estado', 'error');
+                });
+
+        }
+    );
+
+};
+
+window.eliminarrProducto = function (id) {
+
+    abrirConfirm('¿Deseas eliminar este producto?', function () {
+
+        fetch(`/productos/${id}`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: new URLSearchParams({
+                _method: 'DELETE'
+            })
+        })
+            .then(async res => {
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    mostrarNotificacion(data.message, 'error');
+                    throw new Error(data.message);
+                }
+
+                return data;
+            })
+            .then(data => {
+
+                mostrarNotificacion(data.message, 'success');
+                loadView('productos');
+
+            })
+            .catch(error => console.error(error));
+
+    });
+
+};
+
 window.buscarProducto = debounce(function () {
     const query = document.getElementById('buscarProducto')?.value.trim();
     const contenedor = document.getElementById('resultadosProducto');
 
-    if (!query || query.length < 2 || !contenedor) return;
+    if (!query || query.length < 2 || !contenedor) {
+        if (contenedor) contenedor.classList.add('hidden');
+        return;
+    }
 
     fetch(`/productos/buscar?query=${encodeURIComponent(query)}`)
         .then(res => res.json())
         .then(data => {
-            contenedor.innerHTML = '';
+            // --- MEJORA: Construir el HTML en una variable para rendimiento ---
+            let html = '';
+
+            if (data.length === 0) {
+                html = '<div class="p-3 text-gray-400 text-sm">No se encontraron productos</div>';
+            } else {
+                data.forEach(p => {
+                    let descripcion = (p.descripcion || '').replace(/'/g, "\\'");
+                    let codigo = p.codigo ?? '-';
+                    html += `
+                        <div onclick="agregarProducto(${p.id}, '${descripcion}', ${p.precio})"
+                            class="flex gap-3 p-3 hover:bg-blue-50 cursor-pointer border-b text-sm transition-colors">
+                            <div class="text-blue-600 font-mono w-24">${codigo}</div>
+                            <div class="flex-1 font-medium text-gray-700">${p.descripcion}</div>
+                        </div>`;
+                });
+            }
+
+            contenedor.innerHTML = html;
             contenedor.classList.remove('hidden');
-
-            data.forEach(p => {
-                let descripcion = (p.descripcion || '').replace(/'/g, "\\'");
-                let codigo = p.codigo ?? '-';
-
-                contenedor.innerHTML += `
-                    <div onclick="agregarProducto(${p.id}, '${descripcion}', ${p.precio})"
-                        class="flex gap-3 p-3 hover:bg-gray-100 cursor-pointer border-b text-sm">
-                        <div class="text-gray-500 w-24">${codigo}</div>
-                        <div class="flex-1">${p.descripcion}</div>
-                    </div>
-                `;
-            });
         });
 }, 300);
 
@@ -61,3 +261,26 @@ window.agregarProducto = function (id, descripcion, precio) {
 window.eliminarProducto = function (id) {
     document.getElementById('prod_' + id)?.remove();
 };
+
+window.filtrarProducto = debounce(function () {
+
+    const texto = document.getElementById('buscarTablaProducto')?.value.trim();
+    const tabla = document.getElementById('tablaProductos');
+
+    if (!tabla) return;
+
+    fetch(`/productos/buscar-admin?texto=${encodeURIComponent(texto)}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+        .then(res => res.text())
+        .then(html => {
+            tabla.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error filtrando productos:', error);
+            mostrarNotificacion('Error al buscar productos', 'error');
+        });
+
+}, 300);

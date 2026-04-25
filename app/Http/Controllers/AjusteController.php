@@ -4,13 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Ajuste;
 use App\Models\AjusteDetalle;
+use App\Models\Bodega;
 use App\Models\Inventario;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class AjusteController extends Controller
 {
+
+    public function index()
+    {
+        $bodegas = Bodega::all();
+        $ajustes = Ajuste::with('user')->latest()->get();
+
+        return view('ajustes.index', compact('ajustes', 'bodegas'));
+    }
+
     // PASO 1 — Solo guarda la cabecera
     public function store(Request $request)
     {
@@ -33,7 +44,7 @@ class AjusteController extends Controller
             'observaciones' => $request->observaciones,
             'total'         => 0,
             'registrado'    => false,
-            'user_id'       => auth()->id(),
+            'user_id' => Auth::id(),
         ]);
 
         return response()->json($ajuste);
