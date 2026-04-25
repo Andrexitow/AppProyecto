@@ -8,8 +8,11 @@ use App\Http\Controllers\{
     ProductoController,
     TerceroController,
     ExistenciaController,
+    FacturacionController,
     UsuarioController
 };
+use Illuminate\Support\Facades\Auth; // Asegúrate de que esta línea esté al inicio del archivo
+
 
 // LOGIN
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -19,8 +22,21 @@ Route::post('/logout', [AuthController::class, 'logout']);
 Route::middleware('auth')->group(function () {
 
     Route::get('/', function () {
+        $user = Auth::user();
+        if ($user && $user->rol && $user->rol->nombre === 'Mesero') {
+            return redirect()->route('facturacion.index');
+        }
         return view('home');
     })->name('home');
+
+    Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
+    // Route::post('/facturacion/guardar', [FacturacionController::class, 'store'])->name('facturacion.store');
+    Route::post('/mesas/{id}/bloquear', [FacturacionController::class, 'bloquearMesa']);
+    Route::post('/mesas/{id}/liberar', [FacturacionController::class, 'liberarMesa']);
+    Route::get('/mesas/actualizar', [FacturacionController::class, 'obtenerEstadoMesas']);
+    Route::post('/pedidos/guardar', [FacturacionController::class, 'guardarPedido']);
+    Route::get('/pedidos/mesa/{mesaId}/pendiente', [FacturacionController::class, 'obtenerPedidoPendiente']);
+    Route::post('/pedidos/eliminar-item', [FacturacionController::class, 'eliminarItemPedido']);
 
     // Productos
     Route::get('/views/productos', [ProductoController::class, 'index'])->name('productos.index');

@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
         User::create([
             'name'              => 'Administrador del Sistema',
             'username'          => 'admin',
-            'password'          => Hash::make('admin123'),
+            'password'          => Hash::make('admin'),
             'rol_id'            => $rolAdmin->id, // Usamos el ID del rol
             'activo'            => true,
             'email_verified_at' => now(),
@@ -28,8 +28,8 @@ class UserSeeder extends Seeder
         // 3. Usuario Empleado / Mesero
         User::create([
             'name'              => 'Personal de Ventas',
-            'username'          => 'meseros',
-            'password'          => Hash::make('ventas2024'),
+            'username'          => 'mesero',
+            'password'          => Hash::make('mesero'),
             'rol_id'            => $rolMesero->id, // Usamos el ID del rol
             'activo'            => true,
             'email_verified_at' => now(),

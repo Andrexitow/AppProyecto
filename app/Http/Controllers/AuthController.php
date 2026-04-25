@@ -10,6 +10,10 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
+        // Si ya está logueado, lo mandamos a la raíz para que las rutas decidan
+        if (Auth::check()) {
+            return redirect('/');
+        }
         return view('auth.login');
     }
 
@@ -20,11 +24,20 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            return redirect('/');
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+
+            // REDIRECCIÓN INTELIGENTE
+            // Si es mesero, va directo a facturación. Si no, a la raíz (Home).
+            if ($user->rol && $user->rol->nombre === 'Mesero') {
+                return redirect()->intended('/facturacion');
+            }
+
+            return redirect()->intended('/');
         }
 
         return back()->withErrors([
-            'username' => 'Credenciales incorrectas'
+            'username' => 'Las credenciales no coinciden con nuestros registros.'
         ]);
     }
 
@@ -36,7 +49,4 @@ class AuthController extends Controller
 
         return redirect('/login');
     }
-
-
-    
 }
