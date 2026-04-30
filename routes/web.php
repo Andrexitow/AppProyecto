@@ -5,13 +5,14 @@ use App\Http\Controllers\{
     AuthController,
     AjusteController,
     BodegaController,
+    CajaController,
     ProductoController,
     TerceroController,
     ExistenciaController,
     FacturacionController,
     UsuarioController
 };
-use Illuminate\Support\Facades\Auth; // Asegúrate de que esta línea esté al inicio del archivo
+use Illuminate\Support\Facades\Auth;
 
 
 // LOGIN
@@ -23,20 +24,22 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', function () {
         $user = Auth::user();
-        if ($user && $user->rol && $user->rol->nombre === 'Mesero') {
+        if ($user && in_array($user->rol_id, [2, 4])) {
             return redirect()->route('facturacion.index');
         }
+
         return view('home');
     })->name('home');
 
     Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
-    // Route::post('/facturacion/guardar', [FacturacionController::class, 'store'])->name('facturacion.store');
     Route::post('/mesas/{id}/bloquear', [FacturacionController::class, 'bloquearMesa']);
     Route::post('/mesas/{id}/liberar', [FacturacionController::class, 'liberarMesa']);
     Route::get('/mesas/actualizar', [FacturacionController::class, 'obtenerEstadoMesas']);
     Route::post('/pedidos/guardar', [FacturacionController::class, 'guardarPedido']);
     Route::get('/pedidos/mesa/{mesaId}/pendiente', [FacturacionController::class, 'obtenerPedidoPendiente']);
     Route::post('/pedidos/eliminar-item', [FacturacionController::class, 'eliminarItemPedido']);
+
+    Route::post('/pedidos/cerrar-mesa', [FacturacionController::class, 'cerrarMesa'])->name('pedidos.cerrar');
 
     // Productos
     Route::get('/views/productos', [ProductoController::class, 'index'])->name('productos.index');
@@ -79,4 +82,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/roles/{id}/edit', [UsuarioController::class, 'editRole']);
     Route::put('/roles/{id}', [UsuarioController::class, 'updateRole']);
+
+    Route::get('/views/cajas', [CajaController::class, 'index'])->name('cajas.index');
+    Route::post('/cajas/store', [CajaController::class, 'store'])->name('cajas.store');
+    Route::get('/cajas/{id}/edit',[CajaController::class, 'edit'])->name('cajas.edit');
+    Route::post('/cajas/update/{id}',[CajaController::class, 'update'])->name('cajas.update');
+    Route::delete('/cajas/{id}',[CajaController::class, 'destroy'])->name('cajas.destroy');
 });

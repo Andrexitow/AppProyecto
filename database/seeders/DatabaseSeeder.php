@@ -32,5 +32,6 @@ class DatabaseSeeder extends Seeder
         // 5. Datos que dependen de productos, bodegas y usuarios (como el stock inicial)
         $this->call(InventarioSeeder::class);
         $this->call([GastrobarSeeder::class]);
+        $this->call([CajaSeeder::class]);
     }
 }

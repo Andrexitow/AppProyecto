@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Caja;
 use App\Models\Permisos;
 use App\Models\User;
 use App\Models\Roles;
@@ -13,10 +14,11 @@ class UsuarioController extends Controller
 {
     public function index()
     {
-        $usuarios = User::with('rol')->get();
-        $roles = Roles::all();
+        $usuarios = User::with(['rol', 'caja'])->get(); // ← agregar caja
+        $roles    = Roles::all();
         $permisos = Permisos::all();
-        return view('usuarios.index', compact('usuarios', 'roles', 'permisos'));
+        $cajas    = Caja::all(); // ← agregar
+        return view('usuarios.index', compact('usuarios', 'roles', 'permisos', 'cajas'));
     }
 
     public function store(Request $request)
@@ -26,11 +28,12 @@ class UsuarioController extends Controller
             'username' => 'required|string|max:50|unique:users,username',
             'password' => 'required|string|min:4',
             'rol_id'   => 'required|exists:roles,id',
+            'caja_id'  => 'nullable|exists:cajas,id', // ← agregar
         ], [
-            'name.required'     => 'El nombre del personal es obligatorio.',
-            'username.unique'   => 'Este nombre de usuario ya está en uso.',
-            'password.min'      => 'La contraseña debe tener al menos 4 caracteres.',
-            'rol_id.required'   => 'Debes asignar un rol al usuario.',
+            'name.required'   => 'El nombre del personal es obligatorio.',
+            'username.unique' => 'Este nombre de usuario ya está en uso.',
+            'password.min'    => 'La contraseña debe tener al menos 4 caracteres.',
+            'rol_id.required' => 'Debes asignar un rol al usuario.',
         ]);
 
         User::create([
@@ -38,7 +41,8 @@ class UsuarioController extends Controller
             'username' => $request->username,
             'password' => Hash::make($request->password),
             'rol_id'   => $request->rol_id,
-            'role'     => strtolower(Roles::find($request->rol_id)->nombre), // Mantenemos sincronía
+            'role'     => strtolower(Roles::find($request->rol_id)->nombre),
+            'caja_id'  => $request->caja_id ?: null, // ← agregar
             'activo'   => true,
         ]);
 
@@ -59,16 +63,17 @@ class UsuarioController extends Controller
             'name'     => 'required|string|max:255',
             'username' => 'required|string|max:50|unique:users,username,' . $id,
             'rol_id'   => 'required|exists:roles,id',
+            'caja_id'  => 'nullable|exists:cajas,id', // ← agregar
         ], [
             'username.unique' => 'Este nombre de usuario ya está siendo usado por otra persona.',
             'rol_id.exists'   => 'El rol seleccionado no es válido.'
         ]);
 
-        $usuario->name = $request->name;
+        $usuario->name     = $request->name;
         $usuario->username = $request->username;
-        $usuario->rol_id = $request->rol_id;
+        $usuario->rol_id   = $request->rol_id;
+        $usuario->caja_id  = $request->caja_id ?: null; // ← agregar
 
-        // Sincronizamos la columna vieja 'role'
         $rol = Roles::find($request->rol_id);
         $usuario->role = strtolower($rol->nombre);
 

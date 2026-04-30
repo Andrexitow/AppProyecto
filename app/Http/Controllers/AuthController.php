@@ -23,17 +23,19 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+            $request->session()->forget('url.intended'); // ← limpiar URL guardada
 
             /** @var \App\Models\User $user */
             $user = Auth::user();
 
-            // REDIRECCIÓN INTELIGENTE
-            // Si es mesero, va directo a facturación. Si no, a la raíz (Home).
-            if ($user->rol && $user->rol->nombre === 'Mesero') {
-                return redirect()->intended('/facturacion');
-            }
+            $rolNombre = $user->rol->nombre ?? null;
 
-            return redirect()->intended('/');
+            return match ($rolNombre) {
+                'Mesero'  => redirect('/facturacion'),
+                'Cajero'  => redirect('/facturacion'),
+                'Cocina'  => redirect('/cocina'),    // si tienes esa vista
+                default   => redirect('/'),          // Admin y cualquier otro rol
+            };
         }
 
         return back()->withErrors([

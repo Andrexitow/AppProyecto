@@ -18,6 +18,7 @@
                         <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Usuario</th>
                         <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Rol Asignado
                         </th>
+                        <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Caja</th>
                         <th class="px-6 py-4 text-center font-black text-gray-400 uppercase tracking-widest">Estado</th>
                         <th class="px-6 py-4 text-center font-black text-gray-400 uppercase tracking-widest">Acciones
                         </th>
@@ -50,6 +51,16 @@
                                         class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight">
                                         {{ $u->rol->nombre ?? 'Sin Rol' }}
                                     </span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4">
+                                @if ($u->caja)
+                                    <span
+                                        class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tight">
+                                        🏧 {{ $u->caja->nombre }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-300 text-[10px] font-bold">—</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-center">
@@ -172,6 +183,17 @@
                     <option value="" disabled selected>Selecciona un perfil...</option>
                     @foreach ($roles as $rol)
                         <option value="{{ $rol->id }}">{{ $rol->nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="space-y-1">
+                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Caja Asignada</label>
+                <select name="caja_id"
+                    class="w-full px-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all font-bold text-gray-600 appearance-none cursor-pointer">
+                    <option value="">Sin caja asignada</option>
+                    @foreach ($cajas as $caja)
+                        <option value="{{ $caja->id }}">{{ $caja->nombre }}</option>
                     @endforeach
                 </select>
             </div>

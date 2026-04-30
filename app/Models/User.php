@@ -26,10 +26,11 @@ class User extends Authenticatable
         'name',
         'username',
         'password',
-        'role',
         'rol_id',
+        'role',
+        'caja_id',
         'activo',
-        'email',
+        'email_verified_at'
     ];
 
     /**
@@ -75,5 +76,10 @@ class User extends Authenticatable
 
         // 2. Verifica si dentro de los permisos de ese rol existe el slug buscado
         return $this->rol->permisos->contains('slug', $slug);
+    }
+
+    public function caja()
+    {
+        return $this->belongsTo(Caja::class);
     }
 }

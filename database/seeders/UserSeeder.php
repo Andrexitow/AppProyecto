@@ -11,37 +11,75 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Buscamos los roles que creó el RolSeeder (o el DatabaseSeeder)
-        $rolAdmin = Roles::where('nombre', 'Administrador')->first();
-        $rolMesero = Roles::where('nombre', 'Mesero')->first();
+        // Buscar roles
+        $rolAdmin   = Roles::where('nombre', 'Administrador')->first();
+        $rolMesero  = Roles::where('nombre', 'Mesero')->first();
+        $rolCajero  = Roles::where('nombre', 'Cajero')->first();
+        $rolCocina  = Roles::where('nombre', 'Cocina')->first();
 
-        // 2. Usuario Administrador
+        // ADMIN
         User::create([
             'name'              => 'Administrador del Sistema',
             'username'          => 'admin',
             'password'          => Hash::make('admin'),
-            'rol_id'            => $rolAdmin->id, // Usamos el ID del rol
+            'rol_id'            => $rolAdmin->id,
             'activo'            => true,
             'email_verified_at' => now(),
         ]);
 
-        // 3. Usuario Empleado / Mesero
+        // ===== MESEROS =====
         User::create([
-            'name'              => 'Personal de Ventas',
-            'username'          => 'mesero',
-            'password'          => Hash::make('mesero'),
-            'rol_id'            => $rolMesero->id, // Usamos el ID del rol
+            'name'              => 'Mesero Principal',
+            'username'          => 'mesero1',
+            'password'          => Hash::make('mesero1'),
+            'rol_id'            => $rolMesero->id,
             'activo'            => true,
             'email_verified_at' => now(),
         ]);
 
-        // 4. Usuario Cocina (Si no creaste el rol 'Cocina', puedes usar el de Mesero o crear el rol primero)
-        // Por ahora lo asignaré como Mesero para evitar errores si el rol Cocina no existe
         User::create([
-            'name'              => 'Personal de Cocina',
-            'username'          => 'cocina',
-            'password'          => Hash::make('cocina123'),
-            'rol_id'            => $rolMesero->id, 
+            'name'              => 'Mesero Auxiliar',
+            'username'          => 'mesero2',
+            'password'          => Hash::make('mesero2'),
+            'rol_id'            => $rolMesero->id,
+            'activo'            => true,
+            'email_verified_at' => now(),
+        ]);
+
+        // ===== CAJEROS =====
+        User::create([
+            'name'              => 'Cajero Principal',
+            'username'          => 'cajero1',
+            'password'          => Hash::make('cajero1'),
+            'rol_id'            => $rolCajero->id,
+            'activo'            => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name'              => 'Cajero Nocturno',
+            'username'          => 'cajero2',
+            'password'          => Hash::make('cajero2'),
+            'rol_id'            => $rolCajero->id,
+            'activo'            => true,
+            'email_verified_at' => now(),
+        ]);
+
+        // ===== COCINA =====
+        User::create([
+            'name'              => 'Chef Principal',
+            'username'          => 'cocina1',
+            'password'          => Hash::make('cocina1'),
+            'rol_id'            => $rolCocina->id,
+            'activo'            => true,
+            'email_verified_at' => now(),
+        ]);
+
+        User::create([
+            'name'              => 'Auxiliar Cocina',
+            'username'          => 'cocina2',
+            'password'          => Hash::make('cocina2'),
+            'rol_id'            => $rolCocina->id,
             'activo'            => true,
             'email_verified_at' => now(),
         ]);

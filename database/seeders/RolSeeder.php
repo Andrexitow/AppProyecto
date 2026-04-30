@@ -22,10 +22,22 @@ class RolSeeder extends Seeder
         $permisos = Permisos::all();
         $admin->permisos()->attach($permisos);
 
-        // Crear Rol Mesero (Sin permisos por ahora, se los das en el modal)
+        // Crear Rol Mesero
         Roles::create([
             'nombre' => 'Mesero',
             'descripcion' => 'Solo ventas y pedidos'
+        ]);
+
+        // Crear Rol Cocina
+        Roles::create([
+            'nombre' => 'Cocina',
+            'descripcion' => 'Gestión de comandas y preparación de pedidos'
+        ]);
+
+        // Crear Rol Cajero
+        Roles::create([
+            'nombre' => 'Cajero',
+            'descripcion' => 'Cobros, caja y facturación'
         ]);
     }
 }

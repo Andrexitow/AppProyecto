@@ -6,8 +6,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>AppSystem</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    {{-- CSS --}}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+
+    {{-- Librerías externas --}}
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    {{-- Tu JS principal — sin defer porque tiene funciones que el blade llama con onclick --}}
+    {{-- <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script> --}}
 </head>
 
 <body class="bg-gray-100 font-sans antialiased">
@@ -80,10 +89,10 @@
                     </button>
 
                     <div class="flex flex-col gap-2 w-48 ml-3 border-l border-gray-200 pl-3">
-                        <button
+                        <button onclick="loadView('cajas')"
                             class="flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-white hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-gray-100">
                             <span>📈</span>
-                            <span>Centros de Costo</span>
+                            <span>Cajas Registardoas</span>
                         </button>
 
                         <div class="relative w-full">
@@ -202,7 +211,15 @@
     <div id="notificaciones" class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 </body>
 
-@vite('resources/js/app.js')
+<script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+<script src="{{ asset('js/modales.js') }}?v={{ filemtime(public_path('js/modales.js')) }}"></script>
+<script src="{{ asset('js/terceros.js') }}?v={{ filemtime(public_path('js/terceros.js')) }}"></script>
+<script src="{{ asset('js/productos.js') }}?v={{ filemtime(public_path('js/productos.js')) }}"></script>
+<script src="{{ asset('js/ajustes.js') }}?v={{ filemtime(public_path('js/ajustes.js')) }}"></script>
+<script src="{{ asset('js/existencia.js') }}?v={{ filemtime(public_path('js/existencia.js')) }}"></script>
+<script src="{{ asset('js/usuarios.js') }}?v={{ filemtime(public_path('js/usuarios.js')) }}"></script>
+<script src="{{ asset('js/cajas.js') }}?v={{ filemtime(public_path('js/cajas.js')) }}"></script> 
+<script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
 </body>
 
 <div id="modalConfirm"

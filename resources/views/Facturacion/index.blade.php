@@ -7,6 +7,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>POS Terminal | AppSystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="{{ asset('js/facturacion.js') }}?v={{ filemtime(public_path('js/facturacion.js')) }}" defer></script>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
     <style>
         body {
@@ -48,19 +50,12 @@
             pointer-events: none;
         }
 
-        /* El puntito verde */
         .dot-online {
             height: 8px;
             width: 8px;
             background-color: #22c55e;
-            /* Verde esmeralda de Tailwind */
             border-radius: 50%;
             display: inline-block;
-        }
-
-        /* La animación de parpadeo (pulso) */
-        .dot-pulse {
-            animation: pulse-green 2s infinite;
         }
 
         @keyframes pulse-green {
@@ -79,65 +74,125 @@
                 box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
             }
         }
+
+        .dot-pulse {
+            animation: pulse-green 2s infinite;
+        }
+
+        /* MÓVIL: ocultar el aside del ticket por defecto, se muestra con JS */
+        @media (max-width: 767px) {
+            #panel-ticket {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 50;
+                transform: translateY(100%);
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                max-height: 85vh;
+                border-radius: 2rem 2rem 0 0;
+            }
+
+            #panel-ticket.ticket-open {
+                transform: translateY(0);
+            }
+
+            #ticket-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.6);
+                z-index: 49;
+            }
+
+            #ticket-backdrop.open {
+                display: block;
+            }
+        }
     </style>
-    {{-- FIX 1: @vite movido al final del head, después de todos los estilos --}}
-    @vite(['resources/js/facturacion.js'])
+
 </head>
 
 <body class="bg-[#0f172a] text-slate-200 h-screen overflow-hidden flex flex-col">
 
-    <header class="h-16 border-b border-slate-800 bg-[#0f172a] flex items-center justify-between px-6 shrink-0">
-        <div class="flex items-center gap-4">
-            <div class="bg-indigo-600 p-2 rounded-xl">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    {{-- ===================== HEADER ===================== --}}
+    <header
+        class="h-14 md:h-16 border-b border-slate-800 bg-[#0f172a] flex items-center justify-between px-3 md:px-6 shrink-0">
+
+        {{-- Logo --}}
+        <div class="flex items-center gap-2 md:gap-4">
+            <div class="bg-indigo-600 p-1.5 md:p-2 rounded-xl">
+                <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
             </div>
-            <div>
-                <h1 class="text-lg font-black italic tracking-tighter leading-none">POS_TERMINAL v2.0</h1>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Unidad de Facturación Rápida
-                </p>
+            <div class="hidden sm:block">
+                <h1 class="text-base md:text-lg font-black italic tracking-tighter leading-none">POS_TERMINAL v2.0</h1>
+                <p class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest">Facturación
+                    Rápida</p>
             </div>
+            {{-- Versión móvil solo título corto --}}
+            <h1 class="sm:hidden text-sm font-black italic tracking-tighter">POS v2.0</h1>
         </div>
 
-        <div class="flex items-center gap-8">
-            <div class="flex items-center gap-4 border-l border-slate-800 pl-6 ml-6">
-                <button onclick="abrirSelectorMesas()"
-                    class="group flex items-center gap-3 bg-slate-900 hover:bg-indigo-600 px-4 py-2 rounded-2xl transition-all border border-slate-700">
-                    <div class="text-left">
-                        <p
-                            class="text-[9px] text-slate-500 group-hover:text-indigo-200 font-black uppercase tracking-widest">
-                            Mesa Actual</p>
-                        <p class="text-sm font-black italic text-white" id="mesa-activa-label">SELECCIONAR MESA</p>
-                    </div>
-                    <svg class="w-4 h-4 text-slate-500 group-hover:text-white" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-            </div>
-            <div class="flex items-center gap-3">
-                <div class="text-right">
-                    <p class="text-sm font-bold text-white leading-none">{{ Auth::user()->name }}</p>
+        <div class="flex items-center gap-2 md:gap-8">
+
+            {{-- Selector de mesa --}}
+            <button onclick="abrirSelectorMesas()"
+                class="group flex items-center gap-2 bg-slate-900 hover:bg-indigo-600 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl transition-all border border-slate-700">
+                <div class="text-left">
+                    <p
+                        class="text-[8px] md:text-[9px] text-slate-500 group-hover:text-indigo-200 font-black uppercase tracking-widest hidden md:block">
+                        Mesa Actual</p>
+                    <p class="text-xs md:text-sm font-black italic text-white" id="mesa-activa-label">MESA</p>
+                </div>
+                <svg class="w-3 h-3 md:w-4 md:h-4 text-slate-500 group-hover:text-white" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+
+            {{-- Usuario + logout --}}
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="text-right hidden sm:block">
+                    <p class="text-xs md:text-sm font-bold text-white leading-none">{{ Auth::user()->name }}</p>
                     <p class="text-[9px] text-emerald-500 font-black uppercase tracking-widest">En Turno</p>
                 </div>
                 <form action="/logout" method="POST">
                     @csrf
-                    <button type="submit" class="p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button type="submit"
+                        class="p-1.5 md:p-2 hover:bg-red-500/10 hover:text-red-500 rounded-lg transition-all">
+                        <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
                     </button>
                 </form>
             </div>
+
+            {{-- MÓVIL: botón flotante para abrir el ticket --}}
+            <button onclick="abrirTicketMovil()"
+                class="md:hidden relative bg-indigo-600 p-2 rounded-xl border border-indigo-500">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {{-- Badge con cantidad de items --}}
+                <span id="ticket-badge"
+                    class="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center hidden">
+                    0
+                </span>
+            </button>
         </div>
     </header>
 
+    {{-- ===================== BODY PRINCIPAL ===================== --}}
     <div class="flex flex-1 overflow-hidden">
 
-        <nav class="w-28 border-r border-slate-800 bg-[#1e293b]/30 flex flex-col items-center py-6 gap-6 shrink-0">
+        {{-- NAV LATERAL — oculta en móvil --}}
+        <nav
+            class="hidden md:flex w-28 border-r border-slate-800 bg-[#1e293b]/30 flex-col items-center py-6 gap-6 shrink-0">
             <button class="flex flex-col items-center gap-2 group">
                 <div
                     class="w-16 h-16 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-all">
@@ -170,51 +225,53 @@
             </button>
         </nav>
 
+        {{-- SECCIÓN PRODUCTOS --}}
         <section class="flex-1 flex flex-col bg-[#0f172a] overflow-hidden">
 
-            <div class="px-6 py-4 bg-[#0f172a] border-b border-slate-800/50">
+            {{-- Buscador --}}
+            <div class="px-3 md:px-6 py-3 md:py-4 bg-[#0f172a] border-b border-slate-800/50">
                 <div class="relative group">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-                        <svg class="w-5 h-5 group-focus-within:text-indigo-500 transition-colors" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 md:pl-4 text-slate-500">
+                        <svg class="w-4 h-4 md:w-5 md:h-5 group-focus-within:text-indigo-500 transition-colors"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </span>
-                    <input type="text" id="buscarProducto"
-                        placeholder="BUSCAR PRODUCTO (EJ: CERVEZA, HAMBURGUESA...)"
-                        class="w-full bg-slate-900/50 border border-slate-800 text-white text-xs font-black tracking-widest py-4 pl-12 pr-4 rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-600 uppercase">
+                    <input type="text" id="buscarProducto" placeholder="BUSCAR PRODUCTO..."
+                        class="w-full bg-slate-900/50 border border-slate-800 text-white text-[10px] md:text-xs font-black tracking-widest py-3 md:py-4 pl-10 md:pl-12 pr-4 rounded-xl md:rounded-2xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-600 uppercase">
                 </div>
             </div>
 
+            {{-- Grid de productos --}}
             <div id="gridProductos"
-                class="flex-1 p-6 overflow-y-auto custom-scroll grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                class="flex-1 p-3 md:p-6 overflow-y-auto custom-scroll grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
                 @foreach ($productos as $p)
-                    <div class="item-producto animate-fade group relative bg-slate-800/40 border border-slate-700/50 p-4 rounded-[2.5rem] hover:bg-slate-800 hover:border-indigo-500/50 transition-all cursor-pointer shadow-sm"
+                    <div class="item-producto animate-fade group relative bg-slate-800/40 border border-slate-700/50 p-3 md:p-4 rounded-[1.5rem] md:rounded-[2.5rem] hover:bg-slate-800 hover:border-indigo-500/50 transition-all cursor-pointer shadow-sm"
                         data-nombre="{{ strtolower($p->descripcion) }}"
                         data-categoria="{{ strtolower($p->categoria) }}"
                         onclick="agregarAlTicket({{ $p->id }}, '{{ $p->descripcion }}', {{ $p->precio }})">
 
                         <div
-                            class="aspect-square bg-slate-900 rounded-[2rem] mb-4 flex items-center justify-center overflow-hidden border border-slate-700">
+                            class="aspect-square bg-slate-900 rounded-[1.2rem] md:rounded-[2rem] mb-2 md:mb-4 flex items-center justify-center overflow-hidden border border-slate-700">
                             @if ($p->categoria == 'Cervezas')
-                                <span class="text-amber-500 text-4xl">🍺</span>
+                                <span class="text-amber-500 text-3xl md:text-4xl">🍺</span>
                             @else
                                 <span
-                                    class="text-slate-700 font-black text-4xl uppercase">{{ substr($p->descripcion, 0, 2) }}</span>
+                                    class="text-slate-700 font-black text-2xl md:text-4xl uppercase">{{ substr($p->descripcion, 0, 2) }}</span>
                             @endif
                         </div>
 
                         <div>
                             <h3
-                                class="text-[11px] font-black text-white uppercase leading-tight group-hover:text-indigo-400 transition-colors h-8">
+                                class="text-[10px] md:text-[11px] font-black text-white uppercase leading-tight group-hover:text-indigo-400 transition-colors line-clamp-2 md:h-8">
                                 {{ $p->descripcion }}
                             </h3>
-                            <div class="flex justify-between items-end mt-2">
+                            <div class="flex justify-between items-end mt-1 md:mt-2">
                                 <span
-                                    class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{{ $p->und_detal }}</span>
+                                    class="text-[8px] md:text-[9px] font-bold text-slate-500 uppercase tracking-widest hidden sm:block">{{ $p->und_detal }}</span>
                                 <span
-                                    class="text-lg font-black text-white italic">${{ number_format($p->precio, 0) }}</span>
+                                    class="text-sm md:text-lg font-black text-white italic">${{ number_format($p->precio, 0) }}</span>
                             </div>
                         </div>
                     </div>
@@ -222,28 +279,43 @@
             </div>
         </section>
 
-        <aside class="w-[400px] border-l border-slate-800 bg-[#1e293b]/50 flex flex-col shrink-0">
-            <div class="p-6 border-b border-slate-800">
+        {{-- ASIDE TICKET — desktop visible siempre, móvil como drawer desde abajo --}}
+        {{-- Backdrop solo móvil --}}
+        <div id="ticket-backdrop" onclick="cerrarTicketMovil()"></div>
+
+        <aside id="panel-ticket"
+            class="w-full md:w-[400px] border-t md:border-t-0 md:border-l border-slate-800 bg-[#1e293b] md:bg-[#1e293b]/50 flex flex-col shrink-0 overflow-hidden">
+
+            {{-- Handle visual solo en móvil --}}
+            <div class="md:hidden flex justify-center pt-3 pb-1 cursor-pointer" onclick="cerrarTicketMovil()">
+                <div class="w-10 h-1 bg-slate-600 rounded-full"></div>
+            </div>
+
+            {{-- Header del ticket --}}
+            <div class="px-4 md:px-6 py-3 md:py-4 border-b border-slate-800 shrink-0">
                 <div class="flex justify-between items-center mb-1">
-                    <h2 class="text-xl font-black italic tracking-tighter text-white">ORDEN ACTUAL</h2>
-                    {{-- FIX 3: id="mesa-label" se actualiza desde seleccionarMesa() --}}
+                    <h2 class="text-base md:text-xl font-black italic tracking-tighter text-white">ORDEN ACTUAL</h2>
                     <span class="bg-indigo-500/20 text-indigo-400 text-[9px] font-black px-2 py-1 rounded-md uppercase"
                         id="mesa-label">
                         Mesa: --
                     </span>
                 </div>
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Atiende:
+                <p class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest">Atiende:
                     {{ Auth::user()->name }}</p>
             </div>
 
-            <div id="ticket-items" class="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll">
-                <div class="text-center py-20">
+            {{-- Items del ticket --}}
+            <div id="ticket-items"
+                class="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-6 space-y-3 md:space-y-4 custom-scroll">
+                <div class="text-center py-12 md:py-20">
                     <p class="text-slate-600 text-xs font-bold uppercase tracking-tighter">Selecciona productos</p>
                 </div>
             </div>
 
-            <div class="p-8 bg-[#0f172a] border-t border-slate-800 rounded-t-[3rem] shadow-2xl">
-                <div class="space-y-2 mb-6">
+            {{-- Totales y botones --}}
+            <div
+                class="px-4 md:px-8 py-4 md:py-6 bg-[#0f172a] border-t border-slate-800 rounded-t-[2rem] md:rounded-t-[3rem] shadow-2xl shrink-0">
+                <div class="space-y-1.5 md:space-y-2 mb-4 md:mb-6">
                     <div class="flex justify-between text-slate-500 font-bold text-[10px] uppercase tracking-widest">
                         <span>Subtotal</span>
                         <span id="subtotal-val">$0</span>
@@ -253,161 +325,276 @@
                         <span id="servicio-val">$0</span>
                     </div>
                     <div class="flex justify-between items-center pt-2 border-t border-slate-800">
-                        <span class="text-sm font-black text-white uppercase italic tracking-tighter">Total a
-                            Pagar</span>
-                        <span class="text-3xl font-black text-indigo-500 italic" id="total-val">$0</span>
+                        <span class="text-xs md:text-sm font-black text-white uppercase italic tracking-tighter">Total
+                            a Pagar</span>
+                        <span class="text-2xl md:text-3xl font-black text-indigo-500 italic" id="total-val">$0</span>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-2 md:gap-3 mb-2">
                     <button onclick="vaciarTicket()"
-                        class="py-4 bg-slate-800 hover:bg-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-400">
+                        class="py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400">
                         Cancelar
                     </button>
                     <button onclick="enviarPedido()"
-                        class="py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all">
+                        class="py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">
                         Enviar Pedido
                     </button>
                 </div>
+                {{-- Solo se muestra si el usuario es Cajero o Administrador --}}
+                @if (auth()->user()->rol_id == 4 || auth()->user()->rol_id == 1)
+                    <button onclick="abrirModalPago()"
+                        class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-emerald-900/40 transition-all flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                stroke-width="2" />
+                        </svg>
+                        Cobrar y Cerrar Mesa
+                    </button>
+                @else
+                    {{-- Opcional: Mostrar un mensaje o botón deshabilitado para el mesero --}}
+                    <div class="p-3 bg-slate-800/50 border border-slate-700 rounded-xl text-center">
+                        <p class="text-[9px] text-slate-500 uppercase font-bold tracking-tighter">
+                            Solo el cajero puede procesar pagos
+                        </p>
+                    </div>
+                @endif
             </div>
         </aside>
     </div>
 
-    {{-- Modal dentro del body, antes del cierre --}}
+    {{-- ===================== MODAL MESAS ===================== --}}
     <div id="modalMesas" class="fixed inset-0 bg-[#0f172a]/95 backdrop-blur-md z-[100] hidden flex-col animate-fade">
 
-        <div class="h-20 flex items-center justify-between px-10 border-b border-slate-800 shrink-0">
-            <h2 class="text-2xl font-black italic tracking-tighter text-white">MAPA DE SALA / MESAS</h2>
+        <div class="h-14 md:h-20 flex items-center justify-between px-4 md:px-10 border-b border-slate-800 shrink-0">
+            <h2 class="text-base md:text-2xl font-black italic tracking-tighter text-white">MAPA DE SALA / MESAS</h2>
             <button onclick="cerrarSelectorMesas()"
-                class="bg-slate-800 p-3 rounded-full text-white hover:bg-red-500 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                class="bg-slate-800 p-2 md:p-3 rounded-full text-white hover:bg-red-500 transition-colors">
+                <svg class="w-5 h-5 md:w-6 md:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
         </div>
 
-        <div class="bg-slate-900/50 border-b border-slate-800/50 py-6 shrink-0">
-            <div class="flex flex-col md:flex-row gap-4 px-10">
-                <div class="w-full md:w-1/3 relative group">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-                        <svg class="w-5 h-5 group-focus-within:text-indigo-400" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
+        {{-- Filtros --}}
+        <div class="bg-slate-900/50 border-b border-slate-800/50 py-3 md:py-6 shrink-0">
+            <div class="flex flex-col sm:flex-row gap-3 md:gap-4 px-4 md:px-10">
+                <div class="w-full sm:w-1/3 relative group">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 md:pl-4 text-slate-500">
+                        <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         </svg>
                     </span>
                     <select id="filtroZona" onchange="filtrarMesasPorZona()"
-                        class="w-full bg-slate-950 border border-slate-800 text-white text-[10px] font-black tracking-widest py-4 pl-12 pr-10 rounded-2xl outline-none focus:border-indigo-500 appearance-none cursor-pointer uppercase">
+                        class="w-full bg-slate-950 border border-slate-800 text-white text-[10px] font-black tracking-widest py-3 md:py-4 pl-10 md:pl-12 pr-8 md:pr-10 rounded-xl md:rounded-2xl outline-none focus:border-indigo-500 appearance-none cursor-pointer uppercase">
                         <option value="todas">TODAS LAS ZONAS</option>
                         @foreach ($zonas as $zona)
                             <option value="{{ $zona->id }}">{{ $zona->nombre }}</option>
                         @endforeach
                     </select>
                 </div>
-
-                <div class="w-full md:flex-1 relative group">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="w-full sm:flex-1 relative group">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 md:pl-4 text-slate-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="3" />
                         </svg>
                     </span>
                     <input type="text" id="buscarMesa" onkeyup="filtrarMesasPorZona()"
-                        placeholder="BUSCAR MESA POR NÚMERO..."
-                        class="w-full bg-slate-950 border border-slate-800 text-white text-[10px] font-black tracking-widest py-4 pl-12 pr-4 rounded-2xl outline-none focus:border-indigo-500 placeholder:text-slate-700 uppercase">
+                        placeholder="BUSCAR MESA..."
+                        class="w-full bg-slate-950 border border-slate-800 text-white text-[10px] font-black tracking-widest py-3 md:py-4 pl-10 md:pl-12 pr-4 rounded-xl md:rounded-2xl outline-none focus:border-indigo-500 placeholder:text-slate-700 uppercase">
                 </div>
             </div>
         </div>
 
+        {{-- Grid de mesas --}}
         <div id="contenedorMesas"
-            class="flex-1 p-10 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 overflow-y-auto custom-scroll">
+            class="flex-1 p-4 md:p-10 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-6 overflow-y-auto custom-scroll">
             @include('facturacion.partials.mesas_grid')
         </div>
     </div>
 
-    <script>
-        function abrirSelectorMesas() {
-            const modal = document.getElementById('modalMesas');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function cerrarSelectorMesas() {
-            const modal = document.getElementById('modalMesas');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        // FIX 2: guarda el ID en window.mesaActivaId para que facturacion.js lo consuma en enviarPedido()
-        // FIX 3: actualiza el mesa-label del aside además del header
-        function seleccionarMesa(id, nombre) {
-            window.mesaActivaId = id;
-            document.getElementById('mesa-activa-label').textContent = nombre;
-            document.getElementById('mesa-label').textContent = 'Mesa: ' + nombre;
-            cerrarSelectorMesas();
-        }
-
-        // FIX 4: filtrarMesasPorZona definida aquí para que los eventos onchange/onkeyup del blade funcionen
-        // Si la tienes duplicada en facturacion.js, elimínala de allá y deja solo esta
-        function filtrarMesasPorZona() {
-            const zonaSeleccionada = document.getElementById('filtroZona').value;
-            const busqueda = document.getElementById('buscarMesa').value.toLowerCase().trim();
-            const mesas = document.querySelectorAll('.mesa-item');
-
-            mesas.forEach(mesa => {
-                const zonaCoincide = zonaSeleccionada === 'todas' || mesa.dataset.zona === zonaSeleccionada;
-                const numeroCoincide = mesa.dataset.numero.toLowerCase().includes(busqueda);
-                mesa.style.display = (zonaCoincide && numeroCoincide) ? '' : 'none';
-            });
-        }
-    </script>
-
-</body>
-<div id="modalConfirm"
-    class="fixed inset-0 bg-gray-900/60 hidden backdrop-blur-sm items-center justify-center z-[9999] p-4">
-    <div
-        class="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-gray-100 transform transition-all scale-100">
-        <div class="flex justify-center mb-4">
-            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+    {{-- ===================== MODAL CONFIRMAR ===================== --}}
+    {{-- FIX: movido dentro del body. Cambiado a solo "hidden", flex se maneja por JS --}}
+    <div id="modalConfirm"
+        class="fixed inset-0 bg-gray-900/60 hidden backdrop-blur-sm items-center justify-center z-[9999] p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 w-full max-w-sm shadow-2xl border border-gray-100">
+            <div class="flex justify-center mb-4">
+                <div class="w-14 h-14 md:w-16 md:h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg class="w-7 h-7 md:w-8 md:h-8 text-red-600" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                </div>
+            </div>
+            <p id="confirmMensaje"
+                class="text-gray-800 font-bold text-center text-base md:text-lg mb-6 leading-tight"></p>
+            <div class="flex flex-col gap-3">
+                <button id="btnConfirmarAccion"
+                    class="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200">
+                    Confirmar
+                </button>
+                <button onclick="cerrarConfirm()"
+                    class="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all">
+                    Cancelar
+                </button>
             </div>
         </div>
-        <p id="confirmMensaje" class="text-gray-800 font-bold text-center text-lg mb-6 leading-tight"></p>
+    </div>
 
-        <div class="flex flex-col gap-3">
-            <button id="btnConfirmarAccion"
-                class="w-full py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200">
-                Confirmar
-            </button>
-            <button onclick="cerrarConfirm()"
-                class="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 transition-all">
-                Cancelar
-            </button>
+    {{-- ===================== TOAST ===================== --}}
+    <div id="toast-container" class="fixed top-4 right-4 z-[99999] flex flex-col gap-3 max-w-[90vw] md:max-w-sm">
+    </div>
+
+    {{-- ===================== MODAL SUPER CLAVE ===================== --}}
+    {{-- FIX: movido dentro del body. Solo "hidden", flex por JS --}}
+    <div id="modalSuperClave"
+        class="fixed inset-0 bg-gray-900/80 hidden backdrop-blur-sm items-center justify-center z-[10000] p-4">
+        <div class="bg-slate-800 rounded-3xl p-6 md:p-8 w-full max-w-xs border border-slate-700 shadow-2xl">
+            <h3 class="text-white font-black text-center mb-2 uppercase tracking-widest text-sm md:text-base">
+                Autorización</h3>
+            <p class="text-slate-400 text-[10px] text-center mb-6">Se requiere SuperClave de Administrador para
+                eliminar productos ya enviados.</p>
+            <input type="password" id="inputSuperClave"
+                class="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white text-center text-xl mb-4 focus:border-indigo-500 outline-none"
+                placeholder="****">
+            <div class="flex flex-col gap-2">
+                <button onclick="validarSuperClave()"
+                    class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all">
+                    Confirmar
+                </button>
+                <button onclick="cerrarSuperClave()"
+                    class="w-full py-3 text-slate-400 font-bold hover:text-white transition-all">
+                    Cancelar
+                </button>
+            </div>
         </div>
     </div>
-</div>
-<div id="toast-container" class="fixed top-5 right-5 z-[9999] flex flex-col gap-3">
-</div>
 
-<div id="modalSuperClave"
-    class="fixed inset-0 bg-gray-900/80 hidden backdrop-blur-sm items-center justify-center z-[10000] p-4">
-    <div class="bg-slate-800 rounded-3xl p-8 w-full max-w-xs border border-slate-700 shadow-2xl">
-        <h3 class="text-white font-black text-center mb-2 uppercase tracking-widest">Autorización</h3>
-        <p class="text-slate-400 text-[10px] text-center mb-6">Se requiere SuperClave de Administrador para eliminar
-            productos ya enviados.</p>
+    <div id="modalPago"
+        class="fixed inset-0 bg-[#0f172a]/95 backdrop-blur-xl z-[10001] hidden flex-col items-center justify-center p-4 animate-fade">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl">
+            {{-- Header --}}
+            <div class="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-800/30">
+                <div>
+                    <h2 class="text-xl font-black italic text-white tracking-tighter">FINALIZAR VENTA</h2>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest" id="pago-mesa-label">
+                        Mesa: --</p>
+                </div>
+                <button onclick="cerrarModalPago()" class="text-slate-500 hover:text-white transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12" stroke-width="3" />
+                    </svg>
+                </button>
+            </div>
 
-        <input type="password" id="inputSuperClave"
-            class="w-full bg-slate-900 border border-slate-700 rounded-2xl px-4 py-3 text-white text-center text-xl mb-4 focus:border-indigo-500 outline-none"
-            placeholder="****">
+            <div class="p-8">
+                {{-- Total Gigante --}}
+                <div class="text-center mb-8">
+                    <p class="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] mb-1">Total a recibir
+                    </p>
+                    <h3 class="text-5xl font-black text-white italic" id="pago-total-val">$0</h3>
+                </div>
 
-        <div class="flex flex-col gap-2">
-            <button onclick="validarSuperClave()"
-                class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700">Confirmar</button>
-            <button onclick="cerrarSuperClave()" class="w-full py-3 text-slate-400 font-bold">Cancelar</button>
+                {{-- Métodos de Pago --}}
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    <button onclick="seleccionarMetodo('efectivo')"
+                        class="metodo-pago p-4 rounded-2xl border-2 border-indigo-600 bg-indigo-600/10 text-center transition-all group"
+                        id="btn-pago-efectivo">
+                        <span class="block text-2xl mb-1">💵</span>
+                        <span class="text-[10px] font-black text-white uppercase">Efectivo</span>
+                    </button>
+                    <button onclick="seleccionarMetodo('tarjeta')"
+                        class="metodo-pago p-4 rounded-2xl border-2 border-slate-800 bg-slate-800/50 text-center transition-all hover:border-slate-600"
+                        id="btn-pago-tarjeta">
+                        <span class="block text-2xl mb-1">💳</span>
+                        <span class="text-[10px] font-black text-white uppercase">Tarjeta</span>
+                    </button>
+                    <button onclick="seleccionarMetodo('transferencia')"
+                        class="metodo-pago p-4 rounded-2xl border-2 border-slate-800 bg-slate-800/50 text-center transition-all hover:border-slate-600"
+                        id="btn-pago-transfer">
+                        <span class="block text-2xl mb-1">📱</span>
+                        <span class="text-[10px] font-black text-white uppercase">Nequi/Davi</span>
+                    </button>
+                </div>
+
+                {{-- NUEVOS CAMPOS DINÁMICOS --}}
+                <div id="detalles-pago-extra" class="mb-6">
+                    {{-- Sección Tarjeta --}}
+                    <div id="campos-tarjeta" class="hidden space-y-3 animate-fade">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[9px] text-slate-500 font-black uppercase mb-1 block ml-2">Tipo de
+                                    Tarjeta</label>
+                                <select id="tipo_tarjeta"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-indigo-500 appearance-none">
+                                    <option value="Debito">💳 DÉBITO</option>
+                                    <option value="Credito">✨ CRÉDITO</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    class="text-[9px] text-slate-500 font-black uppercase mb-1 block ml-2">Referencia</label>
+                                <input type="text" id="ref_tarjeta" placeholder="Voucher #"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Sección Transferencia --}}
+                    <div id="campos-transferencia" class="hidden space-y-3 animate-fade">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[9px] text-slate-500 font-black uppercase mb-1 block ml-2">Banco
+                                    Destino</label>
+                                <select id="banco_destino"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-indigo-500 appearance-none">
+                                    <option value="Bancolombia">🏦 Bancolombia</option>
+                                    <option value="Nequi">📱 Nequi</option>
+                                    <option value="Daviplata">🔴 Daviplata</option>
+                                    <option value="Caja Social">🔷 Caja Social</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    class="text-[9px] text-slate-500 font-black uppercase mb-1 block ml-2">Comprobante</label>
+                                <input type="text" id="ref_transferencia" placeholder="ID Transacción"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl py-3 px-4 text-xs text-white outline-none focus:border-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Input de Dinero Recibido --}}
+                <div id="wrapper-recibido" class="mb-6">
+                    <label
+                        class="text-[10px] text-slate-500 font-black uppercase tracking-widest block mb-2 ml-2">Efectivo
+                        Recibido</label>
+                    <input type="number" id="montoRecibido" oninput="calcularCambio()"
+                        class="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl py-4 px-6 text-2xl font-black text-emerald-400 outline-none focus:border-emerald-500 transition-all"
+                        placeholder="0.00">
+                </div>
+
+                {{-- Cambio --}}
+                <div
+                    class="flex justify-between items-center p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 mb-8">
+                    <span class="text-xs font-black text-emerald-500 uppercase italic">Cambio para el cliente:</span>
+                    <span class="text-2xl font-black text-emerald-400" id="pago-cambio-val">$0</span>
+                </div>
+
+                {{-- Botón Final --}}
+                <button onclick="procesarPagoFinal()"
+                    class="w-full py-5 bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M5 13l4 4L19 7" stroke-width="4" />
+                    </svg>
+                    REGISTRAR PAGO Y CERRAR MESA
+                </button>
+            </div>
         </div>
     </div>
-</div>
+</body>
 
 </html>
