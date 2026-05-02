@@ -1,24 +1,22 @@
 window.guardarProducto = function () {
-
     const form = document.getElementById('formProducto');
     const id = document.getElementById('producto_id').value;
 
     if (!form) return;
 
     const formData = new FormData(form);
-
     let url = '/productos';
 
-    // EDITAR
     if (id) {
         url = `/productos/${id}`;
         formData.append('_method', 'PUT');
     }
 
-    // VALIDACIONES FRONT
+    // --- VALIDACIONES FRONT ---
     const codigo = formData.get('codigo')?.trim();
     const descripcion = formData.get('descripcion')?.trim();
     const precio = formData.get('precio')?.trim();
+    const grupo_menu_id = formData.get('grupo_menu_id'); // <--- NUEVO CAMPO
     const afecta = formData.get('afecta_inventario');
 
     let errores = [];
@@ -26,6 +24,7 @@ window.guardarProducto = function () {
     if (!codigo) errores.push('El código es obligatorio.');
     if (!descripcion) errores.push('La descripción es obligatoria.');
     if (!precio || Number(precio) < 0) errores.push('Ingrese un precio válido.');
+    if (!grupo_menu_id) errores.push('Seleccione un Grupo de Menú (Destino).'); // <--- VALIDACIÓN
     if (afecta === null || afecta === '') errores.push('Seleccione si afecta inventario.');
 
     if (errores.length > 0) {
@@ -37,19 +36,16 @@ window.guardarProducto = function () {
         method: 'POST',
         body: formData,
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+            // Asegúrate de que el input _token exista en tu HTML o usa el meta tag
+            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]')?.value || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
         .then(async res => {
-
             const data = await res.json();
 
-            // VALIDACIONES LARAVEL
             if (res.status === 422) {
-
                 let mensajes = [];
-
                 if (data.errors) {
                     for (let campo in data.errors) {
                         mensajes.push(data.errors[campo][0]);
@@ -57,7 +53,6 @@ window.guardarProducto = function () {
                 } else {
                     mensajes.push(data.message || 'Error de validación.');
                 }
-
                 mostrarNotificacion(mensajes.join('\n'), 'error');
                 throw new Error('Validación fallida');
             }
@@ -66,37 +61,22 @@ window.guardarProducto = function () {
                 mostrarNotificacion(data.message || 'Error al guardar producto.', 'error');
                 throw new Error(data.message);
             }
-
             return data;
         })
         .then(data => {
-
-            mostrarNotificacion(data.message, 'success');
-
+            mostrarNotificacion(data.message || 'Producto guardado', 'success');
             form.reset();
-
             document.getElementById('producto_id').value = '';
-
-            // dejar por defecto SI afecta inventario
-            const select = form.querySelector('[name="afecta_inventario"]');
-            if (select) select.value = '1';
-
             closeModalProducto();
-
             loadView('productos');
-
         })
-        .catch(err => {
-            console.error('Error guardarProducto:', err);
-        });
+        .catch(err => console.error('Error guardarProducto:', err));
 };
 
 window.editarProducto = function (id) {
-
     fetch(`/productos/${id}/edit`)
         .then(res => res.json())
         .then(data => {
-
             document.getElementById('producto_id').value = data.id;
             document.querySelector('[name="codigo"]').value = data.codigo;
             document.querySelector('[name="categoria"]').value = data.categoria;
@@ -105,8 +85,13 @@ window.editarProducto = function (id) {
             document.querySelector('[name="precio"]').value = data.precio;
             document.querySelector('[name="caracteristicas"]').value = data.caracteristicas ?? '';
 
-            openModalProducto();
+            // ASIGNAR EL GRUPO DE MENU
+            const selectGrupo = document.querySelector('[name="grupo_menu_id"]');
+            if (selectGrupo) {
+                selectGrupo.value = data.grupo_menu_id ?? '';
+            }
 
+            openModalProducto();
         })
         .catch(error => {
             console.error(error);

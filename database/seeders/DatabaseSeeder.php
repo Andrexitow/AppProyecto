@@ -33,5 +33,7 @@ class DatabaseSeeder extends Seeder
         $this->call(InventarioSeeder::class);
         $this->call([GastrobarSeeder::class]);
         $this->call([CajaSeeder::class]);
+        $this->call([GrupoMenuSeeder::class]);
+        $this->call([CategoriasPosSeeder::class]);
     }
 }

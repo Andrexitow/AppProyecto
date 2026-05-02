@@ -58,6 +58,18 @@
                     </select>
                 </div>
 
+                <!-- Buscamos el div de Categoría en tu código y añadimos este abajo -->
+                <div class="space-y-1">
+                    <label class="text-sm font-semibold text-gray-700">Grupo / Destino de Impresión</label>
+                    <select name="grupo_menu_id" id="prod_grupo_menu_id"
+                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all font-bold text-blue-600">
+                        <option value="">Sin impresión (No genera ticket)</option>
+                        @foreach ($grupos as $grupo)
+                            <option value="{{ $grupo->id }}">📂 {{ $grupo->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="space-y-1 md:col-span-2">
                     <label class="text-sm font-semibold text-gray-700">Nombre / Descripción</label>
                     <input name="descripcion" placeholder="Nombre completo del producto"

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+// Importa el trait si usas factories, si no, déjalo así
+use Illuminate\Database\Eloquent\Factories\HasFactory; 
 
 class Producto extends Model
 {
@@ -22,7 +24,7 @@ class Producto extends Model
         'categoria',
         'categoria2',
         'linea',
-        'grupo_menu',
+        'grupo_menu_id', 
         'afecta_inventario',
         'iva_ventas',
         'ico_ventas',
@@ -48,6 +50,12 @@ class Producto extends Model
         'iva_compras' => 'decimal:2',
         'ico_compras' => 'decimal:2',
     ];
+
+    // RELACIÓN CON EL GRUPO (NUEVA)
+    public function grupoMenu()
+    {
+        return $this->belongsTo(GrupoMenu::class, 'grupo_menu_id');
+    }
 
     public function inventarios()
     {

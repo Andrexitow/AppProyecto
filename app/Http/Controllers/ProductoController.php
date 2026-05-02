@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\GrupoMenu;
+use App\Models\Impresora;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,10 @@ class ProductoController extends Controller
     public function index()
     {
         $productos = Producto::all();
-        return view('productos.index', compact('productos'));
+
+        $grupos = GrupoMenu::all();
+
+        return view('productos.index', compact('productos', 'grupos'));
     }
 
     /**
@@ -34,13 +39,15 @@ class ProductoController extends Controller
             'codigo' => 'required|unique:productos,codigo',
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
-            'afecta_inventario' => 'required|in:0,1'
+            'afecta_inventario' => 'required|in:0,1',
+            'grupo_menu_id' => 'required|exists:grupo_menus,id' // Validación del nuevo campo
         ]);
 
         Producto::create([
             'codigo' => $request->codigo,
             'descripcion' => $request->descripcion,
             'categoria' => $request->categoria,
+            'grupo_menu_id' => $request->grupo_menu_id, // Guardamos el grupo
             'und_detal' => $request->und_detal,
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,
@@ -99,13 +106,15 @@ class ProductoController extends Controller
             'codigo' => 'required|unique:productos,codigo,' . $id,
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
-            'afecta_inventario' => 'required|in:0,1'
+            'afecta_inventario' => 'required|in:0,1',
+            'grupo_menu_id' => 'required|exists:grupo_menus,id' // Validación del nuevo campo
         ]);
 
         $producto->update([
             'codigo' => $request->codigo,
             'descripcion' => $request->descripcion,
             'categoria' => $request->categoria,
+            'grupo_menu_id' => $request->grupo_menu_id, // Actualizamos el grupo
             'und_detal' => $request->und_detal,
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,

@@ -19,13 +19,17 @@ class Factura extends Model
         'numero_factura',
         'mesa_id',
         'user_id',
+        'cliente_id',
+        'caja_id',
         'subtotal',
+        'impuestos',
         'propina',
         'total',
         'metodo_pago',
         'tipo_tarjeta',
         'banco_destino',
         'referencia_pago',
+        'estado'
     ];
 
     /**
@@ -38,10 +42,25 @@ class Factura extends Model
         'created_at' => 'datetime',
     ];
 
+    public function detalles()
+    {
+        return $this->hasMany(FacturaDetalle::class);
+    }
+
+    public function cliente()
+    {
+        return $this->belongsTo(Tercero::class, 'cliente_id');
+    }
+
+    public function caja()
+    {
+        return $this->belongsTo(Caja::class, 'caja_id');
+    }
+
     /**
      * Obtener el usuario (cajero/mesero) que realizó el cobro.
      */
-    public function usuario(): BelongsTo
+    public function user() // Usaremos 'user' para que sea estándar
     {
         return $this->belongsTo(User::class, 'user_id');
     }
@@ -51,6 +70,6 @@ class Factura extends Model
      */
     public function mesa(): BelongsTo
     {
-        return $this->belongsTo(Mesa::class);
+        return $this->belongsTo(Mesa::class, 'mesa_id');
     }
 }

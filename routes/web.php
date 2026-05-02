@@ -6,10 +6,13 @@ use App\Http\Controllers\{
     AjusteController,
     BodegaController,
     CajaController,
+    CategoriaPosController,
     ProductoController,
     TerceroController,
     ExistenciaController,
     FacturacionController,
+    GrupomenuController,
+    ImpresoraController,
     UsuarioController
 };
 use Illuminate\Support\Facades\Auth;
@@ -85,7 +88,27 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/views/cajas', [CajaController::class, 'index'])->name('cajas.index');
     Route::post('/cajas/store', [CajaController::class, 'store'])->name('cajas.store');
-    Route::get('/cajas/{id}/edit',[CajaController::class, 'edit'])->name('cajas.edit');
-    Route::post('/cajas/update/{id}',[CajaController::class, 'update'])->name('cajas.update');
-    Route::delete('/cajas/{id}',[CajaController::class, 'destroy'])->name('cajas.destroy');
+    Route::get('/cajas/{id}/edit', [CajaController::class, 'edit'])->name('cajas.edit');
+    Route::post('/cajas/update/{id}', [CajaController::class, 'update'])->name('cajas.update');
+    Route::delete('/cajas/{id}', [CajaController::class, 'destroy'])->name('cajas.destroy');
+
+    Route::get('/views/impresoras', [ImpresoraController::class, 'index'])->name('impresoras.index');
+
+
+    // // Rutas de API para el CRUD
+    Route::get('/api/impresoras', [ImpresoraController::class, 'listar']);
+    Route::post('/api/impresoras/guardar', [ImpresoraController::class, 'store']);
+    Route::delete('/api/impresoras/{id}', [ImpresoraController::class, 'destroy']);
+
+    // Grupos de Menú
+    Route::get('/views/grupos', [GrupomenuController::class, 'index'])->name('grupos.index');
+    Route::post('/grupos/store', [GrupomenuController::class, 'store'])->name('grupos.store');
+    Route::post('/grupos/update/{id}', [GrupomenuController::class, 'update'])->name('grupos.update');
+    Route::delete('/grupos/{id}', [GrupomenuController::class, 'destroy'])->name('grupos.destroy');
+
+    // routes/web.php
+    Route::get('/views/categorias-pos',              [CategoriaPosController::class, 'index']);
+    Route::post('/categorias-pos',             [CategoriaPosController::class, 'store']);
+    Route::put('/categorias-pos/{categoriaPos}',    [CategoriaPosController::class, 'update']);
+    Route::delete('/categorias-pos/{categoriaPos}', [CategoriaPosController::class, 'destroy']);
 });

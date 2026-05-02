@@ -192,37 +192,34 @@
 
         {{-- NAV LATERAL — oculta en móvil --}}
         <nav
-            class="hidden md:flex w-28 border-r border-slate-800 bg-[#1e293b]/30 flex-col items-center py-6 gap-6 shrink-0">
-            <button class="flex flex-col items-center gap-2 group">
+            class="hidden md:flex w-28 border-r border-slate-800 bg-[#1e293b]/30 flex-col items-center py-6 gap-4 shrink-0 overflow-y-auto">
+
+            {{-- Botón TODO — siempre fijo --}}
+            <button onclick="filtrarPOS(null, this)" class="nav-cat-btn flex flex-col items-center gap-2 group">
                 <div
-                    class="w-16 h-16 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-all">
+                    class="nav-cat-icon w-16 h-16 bg-indigo-600 rounded-[2rem] flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 transition-all group-hover:scale-110">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 6h16M4 12h16m-7 6h7" />
                     </svg>
                 </div>
-                <span class="text-[10px] font-black uppercase text-indigo-400">Todo</span>
+                <span class="nav-cat-label text-[10px] font-black uppercase text-indigo-400">Todo</span>
             </button>
-            <button class="flex flex-col items-center gap-2 group opacity-40 hover:opacity-100 transition-opacity">
-                <div
-                    class="w-16 h-16 bg-slate-700 rounded-[2rem] flex items-center justify-center text-white group-hover:bg-slate-600 transition-all">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                </div>
-                <span class="text-[10px] font-black uppercase">Comidas</span>
-            </button>
-            <button class="flex flex-col items-center gap-2 group opacity-40 hover:opacity-100 transition-opacity">
-                <div
-                    class="w-16 h-16 bg-slate-700 rounded-[2rem] flex items-center justify-center text-white group-hover:bg-slate-600 transition-all">
-                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </div>
-                <span class="text-[10px] font-black uppercase">Bebidas</span>
-            </button>
+
+            {{-- Botones dinámicos desde BD --}}
+            @foreach ($categorias_pos as $cat)
+                <button onclick="filtrarPOS('{{ strtolower($cat->nombre) }}', this)"
+                    class="nav-cat-btn flex flex-col items-center gap-2 group opacity-40 hover:opacity-100 transition-opacity">
+                    <div
+                        class="nav-cat-icon w-16 h-16 bg-slate-700 rounded-[2rem] flex items-center justify-center text-3xl group-hover:bg-slate-600 transition-all">
+                        {{ $cat->icono }}
+                    </div>
+                    <span class="nav-cat-label text-[10px] font-black uppercase text-center leading-tight px-1">
+                        {{ $cat->nombre }}
+                    </span>
+                </button>
+            @endforeach
+
         </nav>
 
         {{-- SECCIÓN PRODUCTOS --}}
@@ -248,8 +245,7 @@
                 class="flex-1 p-3 md:p-6 overflow-y-auto custom-scroll grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-5">
                 @foreach ($productos as $p)
                     <div class="item-producto animate-fade group relative bg-slate-800/40 border border-slate-700/50 p-3 md:p-4 rounded-[1.5rem] md:rounded-[2.5rem] hover:bg-slate-800 hover:border-indigo-500/50 transition-all cursor-pointer shadow-sm"
-                        data-nombre="{{ strtolower($p->descripcion) }}"
-                        data-categoria="{{ strtolower($p->categoria) }}"
+                        data-nombre="{{ strtolower($p->descripcion) }}" data-catpos="{{ strtolower($p->categoria) }}"
                         onclick="agregarAlTicket({{ $p->id }}, '{{ $p->descripcion }}', {{ $p->precio }})">
 
                         <div
@@ -279,7 +275,6 @@
             </div>
         </section>
 
-        {{-- ASIDE TICKET — desktop visible siempre, móvil como drawer desde abajo --}}
         {{-- Backdrop solo móvil --}}
         <div id="ticket-backdrop" onclick="cerrarTicketMovil()"></div>
 
@@ -596,5 +591,45 @@
         </div>
     </div>
 </body>
+
+
+<script>
+    // Filtro por categoría POS
+    function filtrarPOS(catNombre, btn) {
+        // Estilos — desactivar todos
+        document.querySelectorAll('.nav-cat-btn').forEach(b => {
+            b.classList.add('opacity-40');
+            b.classList.remove('opacity-100');
+            b.querySelector('.nav-cat-icon').classList.remove('bg-indigo-600');
+            b.querySelector('.nav-cat-icon').classList.add('bg-slate-700');
+            b.querySelector('.nav-cat-label').classList.remove('text-indigo-400');
+        });
+
+        // Activar el clickeado
+        btn.classList.remove('opacity-40');
+        btn.classList.add('opacity-100');
+        btn.querySelector('.nav-cat-icon').classList.add('bg-indigo-600');
+        btn.querySelector('.nav-cat-icon').classList.remove('bg-slate-700');
+        btn.querySelector('.nav-cat-label').classList.add('text-indigo-400');
+
+        // Mostrar/ocultar tarjetas
+        document.querySelectorAll('.item-producto').forEach(card => {
+            const visible = !catNombre || card.dataset.catpos === catNombre;
+            card.style.display = visible ? '' : 'none';
+        });
+    }
+
+    // Buscador — combina con el filtro de categoría
+    document.getElementById('buscarProducto').addEventListener('input', function() {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.item-producto').forEach(card => {
+            if (!q) {
+                card.style.display = '';
+                return;
+            }
+            card.style.display = (card.dataset.nombre || '').includes(q) ? '' : 'none';
+        });
+    });
+</script>
 
 </html>
