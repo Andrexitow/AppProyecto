@@ -9,7 +9,10 @@ class CategoriaPosController extends Controller
 {
     public function index()
     {
-        return response()->json(CategoriaPos::orderBy('orden')->get());
+         
+        $categoria = CategoriaPos::orderBy('orden')->get();
+
+        return view('categorias_pos.index', compact('categoria'));
     }
 
     public function store(Request $request)

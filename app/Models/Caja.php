@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Caja extends Model
 {
-    protected $fillable = ['nombre', 'prefijo', 'proximo_numero', 'bodega_id', 'user_id', 'activa'];
+    protected $fillable = ['nombre', 'prefijo', 'proximo_numero', 'bodega_id', 'impresora_id', 'user_id', 'activa'];
 
     public function bodega()
     {

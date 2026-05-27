@@ -8,7 +8,7 @@
     <title>AppSystem</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="{{ asset('css/app.css') }}" rel="stylesheet">
+    {{-- <link href="{{ asset('css/app.css') }}" rel="stylesheet"> --}}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -27,7 +27,25 @@
             overflow: hidden;
         }
 
-        /* ── SIDEBAR ── */
+        /* ══════════════════════════════
+           OVERLAY MÓVIL
+        ══════════════════════════════ */
+        #sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.45);
+            backdrop-filter: blur(2px);
+            z-index: 200;
+        }
+
+        #sidebar-overlay.open {
+            display: block;
+        }
+
+        /* ══════════════════════════════
+           SIDEBAR
+        ══════════════════════════════ */
         .sidebar {
             width: 210px;
             background: #fff;
@@ -36,9 +54,31 @@
             flex-direction: column;
             flex-shrink: 0;
             height: 100vh;
-            position: sticky;
+            position: fixed;
             top: 0;
-            z-index: 100;
+            left: 0;
+            z-index: 300;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* En móvil empieza oculto */
+        @media (max-width: 767px) {
+            .sidebar {
+                transform: translateX(-100%);
+                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        /* En desktop siempre visible, empuja el contenido */
+        @media (min-width: 768px) {
+            .sidebar {
+                position: sticky;
+                transform: none !important;
+            }
         }
 
         /* Brand */
@@ -83,6 +123,15 @@
             flex-direction: column;
             gap: 2px;
             overflow-y: auto;
+        }
+
+        .sidebar-nav::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: #E5E7EB;
+            border-radius: 4px;
         }
 
         .nav-section-label {
@@ -198,14 +247,25 @@
             border-color: #FCA5A5;
         }
 
-        /* ── ÁREA PRINCIPAL ── */
+        /* ══════════════════════════════
+           ÁREA PRINCIPAL
+        ══════════════════════════════ */
         .main-wrapper {
             flex: 1;
             display: flex;
             flex-direction: column;
             min-width: 0;
+            min-height: 0;
+            /* ← AÑADIR */
             height: 100vh;
             overflow: hidden;
+            /* margin-left: 210px; */
+        }
+
+        @media (max-width: 767px) {
+            .main-wrapper {
+                margin-left: 0;
+            }
         }
 
         .topbar {
@@ -214,8 +274,36 @@
             border-bottom: 1px solid #EAECF0;
             display: flex;
             align-items: center;
-            padding: 0 20px;
+            padding: 0 16px;
+            gap: 12px;
             flex-shrink: 0;
+        }
+
+        /* Botón hamburguesa — solo móvil */
+        .btn-hamburger {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #6B7280;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        .btn-hamburger:hover {
+            background: #F3F4F6;
+            color: #111827;
+        }
+
+        @media (max-width: 767px) {
+            .btn-hamburger {
+                display: flex;
+            }
         }
 
         .topbar-breadcrumb {
@@ -231,10 +319,19 @@
         #main-content {
             flex: 1;
             overflow-y: auto;
-            padding: 24px;
+            padding: 16px 20px;
+            /* antes era 24px */
         }
 
-        /* ── MODALES Y NOTIF ── */
+        @media (max-width: 480px) {
+            #main-content {
+                padding: 16px;
+            }
+        }
+
+        /* ══════════════════════════════
+           MODALES Y NOTIF
+        ══════════════════════════════ */
         #modalConfirm {
             position: fixed;
             inset: 0;
@@ -244,6 +341,7 @@
             align-items: center;
             justify-content: center;
             z-index: 9999;
+            padding: 16px;
         }
 
         #modalConfirm.show {
@@ -268,14 +366,20 @@
             flex-direction: column;
             gap: 8px;
             pointer-events: none;
+            max-width: calc(100vw - 32px);
         }
     </style>
 </head>
 
 <body>
 
-    {{-- ── SIDEBAR ── --}}
-    <aside class="sidebar">
+    {{-- ── OVERLAY MÓVIL ── --}}
+    <div id="sidebar-overlay" onclick="cerrarSidebar()"></div>
+
+    {{-- ══════════════════════════════
+         SIDEBAR
+    ══════════════════════════════ --}}
+    <aside class="sidebar" id="sidebar">
 
         <a class="sidebar-brand" href="#">
             <div class="brand-icon">
@@ -293,15 +397,15 @@
 
             {{-- ARCHIVO --}}
             <div class="nav-section-label">Archivo</div>
-            <button class="nav-item" onclick="loadView('usuarios')">
+            <button class="nav-item" onclick="loadViewAndClose('usuarios')">
                 <span class="nav-item-icon">👤</span>
                 <span class="nav-item-label">Cuentas</span>
             </button>
-            <button class="nav-item" onclick="loadView('terceros')">
+            <button class="nav-item" onclick="loadViewAndClose('terceros')">
                 <span class="nav-item-icon">👥</span>
                 <span class="nav-item-label">Terceros</span>
             </button>
-            <button class="nav-item" onclick="loadView('impresoras')">
+            <button class="nav-item" onclick="loadViewAndClose('impresoras')">
                 <span class="nav-item-icon">🖨️</span>
                 <span class="nav-item-label">Impresoras</span>
             </button>
@@ -310,40 +414,44 @@
 
             {{-- OPERACIONES --}}
             <div class="nav-section-label">Operaciones</div>
-            <button class="nav-item" onclick="loadView('productos')">
+            <button class="nav-item" onclick="loadViewAndClose('productos')">
                 <span class="nav-item-icon">📦</span>
                 <span class="nav-item-label">Productos</span>
             </button>
-            <button class="nav-item" onclick="loadView('cajas')">
+            <button class="nav-item" onclick="loadViewAndClose('cajas')">
                 <span class="nav-item-icon">💰</span>
                 <span class="nav-item-label">Cajas</span>
             </button>
-            <button class="nav-item" onclick="loadView('grupos')">
+            <button class="nav-item" onclick="loadViewAndClose('grupos')">
                 <span class="nav-item-icon">🏷️</span>
                 <span class="nav-item-label">Grupos menú</span>
             </button>
-            <button class="nav-item" onclick="loadView('bodegas')">
+            <button class="nav-item" onclick="loadViewAndClose('bodegas')">
                 <span class="nav-item-icon">🏭</span>
                 <span class="nav-item-label">Bodegas</span>
             </button>
-            <button class="rbtn-lg" onclick="loadView('categorias_pos')">
-                <span class="rbtn-icon">🏷️</span>
-                <span class="rbtn-label">Categorías POS</span>
+            <button class="nav-item" onclick="loadViewAndClose('categorias_pos')">
+                <span class="nav-item-icon">🏷️</span>
+                <span class="nav-item-label">Categorías POS</span>
             </button>
-            <button class="nav-item" onclick="toggleMenu('menuList')">
+            <button class="nav-item" onclick="toggleMenu('menuList'); cerrarSidebar()">
                 <span class="nav-item-icon">📁</span>
                 <span class="nav-item-label">Clasificación</span>
+            </button>
+            <button class="nav-item" onclick="loadViewAndClose('facturas')">
+                <span class="nav-item-icon">📄</span>
+                <span class="nav-item-label">Facturas</span>
             </button>
 
             <div class="nav-sep"></div>
 
             {{-- REPORTES --}}
             <div class="nav-section-label">Reportes</div>
-            <button class="nav-item" onclick="loadView('existencias')">
+            <button class="nav-item" onclick="loadViewAndClose('existencias')">
                 <span class="nav-item-icon">📋</span>
                 <span class="nav-item-label">Stock</span>
             </button>
-            <button class="nav-item" onclick="loadView('ajustes')">
+            <button class="nav-item" onclick="loadViewAndClose('ajustes')">
                 <span class="nav-item-icon">⚙️</span>
                 <span class="nav-item-label">Ajustes</span>
             </button>
@@ -364,10 +472,20 @@
 
     </aside>
 
-    {{-- ── ÁREA PRINCIPAL ── --}}
+    {{-- ══════════════════════════════
+         ÁREA PRINCIPAL
+    ══════════════════════════════ --}}
     <div class="main-wrapper">
 
         <div class="topbar">
+            {{-- Hamburguesa solo en móvil --}}
+            <button class="btn-hamburger" onclick="toggleSidebar()" aria-label="Abrir menú">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
             <span class="topbar-breadcrumb" id="topbar-breadcrumb">
                 Selecciona una opción
             </span>
@@ -394,91 +512,134 @@
             <p id="confirmMensaje" class="font-semibold text-gray-900 mb-6"></p>
             <div class="flex flex-col gap-2">
                 <button id="btnConfirmarAccion"
-                    class="w-full py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors">Confirmar</button>
-                <button
-                    class="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-                    onclick="cerrarConfirm()">Cancelar</button>
+                    class="w-full py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                    Confirmar
+                </button>
+                <button onclick="cerrarConfirm()"
+                    class="w-full py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
 
-</body>
+    {{-- ══════════════════════════════
+         SCRIPTS
+    ══════════════════════════════ --}}
+    <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
+    <script src="{{ asset('js/modales.js') }}?v={{ filemtime(public_path('js/modales.js')) }}"></script>
+    <script src="{{ asset('js/terceros.js') }}?v={{ filemtime(public_path('js/terceros.js')) }}"></script>
+    <script src="{{ asset('js/productos.js') }}?v={{ filemtime(public_path('js/productos.js')) }}"></script>
+    <script src="{{ asset('js/ajustes.js') }}?v={{ filemtime(public_path('js/ajustes.js')) }}"></script>
+    <script src="{{ asset('js/existencia.js') }}?v={{ filemtime(public_path('js/existencia.js')) }}"></script>
+    <script src="{{ asset('js/usuarios.js') }}?v={{ filemtime(public_path('js/usuarios.js')) }}"></script>
+    <script src="{{ asset('js/cajas.js') }}?v={{ filemtime(public_path('js/cajas.js')) }}"></script>
+    <script src="{{ asset('js/impresoras.js') }}?v={{ filemtime(public_path('js/impresoras.js')) }}"></script>
+    <script src="{{ asset('js/grupos.js') }}?v={{ filemtime(public_path('js/grupos.js')) }}"></script>
+    <script src="{{ asset('js/categorias_pos.js') }}?v={{ filemtime(public_path('js/categorias_pos.js')) }}"></script>
+    <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
 
-{{-- Scripts --}}
-<script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
-<script src="{{ asset('js/modales.js') }}?v={{ filemtime(public_path('js/modales.js')) }}"></script>
-<script src="{{ asset('js/terceros.js') }}?v={{ filemtime(public_path('js/terceros.js')) }}"></script>
-<script src="{{ asset('js/productos.js') }}?v={{ filemtime(public_path('js/productos.js')) }}"></script>
-<script src="{{ asset('js/ajustes.js') }}?v={{ filemtime(public_path('js/ajustes.js')) }}"></script>
-<script src="{{ asset('js/existencia.js') }}?v={{ filemtime(public_path('js/existencia.js')) }}"></script>
-<script src="{{ asset('js/usuarios.js') }}?v={{ filemtime(public_path('js/usuarios.js')) }}"></script>
-<script src="{{ asset('js/cajas.js') }}?v={{ filemtime(public_path('js/cajas.js')) }}"></script>
-<script src="{{ asset('js/impresoras.js') }}?v={{ filemtime(public_path('js/impresoras.js')) }}"></script>
-<script src="{{ asset('js/grupos.js') }}?v={{ filemtime(public_path('js/grupos.js')) }}"></script>
-{{-- <script src="{{ asset('js/bodegas.js') }}?v={{ filemtime(public_path('js/bodegas.js')) }}"></script> --}}
-<script src="{{ asset('js/categorias_pos.js') }}?v={{ filemtime(public_path('js/categorias_pos.js')) }}"></script>
-<script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
+    <script>
+        // ══════════════════════════
+        // SIDEBAR RESPONSIVE
+        // ══════════════════════════
+        function toggleSidebar() {
+            var sb = document.getElementById('sidebar');
+            var ov = document.getElementById('sidebar-overlay');
+            var isOpen = sb.classList.contains('open');
+            if (isOpen) {
+                cerrarSidebar();
+            } else {
+                sb.classList.add('open');
+                ov.classList.add('open');
+                document.body.style.overflow = 'hidden';
+            }
+        }
 
-<script>
-    // Marcar item activo y actualizar breadcrumb
-    const sectionMap = {
-        usuarios: 'Archivo',
-        terceros: 'Archivo',
-        impresoras: 'Archivo',
-        productos: 'Operaciones',
-        cajas: 'Operaciones',
-        grupos: 'Operaciones',
-        bodegas: 'Operaciones',
-        existencias: 'Reportes',
-        ajustes: 'Reportes'
-    };
+        function cerrarSidebar() {
+            var sb = document.getElementById('sidebar');
+            var ov = document.getElementById('sidebar-overlay');
+            sb.classList.remove('open');
+            ov.classList.remove('open');
+            document.body.style.overflow = '';
+        }
 
-    const labelMap = {
-        usuarios: 'Cuentas',
-        terceros: 'Terceros',
-        impresoras: 'Impresoras',
-        productos: 'Productos',
-        cajas: 'Cajas',
-        grupos: 'Grupos menú',
-        bodegas: 'Bodegas',
-        existencias: 'Stock',
-        ajustes: 'Ajustes'
-    };
-
-    // Interceptar loadView para marcar activo
-    const _originalLoadView = typeof loadView === 'function' ? loadView : null;
-
-    function setActiveNav(view) {
-        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-        const btns = document.querySelectorAll('.nav-item');
-        btns.forEach(b => {
-            const onclick = b.getAttribute('onclick') || '';
-            if (onclick.includes(`'${view}'`)) b.classList.add('active');
+        // En desktop el sidebar siempre está abierto — cerrar si se redimensiona a móvil
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) cerrarSidebar();
         });
 
-        const section = sectionMap[view] || '';
-        const label = labelMap[view] || view;
-        const bc = document.getElementById('topbar-breadcrumb');
-        if (bc) bc.innerHTML = section ?
-            `${section} &rsaquo; <span>${label}</span>` :
-            `<span>${label}</span>`;
-    }
+        // ══════════════════════════
+        // MAPA PARA BREADCRUMB
+        // ══════════════════════════
+        var sectionMap = {
+            usuarios: 'Archivo',
+            terceros: 'Archivo',
+            impresoras: 'Archivo',
+            productos: 'Operaciones',
+            cajas: 'Operaciones',
+            grupos: 'Operaciones',
+            bodegas: 'Operaciones',
+            categorias_pos: 'Operaciones',
+            existencias: 'Reportes',
+            ajustes: 'Reportes'
+        };
 
-    // Parchar loadView para añadir lógica de sidebar
-    document.addEventListener('DOMContentLoaded', () => {
-        const originalLoadView = window.loadView;
-        if (originalLoadView) {
-            window.loadView = function(view) {
-                setActiveNav(view);
-                originalLoadView(view);
-            };
+        var labelMap = {
+            usuarios: 'Cuentas',
+            terceros: 'Terceros',
+            impresoras: 'Impresoras',
+            productos: 'Productos',
+            cajas: 'Cajas',
+            grupos: 'Grupos menú',
+            bodegas: 'Bodegas',
+            categorias_pos: 'Categorías POS',
+            existencias: 'Stock',
+            ajustes: 'Ajustes'
+        };
+
+        function setActiveNav(view) {
+            document.querySelectorAll('.nav-item').forEach(function(b) {
+                b.classList.remove('active');
+                var oc = b.getAttribute('onclick') || '';
+                if (oc.includes("'" + view + "'")) b.classList.add('active');
+            });
+
+            var section = sectionMap[view] || '';
+            var label = labelMap[view] || view;
+            var bc = document.getElementById('topbar-breadcrumb');
+            if (bc) bc.innerHTML = section ?
+                section + ' &rsaquo; <span>' + label + '</span>' :
+                '<span>' + label + '</span>';
         }
-    });
 
-    function cerrarConfirm() {
-        document.getElementById('modalConfirm').classList.remove('show');
-    }
-</script>
+        // loadViewAndClose: llama loadView + cierra sidebar en móvil
+        function loadViewAndClose(view) {
+            setActiveNav(view);
+            if (typeof loadView === 'function') loadView(view);
+            cerrarSidebar();
+        }
+
+        // Parchamos loadView por si app.js lo llama directamente
+        document.addEventListener('DOMContentLoaded', function() {
+            var originalLoadView = window.loadView;
+            if (originalLoadView) {
+                window.loadView = function(view) {
+                    setActiveNav(view);
+                    originalLoadView(view);
+                };
+            }
+        });
+
+        // ══════════════════════════
+        // MODAL CONFIRMAR
+        // ══════════════════════════
+        function cerrarConfirm() {
+            document.getElementById('modalConfirm').classList.remove('show');
+        }
+    </script>
+
+</body>
 
 </html>
 {{-- 

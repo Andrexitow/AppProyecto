@@ -102,6 +102,14 @@ window.actualizarBadgeTicket = function (cantidad) {
 // TICKET — AGREGAR
 // ============================================================
 window.agregarAlTicket = function (id, descripcion, precio) {
+    if (!window.mesaSeleccionadaId) {
+        window.notificar('Selecciona una mesa primero', 'warning');
+        // Abrir el selector de mesas automáticamente
+        if (typeof window.abrirSelectorMesas === 'function') {
+            setTimeout(function () { window.abrirSelectorMesas(); }, 400);
+        }
+        return;
+    }
     var existente = window.ticket.find(function (i) { return i.id === id; });
     if (existente) {
         existente.cantidad++;
@@ -199,16 +207,18 @@ function renderizarTicket() {
 }
 
 function actualizarTotales() {
-    var subtotal = window.ticket.reduce(function (a, i) { return a + (i.precio * i.cantidad); }, 0);
-    var servicio = subtotal * 0.10;
-    var total = subtotal + servicio;
+
+    var subtotal = window.ticket.reduce(function (a, i) {
+        return a + (i.precio * i.cantidad);
+    }, 0);
+
+    var total = subtotal;
 
     var s = document.getElementById('subtotal-val');
-    var v = document.getElementById('servicio-val');
     var t = document.getElementById('total-val');
-    if (s) s.innerText = '$' + subtotal.toLocaleString();
-    if (v) v.innerText = '$' + servicio.toLocaleString();
-    if (t) t.innerText = '$' + total.toLocaleString();
+
+    if (s) s.innerText = '$' + subtotal.toLocaleString('es-CO');
+    if (t) t.innerText = '$' + total.toLocaleString('es-CO');
 }
 
 // ============================================================
@@ -232,8 +242,11 @@ window.seleccionarMesa = async function (id, nombre) {
 
         if (res.ok && data.status === 'success') {
             window.mesaSeleccionadaId = id;
+            window.clienteSeleccionado = null;
             var lA = document.getElementById('mesa-activa-label');
             var lM = document.getElementById('mesa-label');
+            var elCliente = document.getElementById('cliente-nombre-ticket');
+            if (elCliente) elCliente.textContent = 'Consumidor final';
             if (lA) lA.textContent = nombre;
             if (lM) lM.textContent = 'Mesa: ' + nombre;
             window.cerrarSelectorMesas();
@@ -267,9 +280,12 @@ window.liberarMesaActual = async function (id) {
         if (data.status === 'success') {
             window.mesaSeleccionadaId = null;
             window.ticket = [];
+            window.clienteSeleccionado = null;
+            var elCliente = document.getElementById('cliente-nombre-ticket');
             var lA = document.getElementById('mesa-activa-label');
             var lM = document.getElementById('mesa-label');
-            if (lA) lA.textContent = 'SELECCIONAR MESA';
+            if (elCliente) elCliente.textContent = 'Consumidor final';
+            if (lA) lA.textContent = 'MESA';
             if (lM) lM.textContent = 'Mesa: --';
             renderizarTicket();
             window.actualizarBadgeTicket(0);
@@ -312,9 +328,12 @@ async function refrescarMesas() {
         // Si la mesa vuelve a aparecer como disponible, expiró en servidor
         if (tmp.querySelector('[onclick*="seleccionarMesa(' + window.mesaSeleccionadaId + ',"]')) {
             window.mesaSeleccionadaId = null;
+            window.clienteSeleccionado = null;
+            var elCliente = document.getElementById('cliente-nombre-ticket');
             var lA = document.getElementById('mesa-activa-label');
             var lM = document.getElementById('mesa-label');
-            if (lA) lA.textContent = 'SELECCIONAR MESA';
+            if (elCliente) elCliente.textContent = 'Consumidor final';
+            if (lA) lA.textContent = 'MESA';
             if (lM) lM.textContent = 'Mesa: --';
             window.notificar('La sesión de mesa expiró', 'warning');
         }
@@ -349,8 +368,11 @@ window.enviarPedido = async function () {
     if (!itemsNuevos.length) { window.notificar('No hay productos nuevos para enviar', 'warning'); return; }
 
     try {
+        window.clienteSeleccionado = null;
         var mesaId = window.mesaSeleccionadaId;
         var nombreMesa = document.getElementById('mesa-activa-label').textContent;
+        var elCliente = document.getElementById('cliente-nombre-ticket');
+        if (elCliente) elCliente.textContent = 'Consumidor final';
 
         var res = await fetch('/pedidos/guardar', {
             method: 'POST',
@@ -384,10 +406,13 @@ window.enviarPedido = async function () {
             window.mesaSeleccionadaId = null;
             renderizarTicket();
             window.actualizarBadgeTicket(0);
+            window.clienteSeleccionado = null;
 
             var lA = document.getElementById('mesa-activa-label');
+            var elCliente = document.getElementById('cliente-nombre-ticket');
             var lM = document.getElementById('mesa-label');
-            if (lA) lA.textContent = 'SELECCIONAR MESA';
+            if (elCliente) elCliente.textContent = 'Consumidor final';
+            if (lA) lA.textContent = 'MESA';
             if (lM) lM.textContent = 'Mesa: --';
 
             // Refrescar el grid de mesas para que refleje estado ocupada
@@ -415,8 +440,11 @@ window.cargarPedidoExistente = async function (mesaId, nombreMesa) {
         if (data.status === 'success') {
             window.ticket = [];
             window.mesaSeleccionadaId = mesaId;
+            window.clienteSeleccionado = null;
             var lA = document.getElementById('mesa-activa-label');
             var lM = document.getElementById('mesa-label');
+            var elCliente = document.getElementById('cliente-nombre-ticket');
+            if (elCliente) elCliente.textContent = 'Consumidor final';
             if (lA) lA.textContent = nombreMesa;
             if (lM) lM.textContent = 'Mesa: ' + nombreMesa;
 
@@ -431,6 +459,14 @@ window.cargarPedidoExistente = async function (mesaId, nombreMesa) {
                     existente: true
                 };
             });
+
+            // Restaurar cliente del pedido
+            window.clienteSeleccionado = {
+                id: data.cliente_id || 1,
+                nombre: data.cliente_nombre || 'Consumidor Final'
+            };
+            var elCliente = document.getElementById('cliente-nombre-ticket');
+            if (elCliente) elCliente.textContent = window.clienteSeleccionado.nombre;
 
             renderizarTicket();
             window.cerrarSelectorMesas();
@@ -478,9 +514,12 @@ window.validarSuperClave = async function () {
                     window.mesaSeleccionadaId = null;
                     renderizarTicket();
                     window.actualizarBadgeTicket(0);
+                    window.clienteSeleccionado = null;
                     var lA = document.getElementById('mesa-activa-label');
                     var lM = document.getElementById('mesa-label');
-                    if (lA) lA.textContent = 'SELECCIONAR MESA';
+                    var elCliente = document.getElementById('cliente-nombre-ticket');
+                    if (elCliente) elCliente.textContent = 'Consumidor final';
+                    if (lA) lA.textContent = 'MESA';
                     if (lM) lM.textContent = 'Mesa: --';
                     await refrescarMesas();
                     window.cerrarSuperClave();
@@ -498,8 +537,11 @@ window.validarSuperClave = async function () {
             }
 
             // Quedan más items → recargar desde DB
+            window.clienteSeleccionado = null;
             var mesaId = window.mesaSeleccionadaId;
             var nombreMesa = document.getElementById('mesa-activa-label').textContent;
+            var elCliente = document.getElementById('cliente-nombre-ticket');
+            if (elCliente) elCliente.textContent = 'Consumidor final';
             window.cerrarSuperClave();
             await window.cargarPedidoExistente(mesaId, nombreMesa);
             window.notificar('Producto eliminado', 'success');
@@ -537,8 +579,11 @@ window.vaciarTicket = function () {
         renderizarTicket();
         window.actualizarBadgeTicket(0);
         var lA = document.getElementById('mesa-activa-label');
+        window.clienteSeleccionado = null;
+        var elCliente = document.getElementById('cliente-nombre-ticket');
         var lM = document.getElementById('mesa-label');
-        if (lA) lA.textContent = 'SELECCIONAR MESA';
+        if (elCliente) elCliente.textContent = 'Consumidor final';
+        if (lA) lA.textContent = 'MESA';
         if (lM) lM.textContent = 'Mesa: --';
         window.notificar('Saliste del pedido sin cambios', 'info');
         return;
@@ -553,8 +598,11 @@ window.vaciarTicket = function () {
         renderizarTicket();
         window.actualizarBadgeTicket(0);
         var lA2 = document.getElementById('mesa-activa-label');
+        window.clienteSeleccionado = null;
+        var elCliente = document.getElementById('cliente-nombre-ticket');
         var lM2 = document.getElementById('mesa-label');
-        if (lA2) lA2.textContent = 'SELECCIONAR MESA';
+        if (elCliente) elCliente.textContent = 'Consumidor final';
+        if (lA2) lA2.textContent = 'MESA';
         if (lM2) lM2.textContent = 'Mesa: --';
 
         if (mesaId) window.liberarMesaActual(mesaId); // ✅ liberar en servidor
@@ -606,8 +654,11 @@ window.notificar = function (mensaje, tipo) {
 // MODAL DE PAGO — Lógica completa
 // ============================================================
 window.metodoSeleccionado = 'efectivo';
+window._subtotalVenta = 0;
+window._propinaValor = 0;
 
 window.abrirModalPago = function () {
+
     // Validación 1: debe haber mesa seleccionada
     if (!window.mesaSeleccionadaId) {
         window.notificar('Debes seleccionar una mesa primero', 'error');
@@ -630,22 +681,56 @@ window.abrirModalPago = function () {
     var modal = document.getElementById('modalPago');
     if (!modal) { console.error('modalPago no encontrado'); return; }
 
-    // Sincronizar total y mesa
-    var totalStr = document.getElementById('total-val').innerText;
+    // ── Calcular subtotal puro (sin servicio) ──────────────────
+    window._subtotalVenta = window.ticket.reduce(function (a, i) {
+        return a + (i.precio * i.cantidad);
+    }, 0);
+    var servicio = Math.round(window._subtotalVenta * 0.10);
+    var totalConServicio = window._subtotalVenta + servicio;
+
+    // ── Mostrar total y mesa ───────────────────────────────────
     var totalPagar = document.getElementById('pago-total-val');
     var mesaLabel = document.getElementById('pago-mesa-label');
     var mesaNombre = document.getElementById('mesa-activa-label').textContent;
 
-    if (totalPagar) totalPagar.innerText = totalStr;
+    if (totalPagar) {
+        totalPagar.innerText =
+            '$' + window._subtotalVenta.toLocaleString('es-CO');
+    }
     if (mesaLabel) mesaLabel.innerText = 'Mesa: ' + mesaNombre;
 
-    // Resetear estado del modal
+    // ── Reset cliente ──────────────────────────────────────────
+    window.clienteSeleccionado = null;
+    var elCliente = document.getElementById('cliente-nombre-ticket');
+    if (elCliente) elCliente.textContent = 'Consumidor final';
+
+    // ── Reset propina ──────────────────────────────────────────
+    window._propinaValor = 0;
+
+    document.querySelectorAll('.propina-btn').forEach(function (b, i) {
+        if (i === 0) {
+            b.style.background = '#1a2d50';
+            b.style.borderColor = '#2d4faa';
+            b.style.color = '#93c5fd';
+        } else {
+            b.style.background = '#1a2235';
+            b.style.borderColor = '#283347';
+            b.style.color = '#475569';
+        }
+    });
+
+    var customWrap = document.getElementById('propina-custom-wrap');
+    if (customWrap) customWrap.classList.add('hidden');
+
+    actualizarDisplayPropina();
+
+    // ── Reset efectivo recibido ────────────────────────────────
     var inputRecibido = document.getElementById('montoRecibido');
     if (inputRecibido) inputRecibido.value = '';
     var cambioEl = document.getElementById('pago-cambio-val');
     if (cambioEl) cambioEl.innerText = '$0';
 
-    // Resetear método a efectivo por defecto
+    // ── Método por defecto ─────────────────────────────────────
     window.seleccionarMetodo('efectivo');
 
     modal.classList.remove('hidden');
@@ -711,33 +796,6 @@ window.seleccionarMetodo = function (metodo) {
     }
 };
 
-window.calcularCambio = function () {
-    var totalEl = document.getElementById('pago-total-val');
-    // Eliminar símbolo $ y separadores de miles para parsear correctamente COP
-    var totalStr = totalEl ? totalEl.innerText.replace(/[^0-9]/g, '') : '0';
-    var total = parseInt(totalStr) || 0;
-    var recibido = parseInt(document.getElementById('montoRecibido').value) || 0;
-    var cambio = recibido - total;
-
-    var cambioEl = document.getElementById('pago-cambio-val');
-    if (cambioEl) {
-        if (cambio > 0) {
-            cambioEl.innerText = '$ ' + cambio.toLocaleString('es-CO');
-            cambioEl.classList.remove('text-red-400');
-            cambioEl.classList.add('text-emerald-400');
-        } else if (cambio < 0) {
-            // Falta dinero
-            cambioEl.innerText = '- $ ' + Math.abs(cambio).toLocaleString('es-CO');
-            cambioEl.classList.remove('text-emerald-400');
-            cambioEl.classList.add('text-red-400');
-        } else {
-            cambioEl.innerText = '$0';
-            cambioEl.classList.remove('text-red-400');
-            cambioEl.classList.add('text-emerald-400');
-        }
-    }
-};
-
 window.procesarPagoFinal = async function () {
     // 1. Obtener el total numérico una sola vez
     var totalEl = document.getElementById('pago-total-val');
@@ -765,18 +823,18 @@ window.procesarPagoFinal = async function () {
             document.getElementById('montoRecibido').focus();
             return;
         }
-    } 
+    }
     else if (window.metodoSeleccionado === 'tarjeta') {
         detallesPago.tipo_tarjeta = document.getElementById('tipo_tarjeta').value;
         detallesPago.referencia = document.getElementById('ref_tarjeta').value;
-        
+
         // Opcional: Validar que pongan la referencia si es obligatorio para ti
         if (!detallesPago.referencia) {
             window.notificar('Por favor ingresa el número de voucher', 'warning');
             document.getElementById('ref_tarjeta').focus();
             return;
         }
-    } 
+    }
     else if (window.metodoSeleccionado === 'transferencia') {
         detallesPago.banco_destino = document.getElementById('banco_destino').value;
         detallesPago.referencia = document.getElementById('ref_transferencia').value;
@@ -801,12 +859,14 @@ window.procesarPagoFinal = async function () {
                 mesa_id: window.mesaSeleccionadaId,
                 metodo_pago: window.metodoSeleccionado,
                 total: total,
-                // Nuevos campos para la base de datos
+                propina: window._propinaValor || 0,
                 tipo_tarjeta: detallesPago.tipo_tarjeta,
                 banco_destino: detallesPago.banco_destino,
-                referencia: detallesPago.referencia
+                referencia: detallesPago.referencia,
+                cliente_id: (window.clienteSeleccionado && window.clienteSeleccionado.id) || 1,
             })
         });
+
 
         var data = await res.json();
 
@@ -817,7 +877,7 @@ window.procesarPagoFinal = async function () {
             // Limpiar estado de la App
             window.ticket = [];
             window.mesaSeleccionadaId = null;
-            
+
             // Si tienes estas funciones definidas en tu facturacion.js
             if (typeof renderizarTicket === "function") renderizarTicket();
             if (typeof window.actualizarBadgeTicket === "function") window.actualizarBadgeTicket(0);
@@ -829,7 +889,7 @@ window.procesarPagoFinal = async function () {
 
             // Actualizar la vista de mesas (para que cambie de color a disponible)
             if (typeof refrescarMesas === "function") await refrescarMesas();
-            
+
         } else {
             window.notificar(data.message || 'Error al procesar el pago', 'error');
         }
@@ -838,4 +898,380 @@ window.procesarPagoFinal = async function () {
         console.error('Error procesando pago:', e);
         window.notificar('Error de conexión al procesar pago', 'error');
     }
+}
+
+function imprimirInventarioPOS() {
+    if (!confirm("¿Deseas imprimir la plantilla de inventario actual en formato POS?")) return;
+
+    fetch('/pedidos/imprimir-inventario-pos', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert("Plantilla de inventario enviada con éxito a la impresora térmica.");
+            } else {
+                alert("Error: " + data.message);
+            }
+        })
+        .catch(error => {
+            console.error("Error al procesar impresión de inventario:", error);
+            alert("Ocurrió un error de red al intentar mandar la impresión.");
+        });
+}
+
+/**
+ * 2. MODAL DE ARQUEO / CIERRE DE CAJA
+ */
+function abrirModalCierre() {
+    const modal = document.getElementById('modalCierreCaja');
+
+    // Bloqueo estricto del día actual
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('cierre_fecha_fin').value = hoy;
+    document.getElementById('cierre_fecha_inicio').value = hoy;
+
+    // Autocompletar hora de cierre con la hora actual exacta del navegador
+    const ahora = new Date();
+    const horaStr = String(ahora.getHours()).padStart(2, '0') + ':' + String(ahora.getMinutes()).padStart(2, '0');
+    document.getElementById('cierre_hora_fin').value = horaStr;
+
+    // Default hora de inicio (puedes cambiarla o cargar la real del login si la guardas)
+    document.getElementById('cierre_hora_inicio').value = "18:00";
+
+    modal.classList.add('show');
+}
+
+function cerrarModalCierre() {
+    document.getElementById('modalCierreCaja').classList.remove('show');
+}
+
+/**
+ * CALCULADORA DINÁMICA DE ARQUEO
+ */
+function calcularArqueoTotal() {
+
+    let totalEfectivoFisico = 0;
+
+    const inputs = document.querySelectorAll('.input-denominacion');
+
+    inputs.forEach(input => {
+
+        const cantidad = parseInt(input.value) || 0;
+
+        const valorDenominacion = parseInt(
+            input.getAttribute('data-valor')
+        );
+
+        const subtotal = cantidad * valorDenominacion;
+
+        totalEfectivoFisico += subtotal;
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUBTOTAL POR DENOMINACION
+        |--------------------------------------------------------------------------
+        */
+
+        const subtotalElement = document.getElementById(
+            `subtotal_den_${valorDenominacion}`
+        );
+
+        if (subtotalElement) {
+
+            subtotalElement.innerText =
+                "$" + subtotal.toLocaleString('es-CO');
+        }
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL GENERAL FISICO
+    |--------------------------------------------------------------------------
+    */
+
+    document.getElementById('total_efectivo_conteo').innerText =
+        "$" + totalEfectivoFisico.toLocaleString('es-CO');
+}
+
+function procesarCierreFinal() {
+
+    const textoConteo = document.getElementById('total_efectivo_conteo').innerText;
+    const totalFisico = parseInt(textoConteo.replace('$', '').replace(/\./g, '')) || 0;
+
+    const data = {
+        fecha_inicio: document.getElementById('cierre_fecha_inicio').value,
+        hora_inicio: document.getElementById('cierre_hora_inicio').value,
+        fecha_fin: document.getElementById('cierre_fecha_fin').value,
+        hora_fin: document.getElementById('cierre_hora_fin').value,
+        base_caja: document.getElementById('base_caja').value,
+
+        efectivo_fisico_conteo: totalFisico,
+
+        // MONEDAS — IDs definidos en el Blade
+        m100: parseInt(document.getElementById('m100')?.value) || 0,
+        m200: parseInt(document.getElementById('m200')?.value) || 0,
+        m500: parseInt(document.getElementById('m500')?.value) || 0,
+        m1000: parseInt(document.getElementById('m1000')?.value) || 0,
+
+        // BILLETES
+        b2000: parseInt(document.getElementById('b2000')?.value) || 0,
+        b5000: parseInt(document.getElementById('b5000')?.value) || 0,
+        b10000: parseInt(document.getElementById('b10000')?.value) || 0,
+        b20000: parseInt(document.getElementById('b20000')?.value) || 0,
+        b50000: parseInt(document.getElementById('b50000')?.value) || 0,
+        b100000: parseInt(document.getElementById('b100000')?.value) || 0,
+    };
+
+    fetch('/pedidos/procesar-cierre-caja', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify(data)
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const icon = res.estado_cuadre === 'CUADRADO' ? '✅' : res.estado_cuadre === 'SOBRANTE' ? '📈' : '⚠️';
+                const color = res.estado_cuadre === 'CUADRADO' ? '#22c55e' : res.estado_cuadre === 'SOBRANTE' ? '#3b82f6' : '#ef4444';
+                mostrarToastCierre(icon, res.estado_cuadre, res.diferencia, color);
+                setTimeout(() => location.reload(), 3500);
+            } else {
+                alert('Error: ' + res.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Error al procesar el cierre.');
+        });
+}
+
+function mostrarToastCierre(icon, estado, diferencia, color) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position:fixed; top:20px; right:20px; z-index:99999;
+        background:#0f172a; border:1px solid ${color}40;
+        border-left:3px solid ${color};
+        border-radius:12px; padding:16px 20px;
+        min-width:260px; box-shadow:0 8px 32px rgba(0,0,0,0.5);
+        animation:fadeIn .25s ease-out;
+    `;
+    toast.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <span style="font-size:20px;">${icon}</span>
+            <span style="font-size:13px; font-weight:800; color:${color}; text-transform:uppercase; letter-spacing:.5px;">
+                ${estado}
+            </span>
+        </div>
+        <p style="font-size:11px; color:#94a3b8; font-weight:600; margin:0;">
+            Diferencia: <strong style="color:#e2e8f0;">$${diferencia}</strong>
+        </p>
+        <p style="font-size:10px; color:#475569; margin:4px 0 0; font-weight:600;">
+            Redirigiendo...
+        </p>
+    `;
+    document.body.appendChild(toast);
+}
+
+function calcularArqueoTotal() {
+    let totalFisico = 0;
+
+    document.querySelectorAll('.input-denominacion').forEach(input => {
+        const cantidad = parseInt(input.value) || 0;
+        const valor = parseInt(input.getAttribute('data-valor')) || 0;
+        const subtotal = cantidad * valor;
+        totalFisico += subtotal;
+
+        const span = document.getElementById('subtotal_den_' + valor);
+        if (span) span.innerText = '$' + subtotal.toLocaleString('es-CO');
+    });
+
+    document.getElementById('total_efectivo_conteo').innerText =
+        '$' + totalFisico.toLocaleString('es-CO');
+}
+
+// ============================================================
+// MOVIMIENTO CAJA — tipo único con selector
+// ============================================================
+window._tipoMovimiento = 'ingreso'; // default
+
+window.abrirModalMovimiento = function () {
+    seleccionarTipoMovimiento('ingreso');
+    document.getElementById('mov_monto').value = '';
+    document.getElementById('mov_concepto').value = '';
+    document.getElementById('modalMovimientoCaja').classList.add('show');
+};
+
+window.seleccionarTipoMovimiento = function (tipo) {
+    window._tipoMovimiento = tipo;
+
+    const btnIngreso = document.getElementById('btn-tipo-ingreso');
+    const btnEgreso = document.getElementById('btn-tipo-egreso');
+
+    if (tipo === 'ingreso') {
+        btnIngreso.style.background = '#0d2210';
+        btnIngreso.style.borderColor = '#14532d';
+        btnIngreso.style.color = '#4ade80';
+        btnEgreso.style.background = '#1a2235';
+        btnEgreso.style.borderColor = '#283347';
+        btnEgreso.style.color = '#475569';
+    } else {
+        btnEgreso.style.background = '#2d1515';
+        btnEgreso.style.borderColor = '#7f1d1d';
+        btnEgreso.style.color = '#f87171';
+        btnIngreso.style.background = '#1a2235';
+        btnIngreso.style.borderColor = '#283347';
+        btnIngreso.style.color = '#475569';
+    }
+};
+
+window.cerrarModalMovimiento = function () {
+    document.getElementById('modalMovimientoCaja').classList.remove('show');
+    document.getElementById('mov_monto').value = '';
+    document.getElementById('mov_concepto').value = '';
+};
+
+window.guardarMovimiento = function () {
+    const tipo = window._tipoMovimiento;
+    const monto = document.getElementById('mov_monto').value;
+    const concepto = document.getElementById('mov_concepto').value;
+
+    if (!monto || parseFloat(monto) <= 0) {
+        window.notificar('Ingresa un monto válido', 'warning');
+        return;
+    }
+    if (!concepto.trim()) {
+        window.notificar('Escribe el concepto del movimiento', 'warning');
+        return;
+    }
+
+    fetch('/pedidos/guardar-movimiento', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ tipo, monto, concepto })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                window.notificar(
+                    (tipo === 'ingreso' ? 'Ingreso' : 'Egreso') + ' registrado: $' + parseFloat(monto).toLocaleString('es-CO'),
+                    tipo === 'ingreso' ? 'success' : 'warning'
+                );
+                cerrarModalMovimiento();
+            } else {
+                window.notificar('Error: ' + res.message, 'error');
+            }
+        })
+        .catch(() => window.notificar('Error de conexión', 'error'));
+};
+
+// ============================================================
+// PROPINA EN MODAL DE PAGO
+// ============================================================
+window._propinaValor = 0;
+
+window.seleccionarPropina = function (opcion) {
+    console.log('_subtotalVenta:', window._subtotalVenta);
+    // El % se aplica sobre el SUBTOTAL puro, no sobre el total con servicio
+    var base = window._subtotalVenta || 0;
+
+    document.querySelectorAll('.propina-btn').forEach(function (b) {
+        b.style.background = '#1a2235'; b.style.borderColor = '#283347'; b.style.color = '#475569';
+    });
+
+    var customWrap = document.getElementById('propina-custom-wrap');
+    var btns = document.querySelectorAll('.propina-btn');
+
+    if (opcion === 'custom') {
+        customWrap.classList.remove('hidden');
+        document.getElementById('propina_custom').value = '';
+        document.getElementById('propina_custom').focus();
+        window._propinaValor = 0;
+        if (btns[3]) { btns[3].style.background = '#451a03'; btns[3].style.borderColor = '#92400e'; btns[3].style.color = '#fbbf24'; }
+    } else {
+        customWrap.classList.add('hidden');
+        window._propinaValor = opcion === 0 ? 0 : Math.round(base * (opcion / 100));
+
+        var idx = opcion === 0 ? 0 : opcion === 5 ? 1 : 2;
+        if (btns[idx]) {
+            btns[idx].style.background = '#1a2d50'; btns[idx].style.borderColor = '#2d4faa'; btns[idx].style.color = '#93c5fd';
+        }
+    }
+
+    actualizarDisplayPropina();
+};
+
+window.aplicarPropinaCustom = function () {
+    window._propinaValor = parseInt(document.getElementById('propina_custom').value) || 0;
+    actualizarDisplayPropina();
+};
+
+function actualizarDisplayPropina() {
+
+    var granTotal =
+        (window._subtotalVenta || 0) +
+        (window._propinaValor || 0);
+
+    var granEl = document.getElementById('pago-gran-total');
+
+    if (granEl) {
+        granEl.innerText =
+            '$' + granTotal.toLocaleString('es-CO');
+    }
+
+    window.calcularCambio();
+}
+
+window.calcularCambio = function () {
+
+    var granTotal =
+        (window._subtotalVenta || 0) +
+        (window._propinaValor || 0);
+
+    var recibido =
+        parseInt(document.getElementById('montoRecibido')?.value) || 0;
+
+    var cambio = recibido - granTotal;
+
+    var cambioEl = document.getElementById('pago-cambio-val');
+
+    if (!cambioEl) return;
+
+    if (cambio > 0) {
+
+        cambioEl.innerText =
+            '$ ' + cambio.toLocaleString('es-CO');
+
+        cambioEl.className =
+            'text-xl font-black text-emerald-400';
+
+    } else if (cambio < 0) {
+
+        cambioEl.innerText =
+            '- $ ' + Math.abs(cambio).toLocaleString('es-CO');
+
+        cambioEl.className =
+            'text-xl font-black text-red-400';
+
+    } else {
+
+        cambioEl.innerText = '$0';
+
+        cambioEl.className =
+            'text-xl font-black text-emerald-400';
+    }
+};
+window.aplicarPropinaCustom = function () {
+    const val = parseInt(document.getElementById('propina_custom').value) || 0;
+    window._propinaValor = val;
+    actualizarDisplayPropina();
 };

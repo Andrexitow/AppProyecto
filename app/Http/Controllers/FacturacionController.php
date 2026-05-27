@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\PrintService;
+use Carbon\Carbon;
 
 class FacturacionController extends Controller
 {
@@ -190,56 +191,6 @@ class FacturacionController extends Controller
         }
     }
 
-    // public function guardarPedido(Request $request)
-    // {
-    //     try {
-    //         DB::beginTransaction();
-
-    //         $userId = Auth::id();
-
-    //         if (!$userId) {
-    //             return response()->json([
-    //                 'status' => 'error',
-    //                 'message' => 'Debes estar autenticado para enviar pedidos.'
-    //             ], 401);
-    //         }
-
-    //         $pedido = Pedido::firstOrCreate(
-    //             ['mesa_id' => $request->mesa_id, 'estado' => 'pendiente'],
-    //             ['user_id' => $userId, 'total' => 0]
-    //         );
-    //         $nuevoSubtotal = 0;
-
-    //         // 2. Guardamos cada item del ticket
-    //         foreach ($request->items as $item) {
-    //             $subtotalItem = $item['precio'] * $item['cantidad'];
-
-    //             DetallePedido::create([
-    //                 'pedido_id' => $pedido->id,
-    //                 'producto_id' => $item['id'],
-    //                 'cantidad' => $item['cantidad'],
-    //                 'precio_unitario' => $item['precio'],
-    //                 'subtotal' => $item['precio'] * $item['cantidad'],
-    //                 'observacion' => $item['observacion'] ?? null, // <--- GUARDAR NOTA
-    //             ]);
-
-    //             $nuevoSubtotal += $subtotalItem;
-    //         }
-
-    //         // 3. Actualizamos el total del pedido
-    //         $pedido->increment('total', $nuevoSubtotal);
-
-    //         // 4. CAMBIO CLAVE: Pasamos la mesa a ocupada
-    //         $mesa = Mesa::find($request->mesa_id);
-    //         $mesa->update(['estado' => 'ocupada']);
-
-    //         DB::commit();
-    //         return response()->json(['status' => 'success', 'message' => '¡Pedido enviado!']);
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-    //         return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-    //     }
-    // }
 
     public function obtenerPedidoPendiente($mesaId)
     {
@@ -270,13 +221,12 @@ class FacturacionController extends Controller
         ]);
     }
 
-    public function eliminarItemPedido(Request $request)
+    public function eliminarItemPedido(Request $request, PrintService $printService)
     {
         if ($request->clave !== '1234') {
             return response()->json(['status' => 'error', 'message' => 'Clave incorrecta'], 403);
         }
 
-        // Agrega este log temporal para ver qué llega
         Log::info('Eliminar item:', $request->all());
 
         try {
@@ -296,11 +246,34 @@ class FacturacionController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Item no encontrado'], 404);
             }
 
+            // ✅ IMPRIMIR COMANDA DE ANULACIÓN ANTES DE ELIMINAR
+            try {
+                $producto = $item->producto()->with('grupoMenu.impresora')->first();
+                $mesa     = Mesa::find($request->mesa_id);
+
+                if ($producto && $producto->grupoMenu && $producto->grupoMenu->impresora) {
+                    $impresora     = $producto->grupoMenu->impresora;
+                    $nombreDestino = $impresora->nombre;
+
+                    $printService->imprimirComandaAnulacion(
+                        $mesa,
+                        $producto,
+                        $item->cantidad,
+                        $item->observacion ?? '',
+                        $impresora,
+                        $nombreDestino
+                    );
+                }
+            } catch (\Exception $e) {
+                Log::error("Error imprimiendo anulación: " . $e->getMessage());
+                // No frenamos el proceso si falla la impresora
+            }
+
             // Restar del total solo lo de este item
             $pedido->decrement('total', $item->subtotal);
             $item->delete();
 
-            // Solo borrar el pedido si explícitamente no quedan items
+            // Solo borrar el pedido si no quedan items
             $restantes = $pedido->detalles()->count();
             if ($restantes === 0) {
                 $pedido->delete();
@@ -308,7 +281,7 @@ class FacturacionController extends Controller
 
                 return response()->json([
                     'status'           => 'success',
-                    'pedido_eliminado' => true  // ✅ avisa al JS que el pedido ya no existe
+                    'pedido_eliminado' => true
                 ]);
             }
 
@@ -321,32 +294,28 @@ class FacturacionController extends Controller
 
     public function cerrarMesa(Request $request, PrintService $printService)
     {
-        // 1. VALIDACIÓN DE ENTRADA
         $request->validate([
             'mesa_id'       => 'required|exists:mesas,id',
             'metodo_pago'   => 'required|in:efectivo,tarjeta,transferencia,mixto',
             'total'         => 'required|numeric|min:0',
+            'propina'       => 'nullable|numeric|min:0',
             'tipo_tarjeta'  => 'nullable|string',
             'banco_destino' => 'nullable|string',
             'referencia'    => 'nullable|string',
             'cliente_id'    => 'nullable|integer',
         ]);
 
-        // 2. OBTENER CAJA E IMPRESORA DEL USUARIO
-        $caja = Caja::where('user_id', auth()->id())->with('impresora')->first();
+        $caja = Caja::with('impresora')->find(auth()->user()->caja_id);
 
-        // DIAGNÓSTICO DE CAJA
         if (!$caja) {
-            Log::warning("Diagnóstico: Usuario ID " . auth()->id() . " intentó facturar pero NO tiene caja asignada.");
+            Log::warning("Usuario ID " . auth()->id() . " intentó facturar sin caja asignada.");
+
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Tu usuario no tiene una caja asignada o activa.'
             ], 403);
         }
 
-        Log::info("Diagnóstico: Facturando con Caja ID: {$caja->id} - Nombre: {$caja->nombre}");
-
-        // 3. OBTENER PEDIDOS PENDIENTES
         $pedidos = Pedido::where('mesa_id', $request->mesa_id)
             ->where('estado', 'pendiente')
             ->with('detalles.producto')
@@ -360,13 +329,18 @@ class FacturacionController extends Controller
         }
 
         try {
+
             DB::beginTransaction();
 
-            // 4. VALIDACIÓN PREVIA DE STOCK
             foreach ($pedidos as $pedido) {
+
                 foreach ($pedido->detalles as $detalle) {
+
                     $producto = $detalle->producto;
-                    if (!$producto || $producto->afecta_inventario != 1) continue;
+
+                    if (!$producto || $producto->afecta_inventario != 1) {
+                        continue;
+                    }
 
                     $inventario = DB::table('inventarios')
                         ->where('producto_id', $producto->id)
@@ -374,12 +348,14 @@ class FacturacionController extends Controller
                         ->first();
 
                     if (!$inventario || $inventario->stock < $detalle->cantidad) {
-                        throw new \Exception("Stock insuficiente para: {$producto->descripcion}");
+
+                        throw new \Exception(
+                            "Stock insuficiente para: {$producto->descripcion}"
+                        );
                     }
                 }
             }
 
-            // 5. GENERAR NÚMERO DE FACTURA
             $ultimaFactura = Factura::where('caja_id', $caja->id)
                 ->where('numero_factura', 'LIKE', $caja->prefijo . '-%')
                 ->orderBy('id', 'desc')
@@ -389,18 +365,29 @@ class FacturacionController extends Controller
                 ? intval(explode('-', $ultimaFactura->numero_factura)[1] ?? 0) + 1
                 : 1;
 
-            $numeroFactura = $caja->prefijo . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
+            $numeroFactura =
+                $caja->prefijo . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
 
-            // 6. CREAR CABECERA DE FACTURA
+            $propina = $request->propina ?? 0;
+
+            $total = $request->total;
+
+            $subtotal = $total - $propina;
+
+            if ($subtotal < 0) {
+                $subtotal = 0;
+            }
+
             $factura = Factura::create([
                 'numero_factura'  => $numeroFactura,
                 'mesa_id'         => $request->mesa_id,
                 'user_id'         => auth()->id(),
                 'cliente_id'      => $request->cliente_id ?? 1,
                 'caja_id'         => $caja->id,
-                'subtotal'        => $request->total,
+                'subtotal'        => $subtotal,
                 'impuestos'       => 0,
-                'total'           => $request->total,
+                'propina'         => $propina,
+                'total'           => $total,
                 'metodo_pago'     => $request->metodo_pago,
                 'tipo_tarjeta'    => $request->tipo_tarjeta,
                 'banco_destino'   => $request->banco_destino,
@@ -408,9 +395,10 @@ class FacturacionController extends Controller
                 'estado'          => 'pagada'
             ]);
 
-            // 7. PROCESAR DETALLES, INVENTARIO Y PEDIDOS
             foreach ($pedidos as $pedido) {
+
                 foreach ($pedido->detalles as $detalle) {
+
                     $factura->detalles()->create([
                         'producto_id'     => $detalle->producto_id,
                         'cantidad'        => $detalle->cantidad,
@@ -418,42 +406,53 @@ class FacturacionController extends Controller
                         'subtotal'        => $detalle->subtotal
                     ]);
 
-                    if ($detalle->producto && $detalle->producto->afecta_inventario == 1) {
+                    if (
+                        $detalle->producto &&
+                        $detalle->producto->afecta_inventario == 1
+                    ) {
+
                         DB::table('inventarios')
                             ->where('producto_id', $detalle->producto_id)
                             ->where('bodega_id', $caja->bodega_id)
                             ->decrement('stock', $detalle->cantidad);
                     }
                 }
-                $pedido->update(['estado' => 'pagado']);
+
+                $pedido->update([
+                    'estado' => 'pagado'
+                ]);
             }
 
-            // 8. LIBERAR MESA
-            Mesa::where('id', $request->mesa_id)->update(['estado' => 'disponible']);
+            Mesa::where('id', $request->mesa_id)
+                ->update([
+                    'estado' => 'disponible'
+                ]);
 
-            // 9. DIAGNÓSTICO DE IMPRESIÓN
             if ($caja->impresora) {
+
                 try {
-                    // CARGA CRÍTICA DE RELACIONES
+
                     $factura->load([
                         'detalles.producto',
-                        'user',                // Relación con el Cajero
-                        'mesa.pedidos.mesero', // Relación para sacar el Mesero
+                        'user',
+                        'mesa.pedidos.mesero',
                         'cliente',
                         'caja'
                     ]);
 
-                    $printService->imprimirFactura($factura, $caja->impresora);
+                    $printService->imprimirFactura(
+                        $factura,
+                        $caja->impresora
+                    );
                 } catch (\Exception $e) {
-                    Log::error("Error de impresora: " . $e->getMessage());
+
+                    Log::error(
+                        "Error de impresora: " . $e->getMessage()
+                    );
                 }
             }
 
             DB::commit();
-            Log::info('--- CHECKPOINT POST-COMMIT ---');
-            Log::info('Caja ID: ' . $caja->id);
-            Log::info('Impresora raw: ' . json_encode($caja->getRelationValue('impresora')));
-            Log::info('impresora_id en caja: ' . ($caja->impresora_id ?? 'NULL'));
 
             return response()->json([
                 'status'     => 'success',
@@ -461,11 +460,424 @@ class FacturacionController extends Controller
                 'factura_id' => $factura->id
             ]);
         } catch (\Exception $e) {
+
             DB::rollBack();
-            Log::error("Diagnóstico: Fallo crítico en transacción: " . $e->getMessage());
+
+            Log::error(
+                "Fallo crítico en transacción: " . $e->getMessage()
+            );
+
             return response()->json([
                 'status'  => 'error',
                 'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function imprimirInventarioPos(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // 1. Obtener la caja e impresora
+            $caja = DB::table('cajas')->where('id', $user->caja_id)->first();
+            if (!$caja) {
+                return response()->json(['success' => false, 'message' => 'Caja no encontrada.'], 400);
+            }
+
+            $impresora = DB::table('impresoras')->where('id', $caja->impresora_id)->first();
+            if (!$impresora) {
+                return response()->json(['success' => false, 'message' => 'Impresora no configurada.'], 400);
+            }
+
+            // 2. Determinar la Bodega según la caja (Bodega 1 = Restaurante, 2 = Discoteca)
+            $bodegaId = $caja->bodega_id;
+            $nombreBodega = ($bodegaId == 1) ? "RESTAURANTE" : "DISCOTECA";
+
+            // 3. Consultar la tabla INVENTARIOS con JOIN a PRODUCTOS
+            // Esto trae el nombre del producto y el stock específico de esa bodega
+            $inventario = DB::table('inventarios')
+                ->join('productos', 'inventarios.producto_id', '=', 'productos.id')
+                ->where('inventarios.bodega_id', $bodegaId)
+                ->select('productos.descripcion', 'productos.und_detal', 'inventarios.stock')
+                ->get();
+
+            // 4. Construcción del Formato POS
+            $txt = "========================================\n";
+            $txt .= "      REVISIÓN DE INVENTARIO POS        \n";
+            $txt .= "========================================\n";
+            $txt .= "BODEGA: " . $nombreBodega . "\n";
+            $txt .= "FECHA : " . date('d/m/Y h:i A') . "\n";
+            $txt .= "CAJERO: " . strtoupper($user->name) . "\n";
+            $txt .= "----------------------------------------\n";
+            $txt .= "PRODUCTO            | STOCK  | CONTEO  \n";
+            $txt .= "----------------------------------------\n";
+
+            foreach ($inventario as $item) {
+                // Cortar nombre a 19 caracteres para que no se desplace la columna
+                $nombre = substr(strtoupper($item->descripcion), 0, 19);
+                $nombrePad = str_pad($nombre, 19, " ");
+
+                // Formatear stock (quitando decimales innecesarios .00)
+                $stockVal = number_format($item->stock, 0);
+                $stockPad = str_pad($stockVal, 6, " ", STR_PAD_LEFT);
+
+                $txt .= "{$nombrePad} | {$stockPad} | _______\n";
+            }
+
+            $txt .= "----------------------------------------\n";
+            $txt .= "   Favor reportar cualquier descuadre   \n";
+            $txt .= "========================================\n";
+            $txt .= "\n\n\n\n\n";
+
+            // 5. Envío a la Impresora
+            $connector = new \Mike42\Escpos\PrintConnectors\NetworkPrintConnector($impresora->ip, $impresora->puerto ?? 9100);
+            $printer = new \Mike42\Escpos\Printer($connector);
+
+            $printer->text($txt);
+            $printer->cut();
+            $printer->close();
+
+            return response()->json(['success' => true, 'bodega' => $nombreBodega]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error en impresión: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function procesarCierreCaja(Request $request)
+    {
+        try {
+
+            $user = Auth::user();
+
+            /*
+        |--------------------------------------------------------------------------
+        | VALIDACIONES
+        |--------------------------------------------------------------------------
+        */
+
+            if (
+                !$request->fecha_inicio ||
+                !$request->hora_inicio  ||
+                !$request->fecha_fin    ||
+                !$request->hora_fin
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Faltan fechas u horas del cierre.'
+                ], 400);
+            }
+
+            $desde = \Carbon\Carbon::parse($request->fecha_inicio . ' ' . $request->hora_inicio);
+            $hasta = \Carbon\Carbon::parse($request->fecha_fin    . ' ' . $request->hora_fin);
+
+            /*
+        |--------------------------------------------------------------------------
+        | CAJA / IMPRESORA
+        |--------------------------------------------------------------------------
+        */
+
+            $caja = DB::table('cajas')
+                ->where('id', $user->caja_id)
+                ->first();
+
+            $impresora = DB::table('impresoras')
+                ->where('id', $caja->impresora_id ?? 0)
+                ->first();
+
+            /*
+        |--------------------------------------------------------------------------
+        | FACTURAS
+        |--------------------------------------------------------------------------
+        */
+
+            $facturas = DB::table('facturas')
+                ->where('user_id', $user->id)
+                ->whereBetween('created_at', [$desde, $hasta])
+                ->orderBy('id')
+                ->get();
+
+            $cantidadFacturas = $facturas->count();
+            $facturaInicial   = $facturas->first();
+            $facturaFinal     = $facturas->last();
+
+            /*
+        |--------------------------------------------------------------------------
+        | VENTAS SIN PROPINA
+        |--------------------------------------------------------------------------
+        */
+
+            $ventas = DB::table('facturas')
+                ->where('user_id', $user->id)
+                ->whereBetween('created_at', [$desde, $hasta])
+                ->selectRaw("
+                SUM(CASE WHEN metodo_pago = 'efectivo'       THEN total - propina ELSE 0 END) as efectivo,
+                SUM(CASE WHEN metodo_pago = 'qr'             THEN total - propina ELSE 0 END) as qr,
+                SUM(CASE WHEN metodo_pago = 'tarjeta'        THEN total - propina ELSE 0 END) as tarjeta,
+                SUM(CASE WHEN metodo_pago = 'transferencia'  THEN total - propina ELSE 0 END) as transferencia,
+                SUM(total - propina) as total_ventas
+            ")
+                ->first();
+
+            /*
+        |--------------------------------------------------------------------------
+        | PROPINAS
+        |--------------------------------------------------------------------------
+        */
+
+            $propinas = DB::table('facturas')
+                ->where('user_id', $user->id)
+                ->whereBetween('created_at', [$desde, $hasta])
+                ->selectRaw("
+                SUM(CASE WHEN metodo_pago = 'efectivo'       THEN propina ELSE 0 END) as efectivo,
+                SUM(CASE WHEN metodo_pago = 'qr'             THEN propina ELSE 0 END) as qr,
+                SUM(CASE WHEN metodo_pago = 'tarjeta'        THEN propina ELSE 0 END) as tarjeta,
+                SUM(CASE WHEN metodo_pago = 'transferencia'  THEN propina ELSE 0 END) as transferencia,
+                SUM(propina) as total_propinas
+            ")
+                ->first();
+
+            /*
+        |--------------------------------------------------------------------------
+        | MOVIMIENTOS DE CAJA
+        |--------------------------------------------------------------------------
+        */
+
+            $movimientos = DB::table('movimientos_caja')
+                ->whereBetween('created_at', [$desde, $hasta])
+                ->get();
+
+            $totalEntradas = $movimientos->where('tipo', 'entrada')->sum('valor');
+            $totalSalidas  = $movimientos->where('tipo', 'salida')->sum('valor');
+
+            /*
+        |--------------------------------------------------------------------------
+        | ARQUEO
+        |--------------------------------------------------------------------------
+        */
+
+            $arqueoEfectivo      = ($ventas->efectivo      ?? 0) + ($propinas->efectivo      ?? 0);
+            $arqueoQr            = ($ventas->qr            ?? 0) + ($propinas->qr            ?? 0);
+            $arqueoTarjeta       = ($ventas->tarjeta       ?? 0) + ($propinas->tarjeta       ?? 0);
+            $arqueoTransferencia = ($ventas->transferencia ?? 0) + ($propinas->transferencia ?? 0);
+
+            /*
+        |--------------------------------------------------------------------------
+        | CONTEO FISICO
+        |--------------------------------------------------------------------------
+        */
+
+            $m100   = intval($request->m100    ?? 0) * 100;
+            $m200   = intval($request->m200    ?? 0) * 200;
+            $m500   = intval($request->m500    ?? 0) * 500;
+            $m1000  = intval($request->m1000   ?? 0) * 1000;
+
+            $b2000   = intval($request->b2000   ?? 0) * 2000;
+            $b5000   = intval($request->b5000   ?? 0) * 5000;
+            $b10000  = intval($request->b10000  ?? 0) * 10000;
+            $b20000  = intval($request->b20000  ?? 0) * 20000;
+            $b50000  = intval($request->b50000  ?? 0) * 50000;
+            $b100000 = intval($request->b100000 ?? 0) * 100000;
+
+            $totalFisico =
+                $m100 + $m200 + $m500 + $m1000 +
+                $b2000 + $b5000 + $b10000 + $b20000 + $b50000 + $b100000;
+
+            /*
+        |--------------------------------------------------------------------------
+        | TOTAL ESPERADO
+        |--------------------------------------------------------------------------
+        */
+
+            $baseInicial = floatval($request->base_caja ?? 0);
+
+            $efectivoEsperado =
+                $baseInicial +
+                $arqueoEfectivo +
+                $totalEntradas -
+                $totalSalidas;
+
+            $diferencia = $totalFisico - $efectivoEsperado;
+
+            /*
+        |--------------------------------------------------------------------------
+        | HELPERS DE IMPRESION
+        |--------------------------------------------------------------------------
+        */
+
+            $W = 40;
+
+            // Dos columnas alineadas: texto izquierda, valor derecha
+            $col = function ($izq, $der) use ($W) {
+                $espacios = $W - mb_strlen($izq) - mb_strlen($der);
+                return $izq . str_repeat(' ', max(1, $espacios)) . $der . "\n";
+            };
+
+            $lineaDoble  = str_repeat('=', $W) . "\n";
+            $lineaSimple = str_repeat('-', $W) . "\n";
+            $lineaPuntos = str_repeat('. ', $W / 2) . "\n";
+
+            // Título de sección centrado
+            $seccion = function ($titulo) use ($W, $lineaPuntos) {
+                $label = '[ ' . $titulo . ' ]';
+                $pad   = str_repeat(' ', max(0, (int) floor(($W - mb_strlen($label)) / 2)));
+                return $lineaPuntos
+                    . $pad . $label . "\n"
+                    . $lineaPuntos;
+            };
+
+            /*
+        |--------------------------------------------------------------------------
+        | IMPRESION
+        |--------------------------------------------------------------------------
+        */
+
+            if ($impresora) {
+
+                $connector = new \Mike42\Escpos\PrintConnectors\NetworkPrintConnector(
+                    $impresora->ip,
+                    $impresora->puerto ?? 9100
+                );
+
+                $printer = new \Mike42\Escpos\Printer($connector);
+
+                // ── ENCABEZADO ───────────────────────────────────────────
+                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_CENTER);
+                $printer->setEmphasis(true);
+                $printer->setTextSize(2, 1);
+                $printer->text("APPSYSTEM\n");
+                $printer->setTextSize(1, 1);
+                $printer->setEmphasis(false);
+                $printer->text("NIT: 901.456.789-1\n");
+                $printer->text($lineaDoble);
+                $printer->setEmphasis(true);
+                $printer->text("** CIERRE DE CAJA **\n");
+                $printer->setEmphasis(false);
+                $printer->text($lineaDoble);
+
+                // ── INFO GENERAL ─────────────────────────────────────────
+                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_LEFT);
+                $printer->text($col('Desde:',   $desde->format('d/m/Y H:i')));
+                $printer->text($col('Hasta:',   $hasta->format('d/m/Y H:i')));
+                $printer->text($col('Cajero:',  strtoupper($user->name)));
+                $printer->text($col('Caja:',    $caja->nombre ?? 'PRINCIPAL'));
+                $printer->text($col('Fac. ini:', ($facturaInicial->prefijo ?? 'N/A') . ($facturaInicial->numero ?? '')));
+                $printer->text($col('Fac. fin:', ($facturaFinal->prefijo   ?? 'N/A') . ($facturaFinal->numero   ?? '')));
+                $printer->setEmphasis(true);
+                $printer->text($col('Cant. facturas:', (string) $cantidadFacturas));
+                $printer->setEmphasis(false);
+                $printer->text($col('Impreso:', now()->format('d/m/Y H:i:s')));
+
+                // ── VENTAS ───────────────────────────────────────────────
+                $printer->text($seccion('VENTAS'));
+                $printer->text($col('  Efectivo:',      '$ ' . number_format($ventas->efectivo      ?? 0, 0, ',', '.')));
+                $printer->text($col('  QR:',            '$ ' . number_format($ventas->qr            ?? 0, 0, ',', '.')));
+                $printer->text($col('  Tarjeta:',       '$ ' . number_format($ventas->tarjeta       ?? 0, 0, ',', '.')));
+                $printer->text($col('  Transferencia:', '$ ' . number_format($ventas->transferencia ?? 0, 0, ',', '.')));
+                $printer->text($lineaSimple);
+                $printer->setEmphasis(true);
+                $printer->text($col('TOTAL VENTAS:', '$ ' . number_format($ventas->total_ventas ?? 0, 0, ',', '.')));
+                $printer->setEmphasis(false);
+
+                // ── PROPINAS ─────────────────────────────────────────────
+                $printer->text($seccion('PROPINAS'));
+                $printer->text($col('  Efectivo:',      '$ ' . number_format($propinas->efectivo      ?? 0, 0, ',', '.')));
+                $printer->text($col('  QR:',            '$ ' . number_format($propinas->qr            ?? 0, 0, ',', '.')));
+                $printer->text($col('  Tarjeta:',       '$ ' . number_format($propinas->tarjeta       ?? 0, 0, ',', '.')));
+                $printer->text($col('  Transferencia:', '$ ' . number_format($propinas->transferencia ?? 0, 0, ',', '.')));
+                $printer->text($lineaSimple);
+                $printer->setEmphasis(true);
+                $printer->text($col('TOTAL PROPINAS:', '$ ' . number_format($propinas->total_propinas ?? 0, 0, ',', '.')));
+                $printer->setEmphasis(false);
+
+                // ── MOVIMIENTOS ──────────────────────────────────────────
+                $printer->text($seccion('MOV. DE CAJA'));
+                foreach ($movimientos as $mov) {
+                    $icono = strtolower($mov->tipo) === 'entrada' ? '+ ' : '- ';
+                    $printer->text($col('  ' . $icono . ucfirst($mov->concepto), '$ ' . number_format($mov->valor, 0, ',', '.')));
+                }
+                $printer->text($lineaSimple);
+                $printer->setEmphasis(true);
+                $printer->text($col('Entradas:', '$ ' . number_format($totalEntradas, 0, ',', '.')));
+                $printer->text($col('Salidas:',  '$ ' . number_format($totalSalidas,  0, ',', '.')));
+                $printer->setEmphasis(false);
+
+                // ── ARQUEO ───────────────────────────────────────────────
+                $printer->text($seccion('ARQUEO'));
+                $printer->text($col('  Efectivo:',      '$ ' . number_format($arqueoEfectivo,      0, ',', '.')));
+                $printer->text($col('  QR:',            '$ ' . number_format($arqueoQr,            0, ',', '.')));
+                $printer->text($col('  Tarjeta:',       '$ ' . number_format($arqueoTarjeta,       0, ',', '.')));
+                $printer->text($col('  Transferencia:', '$ ' . number_format($arqueoTransferencia, 0, ',', '.')));
+
+                // ── CONTEO FÍSICO ────────────────────────────────────────
+                $printer->text($seccion('CONTEO FISICO'));
+                $denominaciones = [
+                    'Moneda  $    100' => $m100,
+                    'Moneda  $    200' => $m200,
+                    'Moneda  $    500' => $m500,
+                    'Moneda  $  1.000' => $m1000,
+                    'Billete $  2.000' => $b2000,
+                    'Billete $  5.000' => $b5000,
+                    'Billete $ 10.000' => $b10000,
+                    'Billete $ 20.000' => $b20000,
+                    'Billete $ 50.000' => $b50000,
+                    'Billete $100.000' => $b100000,
+                ];
+                foreach ($denominaciones as $label => $valor) {
+                    $printer->text($col('  ' . $label, '$ ' . number_format($valor, 0, ',', '.')));
+                }
+                $printer->text($lineaSimple);
+                $printer->setEmphasis(true);
+                $printer->text($col('TOTAL FISICO:', '$ ' . number_format($totalFisico, 0, ',', '.')));
+                $printer->setEmphasis(false);
+
+                // ── RESULTADO FINAL ──────────────────────────────────────
+                $printer->text($lineaDoble);
+                $printer->text($col('Efectivo esperado:', '$ ' . number_format($efectivoEsperado, 0, ',', '.')));
+                $printer->text($col('Total fisico:',      '$ ' . number_format($totalFisico,      0, ',', '.')));
+                $printer->text($lineaSimple);
+
+                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_CENTER);
+                $printer->setEmphasis(true);
+                $printer->setTextSize(2, 1);
+
+                if ($diferencia == 0) {
+                    $printer->text("CAJA CUADRADA\n");
+                } elseif ($diferencia > 0) {
+                    $printer->text("SOBRANTE\n");
+                    $printer->setTextSize(1, 1);
+                    $printer->text("+ $ " . number_format($diferencia, 0, ',', '.') . "\n");
+                } else {
+                    $printer->text("!!! FALTANTE !!!\n");
+                    $printer->setTextSize(1, 1);
+                    $printer->text("- $ " . number_format(abs($diferencia), 0, ',', '.') . "\n");
+                }
+
+                $printer->setEmphasis(false);
+                $printer->setTextSize(1, 1);
+                $printer->text($lineaDoble);
+                $printer->text("-- Documento interno --\n");
+                $printer->text("No valido como factura\n");
+                $printer->feed(4);
+                $printer->cut();
+                $printer->close();
+            }
+
+            return response()->json([
+                'success'       => true,
+                'estado_cuadre' => $diferencia == 0
+                    ? 'CUADRADO'
+                    : ($diferencia > 0 ? 'SOBRANTE' : 'FALTANTE'),
+                'diferencia' => number_format(abs($diferencia), 0, ',', '.')
+            ]);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage() . ' linea ' . $e->getLine()
             ], 500);
         }
     }

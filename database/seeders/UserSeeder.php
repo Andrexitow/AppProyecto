@@ -29,40 +29,44 @@ class UserSeeder extends Seeder
 
         // ===== MESEROS =====
         User::create([
-            'name'              => 'Mesero Principal',
+            'name'              => 'Mesero Restaurante',
             'username'          => 'mesero1',
             'password'          => Hash::make('mesero1'),
             'rol_id'            => $rolMesero->id,
             'activo'            => true,
             'email_verified_at' => now(),
+            'caja_id'          => 1,
         ]);
 
         User::create([
-            'name'              => 'Mesero Auxiliar',
+            'name'              => 'Mesero Discoteca',
             'username'          => 'mesero2',
             'password'          => Hash::make('mesero2'),
             'rol_id'            => $rolMesero->id,
             'activo'            => true,
             'email_verified_at' => now(),
+            'caja_id'          => 2,
         ]);
 
         // ===== CAJEROS =====
         User::create([
-            'name'              => 'Cajero Principal',
+            'name'              => 'Cajero Restaurante',
             'username'          => 'cajero1',
             'password'          => Hash::make('cajero1'),
             'rol_id'            => $rolCajero->id,
             'activo'            => true,
             'email_verified_at' => now(),
+            'caja_id'          => 1,
         ]);
 
         User::create([
-            'name'              => 'Cajero Nocturno',
+            'name'              => 'Cajero Discoteca',
             'username'          => 'cajero2',
             'password'          => Hash::make('cajero2'),
             'rol_id'            => $rolCajero->id,
             'activo'            => true,
             'email_verified_at' => now(),
+            'caja_id'          => 2,
         ]);
 
         // ===== COCINA =====

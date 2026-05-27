@@ -16,7 +16,7 @@ class InventarioSeeder extends Seeder
         DB::table('inventarios')->insert([
 
             [
-                'producto_id' => 1, // Aguila
+                'producto_id' => 80, // Aguila
                 'bodega_id' => 1,
                 'stock' => 30,
                 'created_at' => now(),
@@ -24,7 +24,7 @@ class InventarioSeeder extends Seeder
             ],
 
             [
-                'producto_id' => 1, // Aguila
+                'producto_id' => 80, // Aguila
                 'bodega_id' => 2,
                 'stock' => 10,
                 'created_at' => now(),
@@ -32,7 +32,7 @@ class InventarioSeeder extends Seeder
             ],
 
             [
-                'producto_id' => 2, // Aguila Light
+                'producto_id' => 81, // Aguila Light
                 'bodega_id' => 1,
                 'stock' => 25,
                 'created_at' => now(),
@@ -40,7 +40,7 @@ class InventarioSeeder extends Seeder
             ],
 
             [
-                'producto_id' => 3, // Poker
+                'producto_id' => 79, // Poker
                 'bodega_id' => 1,
                 'stock' => 40,
                 'created_at' => now(),
@@ -48,7 +48,7 @@ class InventarioSeeder extends Seeder
             ],
 
             [
-                'producto_id' => 4, // Club Colombia
+                'producto_id' => 78, // Club Colombia
                 'bodega_id' => 2,
                 'stock' => 15,
                 'created_at' => now(),
@@ -56,7 +56,7 @@ class InventarioSeeder extends Seeder
             ],
 
             [
-                'producto_id' => 6, // Heineken
+                'producto_id' => 86, // Heineken
                 'bodega_id' => 1,
                 'stock' => 20,
                 'created_at' => now(),

@@ -15,25 +15,24 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Primero lo básico e independiente
-        $this->call(PermisoSeeder::class); // Crea la lista de qué se puede hacer
-
-        // 2. Crear Roles y asignarles los permisos (puedes hacerlo en un Seeder aparte o aquí)
+        // 1. Permisos y roles
+        $this->call(PermisoSeeder::class);
         $this->call(RolSeeder::class);
 
-        // 3. Ahora que existen los Roles, creamos los Usuarios
+        // 2. Datos base
+        $this->call(BodegaSeeder::class);
+
+        $this->call(CajaSeeder::class);
         $this->call(UserSeeder::class);
 
-        // 4. Datos maestros del negocio
-        $this->call(ProductoSeeder::class);
-        $this->call(BodegaSeeder::class);
-        $this->call(TerceroSeeder::class);
 
-        // 5. Datos que dependen de productos, bodegas y usuarios (como el stock inicial)
+        // 5. Productos y demás
+        $this->call(GrupoMenuSeeder::class);
+        $this->call(ProductoSeeder::class);
+        $this->call(TerceroSeeder::class);
         $this->call(InventarioSeeder::class);
-        $this->call([GastrobarSeeder::class]);
-        $this->call([CajaSeeder::class]);
-        $this->call([GrupoMenuSeeder::class]);
-        $this->call([CategoriasPosSeeder::class]);
+        $this->call(GastrobarSeeder::class);
+        $this->call(CategoriasPosSeeder::class);
+        // $this->call(FacturaSeeder::class);
     }
 }

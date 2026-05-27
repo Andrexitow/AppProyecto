@@ -46,7 +46,7 @@ class GastrobarSeeder extends Seeder
                 'zona_id' => $discoteca->id,
                 'numero' => "VIP " . $i,
                 'capacidad' => 6,
-                'estado' => $i < 3 ? 'ocupada' : 'disponible' // Las primeras 2 aparecerán azules
+                'estado' => 'disponible' // Las primeras 2 aparecerán azules
             ]);
         }
 

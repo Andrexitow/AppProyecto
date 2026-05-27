@@ -42,6 +42,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/pedidos/mesa/{mesaId}/pendiente', [FacturacionController::class, 'obtenerPedidoPendiente']);
     Route::post('/pedidos/eliminar-item', [FacturacionController::class, 'eliminarItemPedido']);
 
+    Route::post('/pedidos/imprimir-inventario-pos', [FacturacionController::class, 'imprimirInventarioPos']);
+    Route::post('/pedidos/procesar-cierre-caja', [FacturacionController::class, 'procesarCierreCaja']);
+
     Route::post('/pedidos/cerrar-mesa', [FacturacionController::class, 'cerrarMesa'])->name('pedidos.cerrar');
 
     // Productos
@@ -107,8 +110,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/grupos/{id}', [GrupomenuController::class, 'destroy'])->name('grupos.destroy');
 
     // routes/web.php
-    Route::get('/views/categorias-pos',              [CategoriaPosController::class, 'index']);
+    Route::get('/views/categorias_pos',              [CategoriaPosController::class, 'index']);
     Route::post('/categorias-pos',             [CategoriaPosController::class, 'store']);
     Route::put('/categorias-pos/{categoriaPos}',    [CategoriaPosController::class, 'update']);
     Route::delete('/categorias-pos/{categoriaPos}', [CategoriaPosController::class, 'destroy']);
+
+    
 });
