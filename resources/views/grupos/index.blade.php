@@ -2,7 +2,7 @@
     <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
         <div>
             <h2 class="text-xl font-black text-gray-800">Grupos de Menú</h2>
-            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Categorización y Destino de Impresión</p>
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Categorización y Destino de Impresión Multi-Punto</p>
         </div>
         <button onclick="abrirModalGrupo()" 
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-blue-100 flex items-center gap-2">
@@ -15,7 +15,7 @@
             <thead>
                 <tr class="bg-gray-50">
                     <th class="px-6 py-4 text-[11px] font-black text-gray-400 uppercase">Nombre del Grupo</th>
-                    <th class="px-6 py-4 text-[11px] font-black text-gray-400 uppercase">Impresora Asignada</th>
+                    <th class="px-6 py-4 text-[11px] font-black text-gray-400 uppercase">Impresoras por Punto</th>
                     <th class="px-6 py-4 text-[11px] font-black text-gray-400 uppercase text-right">Acciones</th>
                 </tr>
             </thead>
@@ -26,12 +26,23 @@
                         <span class="font-bold text-gray-700">{{ $grupo->nombre }}</span>
                     </td>
                     <td class="px-6 py-4">
-                        <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase">
-                            {{ $grupo->impresora->nombre ?? 'Sin Impresora' }}
-                        </span>
+                        <div class="flex flex-wrap gap-2">
+                            @if($grupo->impresoras->isEmpty())
+                                <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-[10px] font-black uppercase">
+                                    Sin Impresoras
+                                </span>
+                            @else
+                                @foreach($grupo->impresoras as $imp)
+                                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase flex items-center gap-1">
+                                    🖨️ {{ $imp->nombre }} ➡️ <span class="text-blue-700">{{ $imp->pivot->punto }}</span>
+                                </span>
+                                @endforeach
+                            @endif
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
-                        <button onclick="editarGrupo({{ $grupo->id }}, '{{ $grupo->nombre }}', {{ $grupo->impresora_id ?? 'null' }})" 
+                        {{-- Pasamos las impresoras asociadas codificadas en JSON para el script de edición --}}
+                        <button onclick="editarGrupo({{ $grupo->id }}, '{{ $grupo->nombre }}', {{ json_encode($grupo->impresoras) }})" 
                             class="text-blue-600 hover:bg-blue-100 p-2 rounded-lg transition-colors">
                             ✏️
                         </button>
@@ -47,9 +58,8 @@
     </div>
 </div>
 
-<!-- Modal para Crear/Editar -->
 <div id="modalGrupo" class="fixed inset-0 bg-gray-900/60 hidden backdrop-blur-sm items-center justify-center z-[9999] p-4">
-    <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all">
+    <div class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl transform transition-all">
         <h3 id="modalTitulo" class="text-xl font-black text-gray-800 mb-6">Nuevo Grupo</h3>
         
         <form id="formGrupo" onsubmit="guardarGrupo(event)">
@@ -62,14 +72,15 @@
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-black text-gray-400 uppercase mb-2">Destino de Comanda (Impresora)</label>
-                    <select id="impresora_id" required
-                        class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-gray-700">
-                        <option value="">Seleccionar Impresora...</option>
-                        @foreach($impresoras as $imp)
-                            <option value="{{ $imp->id }}">{{ $imp->nombre }} ({{ $imp->ip }})</option>
-                        @endforeach
-                    </select>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-[11px] font-black text-gray-400 uppercase">Destinos de Impresión</label>
+                        <button type="button" onclick="agregarFilaImpresora()" class="text-xs text-blue-600 font-bold hover:underline">
+                            + Añadir Punto
+                        </button>
+                    </div>
+                    
+                    <div id="contenedor-impresoras" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        </div>
                 </div>
             </div>
 
@@ -86,3 +97,10 @@
         </form>
     </div>
 </div>
+
+<select id="plantilla-impresoras" class="hidden">
+    <option value="">Seleccionar...</option>
+    @foreach($impresoras as $imp)
+        <option value="{{ $imp->id }}">{{ $imp->nombre }}</option>
+    @endforeach
+</select>

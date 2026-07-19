@@ -15,6 +15,8 @@ use App\Http\Controllers\{
     ImpresoraController,
     UsuarioController
 };
+use App\Models\ComandaPendiente;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 
@@ -98,7 +100,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/views/impresoras', [ImpresoraController::class, 'index'])->name('impresoras.index');
 
 
-    // // Rutas de API para el CRUD
+    // // Rutas de API para el CRUD (estas SÍ usan sesión de navegador, son del panel admin)
     Route::get('/api/impresoras', [ImpresoraController::class, 'listar']);
     Route::post('/api/impresoras/guardar', [ImpresoraController::class, 'store']);
     Route::delete('/api/impresoras/{id}', [ImpresoraController::class, 'destroy']);
@@ -114,6 +116,53 @@ Route::middleware('auth')->group(function () {
     Route::post('/categorias-pos',             [CategoriaPosController::class, 'store']);
     Route::put('/categorias-pos/{categoriaPos}',    [CategoriaPosController::class, 'update']);
     Route::delete('/categorias-pos/{categoriaPos}', [CategoriaPosController::class, 'destroy']);
+});
 
-    
+
+/*
+|--------------------------------------------------------------------------
+| RUTAS PARA EL AGENTE DE IMPRESIÓN LOCAL
+|--------------------------------------------------------------------------
+| Estas rutas NO usan sesión de navegador (middleware 'auth'), porque las
+| consume el programa Node.js instalado en la PC del negocio, que no
+| tiene cookies ni login. Se protegen con un token fijo que va en el
+| header "Authorization: Bearer <token>" — ver AutenticarAgenteImpresion.
+|
+| Deja estas rutas en web.php (no routes/api.php) porque tu proyecto no
+| usa el archivo api.php por defecto; si en tu caso sí existe y está
+| cargado, puedes moverlas allí sin el prefijo /agente que pongo aquí.
+*/
+Route::prefix('agente')->middleware('auth.agente')->group(function () {
+
+    // El agente pregunta cada 2-3 segundos: "¿hay algo nuevo para imprimir?"
+    Route::get('/comandas/pendientes', function () {
+        return ComandaPendiente::where('estado', 'pendiente')
+            ->with('impresora')
+            ->orderBy('id')
+            ->limit(50)
+            ->get();
+    });
+
+    // El agente confirma que ya imprimió correctamente
+    Route::post('/comandas/{id}/marcar-impreso', function ($id) {
+        $comanda = ComandaPendiente::find($id);
+        if (!$comanda) {
+            return response()->json(['ok' => false, 'message' => 'No existe'], 404);
+        }
+        $comanda->update(['estado' => 'impreso']);
+        return response()->json(['ok' => true]);
+    });
+
+    // Si la impresora falla (apagada, sin papel, sin red local, etc.)
+    Route::post('/comandas/{id}/marcar-error', function ($id, Request $request) {
+        $comanda = ComandaPendiente::find($id);
+        if (!$comanda) {
+            return response()->json(['ok' => false], 404);
+        }
+        $comanda->update([
+            'estado' => 'error',
+            'error_mensaje' => $request->input('mensaje', 'Error desconocido'),
+        ]);
+        return response()->json(['ok' => true]);
+    });
 });

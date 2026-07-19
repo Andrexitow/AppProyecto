@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Caja;
+use App\Models\ComandaPendiente;
 use App\Models\DetallePedido;
 use App\Models\Factura;
 use App\Models\Mesa;
@@ -132,15 +133,15 @@ class FacturacionController extends Controller
         try {
             DB::beginTransaction();
 
-            $userId = Auth::id();
-            if (!$userId) {
+            $user = Auth::user();
+            if (!$user) {
                 return response()->json(['status' => 'error', 'message' => 'Debes estar autenticado.'], 401);
             }
 
             // 1. Buscamos o creamos el pedido
             $pedido = Pedido::firstOrCreate(
                 ['mesa_id' => $request->mesa_id, 'estado' => 'pendiente'],
-                ['user_id' => $userId, 'total' => 0]
+                ['user_id' => $user->id, 'total' => 0]
             );
 
             $nuevoSubtotal = 0;
@@ -170,19 +171,32 @@ class FacturacionController extends Controller
                 'mesero',
                 'detalles' => function ($query) use ($itemsNuevosIds) {
                     $query->whereIn('id', $itemsNuevosIds)
-                        ->with('producto.grupoMenu.impresora');
+                        ->with('producto.grupoMenu.impresoras');
                 }
             ])->find($pedido->id);
 
-            // 6. ENVIAR AL SERVICIO (CAMBIO AQUÍ)
-            // Usamos el método que separa por impresora automáticamente
-            $resultadoImpresion = $printService->procesarYEnviarComandas($pedidoParaImprimir);
+            // 🌟 DETECTAR EL PUNTO DE IMPRESIÓN BASADO EN LA CAJA DEL MESERO
+            $puntoActual = 'RESTAURANTE'; // Punto por defecto para administradores o si no tienen caja
+
+            if ($user->caja_id) {
+                $caja = DB::table('cajas')->where('id', $user->caja_id)->first();
+
+                // Evaluamos la condición de tu sistema (por ejemplo, si caja_id es 2, o si tiene bodega_id = 2)
+                if ($caja && ($caja->id == 2 || (isset($caja->bodega_id) && $caja->bodega_id == 2))) {
+                    $puntoActual = 'DISCOTECA';
+                }
+            }
+
+            // 6. ENVIAR AL SERVICIO PASANDO EL PUNTO ACTUAL DETECTADO
+            // ✅ Ya no imprime directo: PrintService encola en comandas_pendientes
+            // y el agente local instalado en el negocio es quien imprime de verdad.
+            $resultadoImpresion = $printService->procesarYEnviarComandas($pedidoParaImprimir, $puntoActual);
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => '¡Pedido enviado y comanda impresa!',
+                'message' => '¡Pedido enviado y comanda en cola de impresión!',
                 'impresion' => $resultadoImpresion
             ]);
         } catch (\Exception $e) {
@@ -246,13 +260,17 @@ class FacturacionController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'Item no encontrado'], 404);
             }
 
-            // ✅ IMPRIMIR COMANDA DE ANULACIÓN ANTES DE ELIMINAR
+            // ✅ ENCOLAR COMANDA DE ANULACIÓN ANTES DE ELIMINAR
             try {
-                $producto = $item->producto()->with('grupoMenu.impresora')->first();
+                // 🔄 Cambiado a plural 'grupoMenu.impresoras'
+                $producto = $item->producto()->with('grupoMenu.impresoras')->first();
                 $mesa     = Mesa::find($request->mesa_id);
 
-                if ($producto && $producto->grupoMenu && $producto->grupoMenu->impresora) {
-                    $impresora     = $producto->grupoMenu->impresora;
+                // Verificamos si existen impresoras asignadas en la relación muchos a muchos
+                if ($producto && $producto->grupoMenu && $producto->grupoMenu->impresoras->isNotEmpty()) {
+
+                    // 💡 Tomamos la primera impresora del grupo para enviar la notificación de anulación
+                    $impresora     = $producto->grupoMenu->impresoras->first();
                     $nombreDestino = $impresora->nombre;
 
                     $printService->imprimirComandaAnulacion(
@@ -265,7 +283,7 @@ class FacturacionController extends Controller
                     );
                 }
             } catch (\Exception $e) {
-                Log::error("Error imprimiendo anulación: " . $e->getMessage());
+                Log::error("Error encolando anulación: " . $e->getMessage());
                 // No frenamos el proceso si falla la impresora
             }
 
@@ -440,6 +458,8 @@ class FacturacionController extends Controller
                         'caja'
                     ]);
 
+                    // ✅ Ya no imprime directo: PrintService::imprimirFactura
+                    // ahora arma el texto y lo encola en comandas_pendientes.
                     $printService->imprimirFactura(
                         $factura,
                         $caja->impresora
@@ -530,13 +550,17 @@ class FacturacionController extends Controller
             $txt .= "========================================\n";
             $txt .= "\n\n\n\n\n";
 
-            // 5. Envío a la Impresora
-            $connector = new \Mike42\Escpos\PrintConnectors\NetworkPrintConnector($impresora->ip, $impresora->puerto ?? 9100);
-            $printer = new \Mike42\Escpos\Printer($connector);
-
-            $printer->text($txt);
-            $printer->cut();
-            $printer->close();
+            // 5. ✅ ENCOLAR EN VEZ DE IMPRIMIR DIRECTO
+            // Antes aquí se abría NetworkPrintConnector($impresora->ip, ...) y se
+            // colgaba en Hostinger porque no hay ruta de red hacia la IP local.
+            // Ahora se guarda el ticket en la cola y el agente local del negocio
+            // lo recoge y lo manda de verdad a la impresora térmica.
+            ComandaPendiente::create([
+                'tipo'         => 'inventario',
+                'impresora_id' => $impresora->id,
+                'contenido'    => $txt,
+                'estado'       => 'pendiente',
+            ]);
 
             return response()->json(['success' => true, 'bodega' => $nombreBodega]);
         } catch (\Exception $e) {
@@ -704,7 +728,7 @@ class FacturacionController extends Controller
 
             /*
         |--------------------------------------------------------------------------
-        | HELPERS DE IMPRESION
+        | HELPERS DE IMPRESION (ahora generan texto plano, no objetos $printer)
         |--------------------------------------------------------------------------
         */
 
@@ -718,7 +742,7 @@ class FacturacionController extends Controller
 
             $lineaDoble  = str_repeat('=', $W) . "\n";
             $lineaSimple = str_repeat('-', $W) . "\n";
-            $lineaPuntos = str_repeat('. ', $W / 2) . "\n";
+            $lineaPuntos = str_repeat('. ', (int) ($W / 2)) . "\n";
 
             // Título de sección centrado
             $seccion = function ($titulo) use ($W, $lineaPuntos) {
@@ -731,89 +755,68 @@ class FacturacionController extends Controller
 
             /*
         |--------------------------------------------------------------------------
-        | IMPRESION
+        | CONSTRUCCIÓN DEL TICKET COMO TEXTO (antes eran llamadas a $printer->...)
         |--------------------------------------------------------------------------
         */
 
+            $txt = '';
+
             if ($impresora) {
 
-                $connector = new \Mike42\Escpos\PrintConnectors\NetworkPrintConnector(
-                    $impresora->ip,
-                    $impresora->puerto ?? 9100
-                );
-
-                $printer = new \Mike42\Escpos\Printer($connector);
-
                 // ── ENCABEZADO ───────────────────────────────────────────
-                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_CENTER);
-                $printer->setEmphasis(true);
-                $printer->setTextSize(2, 1);
-                $printer->text("APPSYSTEM\n");
-                $printer->setTextSize(1, 1);
-                $printer->setEmphasis(false);
-                $printer->text("NIT: 901.456.789-1\n");
-                $printer->text($lineaDoble);
-                $printer->setEmphasis(true);
-                $printer->text("** CIERRE DE CAJA **\n");
-                $printer->setEmphasis(false);
-                $printer->text($lineaDoble);
+                $txt .= "APPSYSTEM\n";
+                $txt .= "NIT: 901.456.789-1\n";
+                $txt .= $lineaDoble;
+                $txt .= "** CIERRE DE CAJA **\n";
+                $txt .= $lineaDoble;
 
                 // ── INFO GENERAL ─────────────────────────────────────────
-                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_LEFT);
-                $printer->text($col('Desde:',   $desde->format('d/m/Y H:i')));
-                $printer->text($col('Hasta:',   $hasta->format('d/m/Y H:i')));
-                $printer->text($col('Cajero:',  strtoupper($user->name)));
-                $printer->text($col('Caja:',    $caja->nombre ?? 'PRINCIPAL'));
-                $printer->text($col('Fac. ini:', ($facturaInicial->prefijo ?? 'N/A') . ($facturaInicial->numero ?? '')));
-                $printer->text($col('Fac. fin:', ($facturaFinal->prefijo   ?? 'N/A') . ($facturaFinal->numero   ?? '')));
-                $printer->setEmphasis(true);
-                $printer->text($col('Cant. facturas:', (string) $cantidadFacturas));
-                $printer->setEmphasis(false);
-                $printer->text($col('Impreso:', now()->format('d/m/Y H:i:s')));
+                $txt .= $col('Desde:',   $desde->format('d/m/Y H:i'));
+                $txt .= $col('Hasta:',   $hasta->format('d/m/Y H:i'));
+                $txt .= $col('Cajero:',  strtoupper($user->name));
+                $txt .= $col('Caja:',    $caja->nombre ?? 'PRINCIPAL');
+                $txt .= $col('Fac. ini:', ($facturaInicial->prefijo ?? 'N/A') . ($facturaInicial->numero ?? ''));
+                $txt .= $col('Fac. fin:', ($facturaFinal->prefijo   ?? 'N/A') . ($facturaFinal->numero   ?? ''));
+                $txt .= $col('Cant. facturas:', (string) $cantidadFacturas);
+                $txt .= $col('Impreso:', now()->format('d/m/Y H:i:s'));
 
                 // ── VENTAS ───────────────────────────────────────────────
-                $printer->text($seccion('VENTAS'));
-                $printer->text($col('  Efectivo:',      '$ ' . number_format($ventas->efectivo      ?? 0, 0, ',', '.')));
-                $printer->text($col('  QR:',            '$ ' . number_format($ventas->qr            ?? 0, 0, ',', '.')));
-                $printer->text($col('  Tarjeta:',       '$ ' . number_format($ventas->tarjeta       ?? 0, 0, ',', '.')));
-                $printer->text($col('  Transferencia:', '$ ' . number_format($ventas->transferencia ?? 0, 0, ',', '.')));
-                $printer->text($lineaSimple);
-                $printer->setEmphasis(true);
-                $printer->text($col('TOTAL VENTAS:', '$ ' . number_format($ventas->total_ventas ?? 0, 0, ',', '.')));
-                $printer->setEmphasis(false);
+                $txt .= $seccion('VENTAS');
+                $txt .= $col('  Efectivo:',      '$ ' . number_format($ventas->efectivo      ?? 0, 0, ',', '.'));
+                $txt .= $col('  QR:',            '$ ' . number_format($ventas->qr            ?? 0, 0, ',', '.'));
+                $txt .= $col('  Tarjeta:',       '$ ' . number_format($ventas->tarjeta       ?? 0, 0, ',', '.'));
+                $txt .= $col('  Transferencia:', '$ ' . number_format($ventas->transferencia ?? 0, 0, ',', '.'));
+                $txt .= $lineaSimple;
+                $txt .= $col('TOTAL VENTAS:', '$ ' . number_format($ventas->total_ventas ?? 0, 0, ',', '.'));
 
                 // ── PROPINAS ─────────────────────────────────────────────
-                $printer->text($seccion('PROPINAS'));
-                $printer->text($col('  Efectivo:',      '$ ' . number_format($propinas->efectivo      ?? 0, 0, ',', '.')));
-                $printer->text($col('  QR:',            '$ ' . number_format($propinas->qr            ?? 0, 0, ',', '.')));
-                $printer->text($col('  Tarjeta:',       '$ ' . number_format($propinas->tarjeta       ?? 0, 0, ',', '.')));
-                $printer->text($col('  Transferencia:', '$ ' . number_format($propinas->transferencia ?? 0, 0, ',', '.')));
-                $printer->text($lineaSimple);
-                $printer->setEmphasis(true);
-                $printer->text($col('TOTAL PROPINAS:', '$ ' . number_format($propinas->total_propinas ?? 0, 0, ',', '.')));
-                $printer->setEmphasis(false);
+                $txt .= $seccion('PROPINAS');
+                $txt .= $col('  Efectivo:',      '$ ' . number_format($propinas->efectivo      ?? 0, 0, ',', '.'));
+                $txt .= $col('  QR:',            '$ ' . number_format($propinas->qr            ?? 0, 0, ',', '.'));
+                $txt .= $col('  Tarjeta:',       '$ ' . number_format($propinas->tarjeta       ?? 0, 0, ',', '.'));
+                $txt .= $col('  Transferencia:', '$ ' . number_format($propinas->transferencia ?? 0, 0, ',', '.'));
+                $txt .= $lineaSimple;
+                $txt .= $col('TOTAL PROPINAS:', '$ ' . number_format($propinas->total_propinas ?? 0, 0, ',', '.'));
 
                 // ── MOVIMIENTOS ──────────────────────────────────────────
-                $printer->text($seccion('MOV. DE CAJA'));
+                $txt .= $seccion('MOV. DE CAJA');
                 foreach ($movimientos as $mov) {
                     $icono = strtolower($mov->tipo) === 'entrada' ? '+ ' : '- ';
-                    $printer->text($col('  ' . $icono . ucfirst($mov->concepto), '$ ' . number_format($mov->valor, 0, ',', '.')));
+                    $txt .= $col('  ' . $icono . ucfirst($mov->concepto), '$ ' . number_format($mov->valor, 0, ',', '.'));
                 }
-                $printer->text($lineaSimple);
-                $printer->setEmphasis(true);
-                $printer->text($col('Entradas:', '$ ' . number_format($totalEntradas, 0, ',', '.')));
-                $printer->text($col('Salidas:',  '$ ' . number_format($totalSalidas,  0, ',', '.')));
-                $printer->setEmphasis(false);
+                $txt .= $lineaSimple;
+                $txt .= $col('Entradas:', '$ ' . number_format($totalEntradas, 0, ',', '.'));
+                $txt .= $col('Salidas:',  '$ ' . number_format($totalSalidas,  0, ',', '.'));
 
                 // ── ARQUEO ───────────────────────────────────────────────
-                $printer->text($seccion('ARQUEO'));
-                $printer->text($col('  Efectivo:',      '$ ' . number_format($arqueoEfectivo,      0, ',', '.')));
-                $printer->text($col('  QR:',            '$ ' . number_format($arqueoQr,            0, ',', '.')));
-                $printer->text($col('  Tarjeta:',       '$ ' . number_format($arqueoTarjeta,       0, ',', '.')));
-                $printer->text($col('  Transferencia:', '$ ' . number_format($arqueoTransferencia, 0, ',', '.')));
+                $txt .= $seccion('ARQUEO');
+                $txt .= $col('  Efectivo:',      '$ ' . number_format($arqueoEfectivo,      0, ',', '.'));
+                $txt .= $col('  QR:',            '$ ' . number_format($arqueoQr,            0, ',', '.'));
+                $txt .= $col('  Tarjeta:',       '$ ' . number_format($arqueoTarjeta,       0, ',', '.'));
+                $txt .= $col('  Transferencia:', '$ ' . number_format($arqueoTransferencia, 0, ',', '.'));
 
                 // ── CONTEO FÍSICO ────────────────────────────────────────
-                $printer->text($seccion('CONTEO FISICO'));
+                $txt .= $seccion('CONTEO FISICO');
                 $denominaciones = [
                     'Moneda  $    100' => $m100,
                     'Moneda  $    200' => $m200,
@@ -827,43 +830,42 @@ class FacturacionController extends Controller
                     'Billete $100.000' => $b100000,
                 ];
                 foreach ($denominaciones as $label => $valor) {
-                    $printer->text($col('  ' . $label, '$ ' . number_format($valor, 0, ',', '.')));
+                    $txt .= $col('  ' . $label, '$ ' . number_format($valor, 0, ',', '.'));
                 }
-                $printer->text($lineaSimple);
-                $printer->setEmphasis(true);
-                $printer->text($col('TOTAL FISICO:', '$ ' . number_format($totalFisico, 0, ',', '.')));
-                $printer->setEmphasis(false);
+                $txt .= $lineaSimple;
+                $txt .= $col('TOTAL FISICO:', '$ ' . number_format($totalFisico, 0, ',', '.'));
 
                 // ── RESULTADO FINAL ──────────────────────────────────────
-                $printer->text($lineaDoble);
-                $printer->text($col('Efectivo esperado:', '$ ' . number_format($efectivoEsperado, 0, ',', '.')));
-                $printer->text($col('Total fisico:',      '$ ' . number_format($totalFisico,      0, ',', '.')));
-                $printer->text($lineaSimple);
-
-                $printer->setJustification(\Mike42\Escpos\Printer::JUSTIFY_CENTER);
-                $printer->setEmphasis(true);
-                $printer->setTextSize(2, 1);
+                $txt .= $lineaDoble;
+                $txt .= $col('Efectivo esperado:', '$ ' . number_format($efectivoEsperado, 0, ',', '.'));
+                $txt .= $col('Total fisico:',      '$ ' . number_format($totalFisico,      0, ',', '.'));
+                $txt .= $lineaSimple;
 
                 if ($diferencia == 0) {
-                    $printer->text("CAJA CUADRADA\n");
+                    $txt .= "CAJA CUADRADA\n";
                 } elseif ($diferencia > 0) {
-                    $printer->text("SOBRANTE\n");
-                    $printer->setTextSize(1, 1);
-                    $printer->text("+ $ " . number_format($diferencia, 0, ',', '.') . "\n");
+                    $txt .= "SOBRANTE\n";
+                    $txt .= "+ $ " . number_format($diferencia, 0, ',', '.') . "\n";
                 } else {
-                    $printer->text("!!! FALTANTE !!!\n");
-                    $printer->setTextSize(1, 1);
-                    $printer->text("- $ " . number_format(abs($diferencia), 0, ',', '.') . "\n");
+                    $txt .= "!!! FALTANTE !!!\n";
+                    $txt .= "- $ " . number_format(abs($diferencia), 0, ',', '.') . "\n";
                 }
 
-                $printer->setEmphasis(false);
-                $printer->setTextSize(1, 1);
-                $printer->text($lineaDoble);
-                $printer->text("-- Documento interno --\n");
-                $printer->text("No valido como factura\n");
-                $printer->feed(4);
-                $printer->cut();
-                $printer->close();
+                $txt .= $lineaDoble;
+                $txt .= "-- Documento interno --\n";
+                $txt .= "No valido como factura\n";
+                $txt .= "\n\n\n\n";
+
+                // ✅ ENCOLAR EN VEZ DE IMPRIMIR DIRECTO
+                // Antes aquí se abría NetworkPrintConnector($impresora->ip, ...).
+                // Ahora se guarda el ticket en texto y el agente local del negocio
+                // lo recoge y lo manda de verdad a la impresora térmica.
+                ComandaPendiente::create([
+                    'tipo'         => 'cierre_caja',
+                    'impresora_id' => $impresora->id,
+                    'contenido'    => $txt,
+                    'estado'       => 'pendiente',
+                ]);
             }
 
             return response()->json([

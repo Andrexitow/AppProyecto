@@ -24,7 +24,7 @@
     </div>
 
     <div id="tablaProductos">
-        @include('Productos.partials.tabla')
+        @include('productos.partials.tabla')
     </div>
 </div>
 <!-- MODAL -->

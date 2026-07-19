@@ -4,34 +4,35 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class GrupoMenu extends Model
 {
     use HasFactory;
 
-    // Nombre de la tabla (opcional si sigue la convención)
     protected $table = 'grupo_menus';
 
-    // Campos que se pueden llenar masivamente
+    // 💡 Quitamos 'impresora_id' porque ahora los destinos se guardan en la tabla pivote
     protected $fillable = [
         'nombre',
-        'impresora_id'
     ];
 
     /**
-     * Relación: Un GrupoMenu pertenece a una Impresora.
-     * Esto te permite hacer: $grupo->impresora->ip
+     * Relación: Un GrupoMenu pertenece a muchas Impresoras (Multi-punto).
+     * Cambiado a plural 'impresoras' para que coincida con el controlador y la vista
      */
-    public function impresora()
+    public function impresoras(): BelongsToMany
     {
-        return $this->belongsTo(Impresora::class, 'impresora_id');
+        return $this->belongsToMany(Impresora::class, 'grupo_menu_impresora')
+                    ->withPivot('punto')
+                    ->withTimestamps();
     }
 
     /**
      * Relación: Un GrupoMenu tiene muchos Productos.
-     * Esto te permite hacer: $grupo->productos
      */
-    public function productos()
+    public function productos(): HasMany
     {
         return $this->hasMany(Producto::class, 'grupo_menu_id');
     }

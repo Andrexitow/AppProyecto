@@ -399,7 +399,15 @@ window.enviarPedido = async function () {
         var data = await res.json();
 
         if (res.ok && data.status === 'success') {
-            window.notificar('¡Pedido enviado a cocina!', 'success');
+
+            // ✅ MENSAJE DINÁMICO: Si el PrintService devuelve los destinos, los mostramos.
+            // Si no, dejamos el mensaje por defecto.
+            var mensajeExito = '¡Pedido enviado correctamente!';
+            if (data.impresion && data.impresion.destinos) {
+                mensajeExito = '¡Enviado a: ' + data.impresion.destinos + '!';
+            }
+
+            window.notificar(mensajeExito, 'success');
 
             // ✅ Limpiar todo — el mesero ya entregó la orden
             window.ticket = [];
