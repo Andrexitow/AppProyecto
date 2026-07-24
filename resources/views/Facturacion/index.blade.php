@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>POS Terminal | AppSystem</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script src="{{ asset('js/facturacion.js') }}?v={{ filemtime(public_path('js/facturacion.js')) }}" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
@@ -555,6 +555,14 @@
                 transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 max-height: 85vh;
                 border-radius: 20px 20px 0 0;
+            }
+
+            #toast-container {
+                top: auto;
+                bottom: 16px;
+                left: 8px;
+                right: 8px;
+                align-items: center;
             }
 
             #panel-ticket.ticket-open {

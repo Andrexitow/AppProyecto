@@ -37,6 +37,7 @@ class Factura extends Model
      */
     protected $casts = [
         'subtotal' => 'integer',
+        'impuestos' => 'integer',
         'propina'  => 'integer',
         'total'    => 'integer',
         'created_at' => 'datetime',

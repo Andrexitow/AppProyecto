@@ -33,6 +33,11 @@ class DatabaseSeeder extends Seeder
         $this->call(InventarioSeeder::class);
         $this->call(GastrobarSeeder::class);
         $this->call(CategoriasPosSeeder::class);
-        // $this->call(FacturaSeeder::class);
+        $this->call(TipoDocumentoContableSeeder::class);
+        $this->call(ConfiguracionContableSeeder::class);
+        $this->call(ProcesoContableSeeder::class);
+        $this->call(PlantillaContableSeeder::class);
+        $this->call(PucSeeder::class);
+        $this->call(ParametrizacionInicialContableSeeder::class);
     }
 }

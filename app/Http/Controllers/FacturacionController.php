@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Services\PrintService;
+use App\Services\ContabilidadService;
+use App\DataTransferObjects\ContabilidadData;
 use Carbon\Carbon;
 
 class FacturacionController extends Controller
@@ -310,8 +312,11 @@ class FacturacionController extends Controller
         }
     }
 
-    public function cerrarMesa(Request $request, PrintService $printService)
-    {
+    public function cerrarMesa(
+        Request $request,
+        PrintService $printService,
+        ContabilidadService $contabilidadService
+    ) {
         $request->validate([
             'mesa_id'       => 'required|exists:mesas,id',
             'metodo_pago'   => 'required|in:efectivo,tarjeta,transferencia,mixto',
@@ -390,11 +395,19 @@ class FacturacionController extends Controller
 
             $total = $request->total;
 
-            $subtotal = $total - $propina;
+            // Quitamos propina porque no hace parte de la venta gravada
+            $valorVenta = $total - $propina;
 
-            if ($subtotal < 0) {
-                $subtotal = 0;
+            if ($valorVenta < 0) {
+                $valorVenta = 0;
             }
+
+            // IVA incluido del 19%
+            // Fórmula: IVA = Total * 19 / 119
+            $impuestos = round($valorVenta * 19 / 119);
+
+            // Base antes de IVA
+            $subtotal = $valorVenta - $impuestos;
 
             $factura = Factura::create([
                 'numero_factura'  => $numeroFactura,
@@ -403,7 +416,7 @@ class FacturacionController extends Controller
                 'cliente_id'      => $request->cliente_id ?? 1,
                 'caja_id'         => $caja->id,
                 'subtotal'        => $subtotal,
-                'impuestos'       => 0,
+                'impuestos'       => $impuestos,
                 'propina'         => $propina,
                 'total'           => $total,
                 'metodo_pago'     => $request->metodo_pago,
@@ -412,6 +425,31 @@ class FacturacionController extends Controller
                 'referencia_pago' => $request->referencia,
                 'estado'          => 'pagada'
             ]);
+
+            $contabilidadService->procesar(
+                'VENTA_CONTADO',
+                new ContabilidadData(
+
+                    modulo: 'POS',
+
+                    valores: [
+                        'TOTAL' => $factura->total,
+                        'SUBTOTAL' => $factura->subtotal,
+                        'IVA' => $factura->impuestos
+                    ],
+
+                    terceroId: $factura->cliente_id,
+
+                    usuarioId: auth()->id(),
+
+                    documento: $factura->numero_factura,
+
+                    documentoId: $factura->id,
+
+                    observacion: "Venta POS {$factura->numero_factura}"
+
+                )
+            );
 
             foreach ($pedidos as $pedido) {
 

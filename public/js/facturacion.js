@@ -104,18 +104,20 @@ window.actualizarBadgeTicket = function (cantidad) {
 window.agregarAlTicket = function (id, descripcion, precio) {
     if (!window.mesaSeleccionadaId) {
         window.notificar('Selecciona una mesa primero', 'warning');
-        // Abrir el selector de mesas automáticamente
         if (typeof window.abrirSelectorMesas === 'function') {
             setTimeout(function () { window.abrirSelectorMesas(); }, 400);
         }
         return;
     }
-    var existente = window.ticket.find(function (i) { return i.id === id; });
-    if (existente) {
-        existente.cantidad++;
+
+    var pendiente = window.ticket.find(function (i) { return i.id === id && !i.existente; });
+
+    if (pendiente) {
+        pendiente.cantidad++;
     } else {
-        window.ticket.push({ id: id, descripcion: descripcion, precio: precio, cantidad: 1, observacion: '' });
+        window.ticket.push({ id: id, descripcion: descripcion, precio: precio, cantidad: 1, observacion: '', existente: false });
     }
+
     renderizarTicket();
     var total = window.ticket.reduce(function (a, i) { return a + i.cantidad; }, 0);
     window.actualizarBadgeTicket(total);
@@ -124,18 +126,19 @@ window.agregarAlTicket = function (id, descripcion, precio) {
 // ============================================================
 // TICKET — ELIMINAR
 // ============================================================
-window.eliminarDelTicket = function (id) {
-    var item = window.ticket.find(function (i) { return i.id === id; });
+window.eliminarDelTicket = function (index) {
+    var item = window.ticket[index];
     if (!item) return;
 
     if (item.existente) {
-        window.idProductoAEliminar = id;
+        window.idProductoAEliminar = item.id;
+        window.indexProductoAEliminar = index;
         var m = document.getElementById('modalSuperClave');
         if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
         var inp = document.getElementById('inputSuperClave');
         if (inp) inp.focus();
     } else {
-        window.ticket = window.ticket.filter(function (i) { return i.id !== id; });
+        window.ticket.splice(index, 1);
         renderizarTicket();
     }
 };
@@ -145,7 +148,14 @@ window.eliminarDelTicket = function (id) {
 // ============================================================
 window.cambiarCantidad = function (index, delta) {
     var item = window.ticket[index];
-    if (item && item.cantidad + delta > 0) {
+    if (!item) return;
+
+    if (item.existente) {
+        window.notificar('Ya fue enviado a cocina, no se puede cambiar la cantidad', 'warning');
+        return;
+    }
+
+    if (item.cantidad + delta > 0) {
         item.cantidad += delta;
         renderizarTicket();
     }
@@ -169,7 +179,8 @@ function renderizarTicket() {
     }
 
     contenedor.innerHTML = window.ticket.map(function (item, index) {
-        var bloqueado = item.existente ? 'btn-disabled' : '';
+        var bloqueado = item.existente ? 'opacity-30 cursor-not-allowed pointer-events-none' : '';
+        var disabledAttr = item.existente ? 'disabled' : '';
         var readonly = item.existente ? 'readonly' : '';
         var borde = item.existente ? 'border-emerald-500/30' : 'border-slate-700/50';
         var tag = item.existente ? '<span class="text-[8px] text-emerald-400 border border-emerald-400 px-1 rounded ml-1">ENVIADO</span>' : '';
@@ -183,15 +194,15 @@ function renderizarTicket() {
             '<p class="text-xs font-black text-white uppercase leading-tight">' + nombre + ' ' + tag + '</p>' +
             '<p class="text-[10px] text-indigo-400 font-bold">$' + (item.precio * item.cantidad).toLocaleString() + '</p>' +
             '</div>' +
-            '<button onclick="window.eliminarDelTicket(' + item.id + ')" class="text-slate-500 hover:text-red-500 transition-colors">' +
+            '<button onclick="window.eliminarDelTicket(' + index + ')" class="text-slate-500 hover:text-red-500 transition-colors">' +
             '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-width="2"></path></svg>' +
             '</button>' +
             '</div>' +
             '<div class="flex items-center gap-4">' +
             '<div class="flex items-center bg-slate-900 rounded-xl p-1 border border-slate-700">' +
-            '<button onclick="window.cambiarCantidad(' + index + ',-1)" class="w-7 h-7 flex items-center justify-center text-white rounded-lg ' + bloqueado + '">-</button>' +
+            '<button ' + disabledAttr + ' onclick="window.cambiarCantidad(' + index + ',-1)" class="w-7 h-7 flex items-center justify-center text-white rounded-lg ' + bloqueado + '">-</button>' +
             '<span class="w-8 text-center text-xs font-bold text-indigo-400">' + item.cantidad + '</span>' +
-            '<button onclick="window.cambiarCantidad(' + index + ',1)" class="w-7 h-7 flex items-center justify-center text-white rounded-lg ' + bloqueado + '">+</button>' +
+            '<button ' + disabledAttr + ' onclick="window.cambiarCantidad(' + index + ',1)" class="w-7 h-7 flex items-center justify-center text-white rounded-lg ' + bloqueado + '">+</button>' +
             '</div>' +
             '<div class="flex-1">' +
             '<input type="text" placeholder="Nota..." value="' + (item.observacion || '') + '" ' + readonly +
