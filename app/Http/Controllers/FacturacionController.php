@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\PrintService;
 use App\Services\ContabilidadService;
 use App\DataTransferObjects\ContabilidadData;
+use App\Services\FacturacionContableService;
 use Carbon\Carbon;
 
 class FacturacionController extends Controller
@@ -315,7 +316,7 @@ class FacturacionController extends Controller
     public function cerrarMesa(
         Request $request,
         PrintService $printService,
-        ContabilidadService $contabilidadService
+        FacturacionContableService $facturacionContableService
     ) {
         $request->validate([
             'mesa_id'       => 'required|exists:mesas,id',
@@ -341,7 +342,7 @@ class FacturacionController extends Controller
 
         $pedidos = Pedido::where('mesa_id', $request->mesa_id)
             ->where('estado', 'pendiente')
-            ->with('detalles.producto')
+            ->with('detalles.producto.integracionContable.procesoContable')
             ->get();
 
         if ($pedidos->isEmpty()) {
@@ -352,33 +353,32 @@ class FacturacionController extends Controller
         }
 
         try {
-
             DB::beginTransaction();
 
-            foreach ($pedidos as $pedido) {
+            $todosLosDetalles = $pedidos->flatMap->detalles;
 
-                foreach ($pedido->detalles as $detalle) {
+            // 1. Validar stock
+            foreach ($todosLosDetalles as $detalle) {
+                $producto = $detalle->producto;
 
-                    $producto = $detalle->producto;
+                if (!$producto || $producto->afecta_inventario != 1) {
+                    continue;
+                }
 
-                    if (!$producto || $producto->afecta_inventario != 1) {
-                        continue;
-                    }
+                $inventario = DB::table('inventarios')
+                    ->where('producto_id', $producto->id)
+                    ->where('bodega_id', $caja->bodega_id)
+                    ->first();
 
-                    $inventario = DB::table('inventarios')
-                        ->where('producto_id', $producto->id)
-                        ->where('bodega_id', $caja->bodega_id)
-                        ->first();
-
-                    if (!$inventario || $inventario->stock < $detalle->cantidad) {
-
-                        throw new \Exception(
-                            "Stock insuficiente para: {$producto->descripcion}"
-                        );
-                    }
+                if (!$inventario || $inventario->stock < $detalle->cantidad) {
+                    throw new \Exception("Stock insuficiente para: {$producto->descripcion}");
                 }
             }
 
+            // 2. Totales fiscales (una sola fuente de verdad: el service)
+            $totales = $facturacionContableService->calcularTotales($todosLosDetalles);
+
+            // 3. Numeración de factura
             $ultimaFactura = Factura::where('caja_id', $caja->id)
                 ->where('numero_factura', 'LIKE', $caja->prefijo . '-%')
                 ->orderBy('id', 'desc')
@@ -388,106 +388,54 @@ class FacturacionController extends Controller
                 ? intval(explode('-', $ultimaFactura->numero_factura)[1] ?? 0) + 1
                 : 1;
 
-            $numeroFactura =
-                $caja->prefijo . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
+            $numeroFactura = $caja->prefijo . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
 
-            $propina = $request->propina ?? 0;
-
-            $total = $request->total;
-
-            // Quitamos propina porque no hace parte de la venta gravada
-            $valorVenta = $total - $propina;
-
-            if ($valorVenta < 0) {
-                $valorVenta = 0;
-            }
-
-            // IVA incluido del 19%
-            // Fórmula: IVA = Total * 19 / 119
-            $impuestos = round($valorVenta * 19 / 119);
-
-            // Base antes de IVA
-            $subtotal = $valorVenta - $impuestos;
-
+            // 4. Crear factura con subtotal/impuestos correctos
             $factura = Factura::create([
                 'numero_factura'  => $numeroFactura,
                 'mesa_id'         => $request->mesa_id,
                 'user_id'         => auth()->id(),
                 'cliente_id'      => $request->cliente_id ?? 1,
                 'caja_id'         => $caja->id,
-                'subtotal'        => $subtotal,
-                'impuestos'       => $impuestos,
-                'propina'         => $propina,
-                'total'           => $total,
+                'subtotal'        => $totales['base'],
+                'impuestos'       => $totales['iva'],
+                'propina'         => $request->propina ?? 0,
+                'total'           => $request->total,
                 'metodo_pago'     => $request->metodo_pago,
                 'tipo_tarjeta'    => $request->tipo_tarjeta,
                 'banco_destino'   => $request->banco_destino,
                 'referencia_pago' => $request->referencia,
-                'estado'          => 'pagada'
+                'estado'          => 'pagada',
             ]);
 
-            $contabilidadService->procesar(
-                'VENTA_CONTADO',
-                new ContabilidadData(
-
-                    modulo: 'POS',
-
-                    valores: [
-                        'TOTAL' => $factura->total,
-                        'SUBTOTAL' => $factura->subtotal,
-                        'IVA' => $factura->impuestos
-                    ],
-
-                    terceroId: $factura->cliente_id,
-
-                    usuarioId: auth()->id(),
-
-                    documento: $factura->numero_factura,
-
-                    documentoId: $factura->id,
-
-                    observacion: "Venta POS {$factura->numero_factura}"
-
-                )
-            );
-
-            foreach ($pedidos as $pedido) {
-
-                foreach ($pedido->detalles as $detalle) {
-
-                    $factura->detalles()->create([
-                        'producto_id'     => $detalle->producto_id,
-                        'cantidad'        => $detalle->cantidad,
-                        'precio_unitario' => $detalle->precio_unitario,
-                        'subtotal'        => $detalle->subtotal
-                    ]);
-
-                    if (
-                        $detalle->producto &&
-                        $detalle->producto->afecta_inventario == 1
-                    ) {
-
-                        DB::table('inventarios')
-                            ->where('producto_id', $detalle->producto_id)
-                            ->where('bodega_id', $caja->bodega_id)
-                            ->decrement('stock', $detalle->cantidad);
-                    }
-                }
-
-                $pedido->update([
-                    'estado' => 'pagado'
+            // 5. Detalles + inventario
+            foreach ($todosLosDetalles as $detalle) {
+                $factura->detalles()->create([
+                    'producto_id'     => $detalle->producto_id,
+                    'cantidad'        => $detalle->cantidad,
+                    'precio_unitario' => $detalle->precio_unitario,
+                    'subtotal'        => $detalle->subtotal,
                 ]);
+
+                if ($detalle->producto && $detalle->producto->afecta_inventario == 1) {
+                    DB::table('inventarios')
+                        ->where('producto_id', $detalle->producto_id)
+                        ->where('bodega_id', $caja->bodega_id)
+                        ->decrement('stock', $detalle->cantidad);
+                }
             }
 
-            Mesa::where('id', $request->mesa_id)
-                ->update([
-                    'estado' => 'disponible'
-                ]);
+            // 6. Cerrar pedidos y liberar mesa
+            $pedidos->each->update(['estado' => 'pagado']);
 
+            Mesa::where('id', $request->mesa_id)->update(['estado' => 'disponible']);
+
+            // 7. Contabilizar — el controlador NO sabe de IVA, integraciones ni ContabilidadData
+            $facturacionContableService->contabilizar($factura);
+
+            // 8. Imprimir
             if ($caja->impresora) {
-
                 try {
-
                     $factura->load([
                         'detalles.producto',
                         'user',
@@ -496,17 +444,9 @@ class FacturacionController extends Controller
                         'caja'
                     ]);
 
-                    // ✅ Ya no imprime directo: PrintService::imprimirFactura
-                    // ahora arma el texto y lo encola en comandas_pendientes.
-                    $printService->imprimirFactura(
-                        $factura,
-                        $caja->impresora
-                    );
+                    $printService->imprimirFactura($factura, $caja->impresora);
                 } catch (\Exception $e) {
-
-                    Log::error(
-                        "Error de impresora: " . $e->getMessage()
-                    );
+                    Log::error("Error de impresora: " . $e->getMessage());
                 }
             }
 
@@ -518,12 +458,9 @@ class FacturacionController extends Controller
                 'factura_id' => $factura->id
             ]);
         } catch (\Exception $e) {
-
             DB::rollBack();
 
-            Log::error(
-                "Fallo crítico en transacción: " . $e->getMessage()
-            );
+            Log::error("Fallo crítico en transacción: " . $e->getMessage());
 
             return response()->json([
                 'status'  => 'error',

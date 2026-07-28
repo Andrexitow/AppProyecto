@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 // Importa el trait si usas factories, si no, déjalo así
-use Illuminate\Database\Eloquent\Factories\HasFactory; 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Producto extends Model
 {
@@ -24,13 +24,13 @@ class Producto extends Model
         'categoria',
         'categoria2',
         'linea',
-        'grupo_menu_id', 
+        'grupo_menu_id',
         'afecta_inventario',
         'iva_ventas',
         'ico_ventas',
         'valor_ico_ventas',
         'imp_saludable',
-        'valor_imp_saludable',
+        'integracion_contable_id',
         'integracion_contable',
         'iva_compras',
         'ico_compras',
@@ -60,5 +60,13 @@ class Producto extends Model
     public function inventarios()
     {
         return $this->hasMany(Inventario::class);
+    }
+
+    public function integracionContable()
+    {
+        return $this->belongsTo(
+            IntegracionContable::class,
+            'integracion_contable_id'
+        );
     }
 }

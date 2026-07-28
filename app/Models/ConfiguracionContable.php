@@ -24,5 +24,4 @@ class ConfiguracionContable extends Model
     {
         return $this->belongsTo(CuentaContable::class, 'cuenta_contable_id');
     }
-
 }

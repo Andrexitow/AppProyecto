@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\IntegracionContable;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -39,5 +40,14 @@ class DatabaseSeeder extends Seeder
         $this->call(PlantillaContableSeeder::class);
         $this->call(PucSeeder::class);
         $this->call(ParametrizacionInicialContableSeeder::class);
+
+        // 6. Integraciones contables (requiere que ya existan los procesos contables)
+        $this->call(IntegracionContableSeeder::class);
+        $this->call(ProductoIntegracionSeeder::class);
+
+        // 7. Asignación masiva por categoría (cubre lo que ProductoIntegracionSeeder no cubre)
+        $this->command->call('app:asignar-integraciones');
+
+        $this->call(MetodoPagoContableSeeder::class);
     }
 }

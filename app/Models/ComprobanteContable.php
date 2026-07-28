@@ -17,6 +17,8 @@ class ComprobanteContable extends Model
         'usuario_id',
         'documento_origen',
         'documento_origen_id',
+        'proceso_contable_id',
+        'referencia_grupo',
         'estado'
     ];
 
@@ -65,5 +67,10 @@ class ComprobanteContable extends Model
     public function estaCuadrado(): bool
     {
         return round($this->total_debito, 2) === round($this->total_credito, 2);
+    }
+
+    public function procesoContable()
+    {
+        return $this->belongsTo(ProcesoContable::class, 'proceso_contable_id');
     }
 }

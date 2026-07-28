@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('comprobantes_contables', function (Blueprint $table) {
+            $table->string('referencia_grupo')->nullable()->after('proceso_contable_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('comprobantes_contables', function (Blueprint $table) {
+            $table->dropColumn('referencia_grupo');
+        });
+    }
+};

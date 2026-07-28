@@ -10,8 +10,7 @@ class ProcesoContableSeeder extends Seeder
 {
     public function run(): void
     {
-        // $tipos = TipoDocumentoContable::pluck('id', 'codigo');
-        $tipos = TipoDocumentoContable::where('codigo', 'FV')->firstOrFail();
+        $tipos = TipoDocumentoContable::pluck('id', 'codigo');
 
         $procesos = [
 
@@ -53,21 +52,21 @@ class ProcesoContableSeeder extends Seeder
             [
                 'codigo' => 'AJUSTE_INVENTARIO',
                 'nombre' => 'Ajuste de inventario',
-                'tipo_documento_contable_id' => $tipos['CD'],
+                'tipo_documento_contable_id' => $tipos['AJ'],
                 'estado' => true,
             ],
 
             [
                 'codigo' => 'SALIDA_CONSUMO',
                 'nombre' => 'Salida por consumo',
-                'tipo_documento_contable_id' => $tipos['CD'],
+                'tipo_documento_contable_id' => $tipos['AJ'],
                 'estado' => true,
             ],
 
             [
                 'codigo' => 'ENTRADA_INVENTARIO',
                 'nombre' => 'Entrada de inventario',
-                'tipo_documento_contable_id' => $tipos['CD'],
+                'tipo_documento_contable_id' => $tipos['AJ'],
                 'estado' => true,
             ],
 
@@ -90,17 +89,8 @@ class ProcesoContableSeeder extends Seeder
         foreach ($procesos as $proceso) {
 
             ProcesoContable::updateOrCreate(
-
-                [
-                    'codigo' => $proceso['codigo']
-                ],
-
-                [
-                    'nombre' => $proceso['nombre'],
-                    'tipo_documento_contable_id' => $proceso['tipo_documento_contable_id'],
-                    'estado' => $proceso['estado'],
-                ]
-
+                ['codigo' => $proceso['codigo']],
+                $proceso
             );
         }
     }

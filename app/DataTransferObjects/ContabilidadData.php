@@ -23,7 +23,11 @@ class ContabilidadData
 
         public int $documentoId = 0,
 
-        public ?string $observacion = null
+        public ?string $observacion = null,
+
+        public array $overridesCuenta = [],
+        
+        public ?string $referenciaGrupo = null
 
     ) {}
 

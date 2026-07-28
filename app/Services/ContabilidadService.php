@@ -23,14 +23,22 @@ class ContabilidadService
                 ->where('estado', true)
                 ->firstOrFail();
 
-            $existe = ComprobanteContable::where('documento_origen', $datos->documento)
+            $existeQuery = ComprobanteContable::where('documento_origen', $datos->documento)
                 ->where('documento_origen_id', $datos->documentoId)
-                ->where('estado', 'CONTABILIZADO')
-                ->exists();
+                ->where('proceso_contable_id', $proceso->id)
+                ->where('estado', 'CONTABILIZADO');
 
-            if ($existe) {
+            // Comparación nullable-safe: si no hay grupo, valida por NULL; si hay grupo, por su valor exacto.
+            if ($datos->referenciaGrupo !== null) {
+                $existeQuery->where('referencia_grupo', $datos->referenciaGrupo);
+            } else {
+                $existeQuery->whereNull('referencia_grupo');
+            }
+
+            if ($existeQuery->exists()) {
+                $detalleGrupo = $datos->referenciaGrupo ? " (grupo: {$datos->referenciaGrupo})" : '';
                 throw new \Exception(
-                    "El documento {$datos->documento} ya está contabilizado."
+                    "El documento {$datos->documento} ya está contabilizado para el proceso {$proceso->codigo}{$detalleGrupo}."
                 );
             }
 
@@ -133,6 +141,10 @@ class ContabilidadService
 
             'tipo_documento_contable_id' => $tipo->id,
 
+            'proceso_contable_id' => $proceso->id,
+
+            'referencia_grupo' => $datos->referenciaGrupo,
+
             'numero' => $numero,
 
             'fecha' => now(),
@@ -162,9 +174,12 @@ class ContabilidadService
 
         foreach ($plantillas as $plantilla) {
 
-            $configuracion = $this->obtenerConfiguracion(
-                $plantilla->configuracion_clave
-            );
+            // Si viene un override para esta clave (ej. CUENTA_CAJA -> CUENTA_BANCO
+            // según el método de pago), se usa; si no, se comporta igual que siempre.
+            $claveConfiguracion = $datos->overridesCuenta[$plantilla->configuracion_clave]
+                ?? $plantilla->configuracion_clave;
+
+            $configuracion = $this->obtenerConfiguracion($claveConfiguracion);
 
             $valor = $this->obtenerValor(
                 $plantilla->origen_valor,
