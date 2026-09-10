@@ -42,14 +42,14 @@ class GrupoMenuSeeder extends Seeder
             |--------------------------------------------------------------------------
             */
 
-            ['nombre' => 'ENTRADAS',              'impresora_id' => $impCocina->id],
-            ['nombre' => 'DEL MAR',               'impresora_id' => $impCocina->id],
-            ['nombre' => 'PARRILLA',              'impresora_id' => $impCocina->id],
-            ['nombre' => 'CERDO Y POLLO',         'impresora_id' => $impCocina->id],
-            ['nombre' => 'TIPICOS',               'impresora_id' => $impCocina->id],
-            ['nombre' => 'PICADAS',               'impresora_id' => $impCocina->id],
+            // ['nombre' => 'ENTRADAS',              'impresora_id' => $impCocina->id],
+            // ['nombre' => 'DEL MAR',               'impresora_id' => $impCocina->id],
+            // ['nombre' => 'PARRILLA',              'impresora_id' => $impCocina->id],
+            // ['nombre' => 'CERDO Y POLLO',         'impresora_id' => $impCocina->id],
+            // ['nombre' => 'TIPICOS',               'impresora_id' => $impCocina->id],
+            // ['nombre' => 'PICADAS',               'impresora_id' => $impCocina->id],
             ['nombre' => 'BURGER',                'impresora_id' => $impCocina->id],
-            ['nombre' => 'INFANTIL',              'impresora_id' => $impCocina->id],
+            // ['nombre' => 'INFANTIL',              'impresora_id' => $impCocina->id],
 
             /*
             |--------------------------------------------------------------------------
@@ -57,11 +57,11 @@ class GrupoMenuSeeder extends Seeder
             |--------------------------------------------------------------------------
             */
 
-            ['nombre' => 'COCTELES',              'impresora_id' => $impBarra->id],
-            ['nombre' => 'COCTELES CASA',         'impresora_id' => $impBarra->id],
-            ['nombre' => 'PECERAS',               'impresora_id' => $impBarra->id],
-            ['nombre' => 'SODAS',                 'impresora_id' => $impBarra->id],
-            ['nombre' => 'MICHELADAS',            'impresora_id' => $impBarra->id],
+            // ['nombre' => 'COCTELES',              'impresora_id' => $impBarra->id],
+            // ['nombre' => 'COCTELES CASA',         'impresora_id' => $impBarra->id],
+            // ['nombre' => 'PECERAS',               'impresora_id' => $impBarra->id],
+            // ['nombre' => 'SODAS',                 'impresora_id' => $impBarra->id],
+            // ['nombre' => 'MICHELADAS',            'impresora_id' => $impBarra->id],
 
             /*
             |--------------------------------------------------------------------------
@@ -70,16 +70,16 @@ class GrupoMenuSeeder extends Seeder
             */
 
             ['nombre' => 'CERVEZAS',              'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'CERVEZAS IMPORTADAS',   'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'VINOS',                 'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'AGUARDIENTE',           'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'RON',                   'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'VODKA',                 'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'WHISKY',                'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'GINEBRA',               'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'LICORES CREMOSOS',      'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'TEQUILAS',              'impresora_id' => $impBarraDisco->id],
-            ['nombre' => 'CUBETAZOS',             'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'CERVEZAS IMPORTADAS',   'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'VINOS',                 'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'AGUARDIENTE',           'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'RON',                   'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'VODKA',                 'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'WHISKY',                'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'GINEBRA',               'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'LICORES CREMOSOS',      'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'TEQUILAS',              'impresora_id' => $impBarraDisco->id],
+            // ['nombre' => 'CUBETAZOS',             'impresora_id' => $impBarraDisco->id],
         ];
 
         foreach ($grupos as $grupo) {

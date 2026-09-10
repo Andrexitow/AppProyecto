@@ -171,7 +171,7 @@
     function openModalImpresora() {
         document.getElementById('modalImpresoraTitle').textContent = 'NUEVA IMPRESORA';
         document.getElementById('formImpresora').reset();
-        document.getElementById('impresora_id').value = '';
+        document.getElementById('imp_id').value = '';
         document.getElementById('imp_puerto').value = '9100';
 
         const modal = document.getElementById('modalImpresora');
@@ -189,7 +189,7 @@
     // ── Cargar datos al modal para editar ────────────────────
     function editarImpresora(imp) {
         document.getElementById('modalImpresoraTitle').textContent = 'EDITAR IMPRESORA';
-        document.getElementById('impresora_id').value = imp.id;
+        document.getElementById('imp_id').value = imp.id;
         document.getElementById('imp_nombre').value   = imp.nombre;
         document.getElementById('imp_ip').value       = imp.ip;
         document.getElementById('imp_puerto').value   = imp.puerto;
@@ -201,7 +201,7 @@
 
     // ── Guardar (crear o editar) vía AJAX ────────────────────
     function guardarImpresora() {
-        const id     = document.getElementById('impresora_id').value;
+        const id     = document.getElementById('imp_id').value;
         const nombre = document.getElementById('imp_nombre').value.trim();
         const ip     = document.getElementById('imp_ip').value.trim();
         const puerto = document.getElementById('imp_puerto').value.trim();
@@ -211,16 +211,13 @@
             return;
         }
 
-        const url    = id ? `/api/impresoras/${id}` : '/api/impresoras/guardar';
-        const method = id ? 'PUT' : 'POST';
-
-        fetch(url, {
-            method,
+        fetch('/api/impresoras/guardar', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
             },
-            body: JSON.stringify({ nombre, ip, puerto }),
+            body: JSON.stringify({ id, nombre, ip, puerto }),
         })
         .then(r => r.json())
         .then(data => {

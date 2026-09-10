@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Bodega;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BodegaController extends Controller
 {
@@ -51,7 +52,7 @@ class BodegaController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        return response()->json(Bodega::findOrFail($id));
     }
 
     /**
@@ -59,7 +60,18 @@ class BodegaController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $validated = $request->validate([
+            'descripcion' => 'required|string|max:255',
+        ]);
+
+        $bodega = Bodega::findOrFail($id);
+        $bodega->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $bodega,
+            'message' => 'Bodega actualizada correctamente.',
+        ]);
     }
 
     /**
@@ -67,6 +79,27 @@ class BodegaController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $bodega = Bodega::findOrFail($id);
+
+        $dependencias = [
+            ['tabla' => 'inventarios', 'mensaje' => 'tiene existencias de inventario'],
+            ['tabla' => 'cajas', 'mensaje' => 'está asignada a una caja'],
+            ['tabla' => 'ajustes', 'mensaje' => 'tiene ajustes de inventario'],
+        ];
+
+        foreach ($dependencias as $dependencia) {
+            if (DB::table($dependencia['tabla'])->where('bodega_id', $bodega->id)->exists()) {
+                return response()->json([
+                    'message' => 'No se puede eliminar la bodega porque ' . $dependencia['mensaje'] . '.',
+                ], 422);
+            }
+        }
+
+        $bodega->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bodega eliminada correctamente.',
+        ]);
     }
 }

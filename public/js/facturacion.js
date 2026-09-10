@@ -379,11 +379,8 @@ window.enviarPedido = async function () {
     if (!itemsNuevos.length) { window.notificar('No hay productos nuevos para enviar', 'warning'); return; }
 
     try {
-        window.clienteSeleccionado = null;
         var mesaId = window.mesaSeleccionadaId;
         var nombreMesa = document.getElementById('mesa-activa-label').textContent;
-        var elCliente = document.getElementById('cliente-nombre-ticket');
-        if (elCliente) elCliente.textContent = 'Consumidor final';
 
         var res = await fetch('/pedidos/guardar', {
             method: 'POST',
@@ -394,6 +391,7 @@ window.enviarPedido = async function () {
             },
             body: JSON.stringify({
                 mesa_id: mesaId,
+                cliente_id: (window.clienteSeleccionado && window.clienteSeleccionado.id) || null, // ← AGREGAR ESTA LÍNEA
                 items: itemsNuevos.map(function (item) {
                     return {
                         id: item.id,
@@ -419,8 +417,6 @@ window.enviarPedido = async function () {
             }
 
             window.notificar(mensajeExito, 'success');
-
-            // ✅ Limpiar todo — el mesero ya entregó la orden
             window.ticket = [];
             window.mesaSeleccionadaId = null;
             renderizarTicket();
@@ -669,6 +665,59 @@ window.notificar = function (mensaje, tipo) {
     }, 4000);
 };
 
+// Las alertas de cocina no se marcan como leídas hasta que el mesero las cierre.
+window.notificacionesCocinaMostradas = new Set();
+window.cerrarNotificacionCocina = function (id) {
+    fetch('/notificaciones-pedidos/' + id + '/leer', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json'
+        }
+    }).then(function (response) {
+        if (!response.ok) throw new Error();
+        document.getElementById('notificacion-cocina-' + id)?.remove();
+        window.notificacionesCocinaMostradas.delete(id);
+    }).catch(function () {
+        window.notificar('No fue posible cerrar la notificación.', 'error');
+    });
+};
+
+window.mostrarNotificacionCocina = function (notificacion) {
+    if (window.notificacionesCocinaMostradas.has(notificacion.id)) return;
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    window.notificacionesCocinaMostradas.add(notificacion.id);
+    const aviso = document.createElement('div');
+    aviso.id = 'notificacion-cocina-' + notificacion.id;
+    aviso.className = 'bg-emerald-600 border-l-4 border-emerald-300 p-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[280px] max-w-[90vw]';
+    aviso.innerHTML =
+        '<div class="flex-1"><div class="text-[10px] font-black tracking-widest text-emerald-100 mb-1">COCINA</div>' +
+        '<div class="font-bold text-sm text-white">' + notificacion.mensaje + '</div></div>' +
+        '<button onclick="cerrarNotificacionCocina(' + notificacion.id + ')" class="shrink-0 rounded-lg bg-white/15 px-3 py-2 text-[10px] font-black uppercase text-white hover:bg-white/25">Cerrar</button>';
+    container.appendChild(aviso);
+};
+
+// Consulta avisos persistentes generados por cocina para el mesero del pedido.
+window.setInterval(function () {
+    fetch('/notificaciones-pedidos/pendientes', {
+        headers: { 'Accept': 'application/json' }
+    })
+        .then(function (response) {
+            if (!response.ok) return null;
+            return response.json();
+        })
+        .then(function (respuesta) {
+            (respuesta?.data || []).forEach(function (notificacion) {
+                window.mostrarNotificacionCocina(notificacion);
+            });
+        })
+        .catch(function () {
+            // Las notificaciones se consultan de nuevo en el siguiente ciclo.
+        });
+}, 8000);
+
 // ============================================================
 // MODAL DE PAGO — Lógica completa
 // ============================================================
@@ -719,9 +768,9 @@ window.abrirModalPago = function () {
     if (mesaLabel) mesaLabel.innerText = 'Mesa: ' + mesaNombre;
 
     // ── Reset cliente ──────────────────────────────────────────
-    window.clienteSeleccionado = null;
-    var elCliente = document.getElementById('cliente-nombre-ticket');
-    if (elCliente) elCliente.textContent = 'Consumidor final';
+    // window.clienteSeleccionado = null;
+    // var elCliente = document.getElementById('cliente-nombre-ticket');
+    // if (elCliente) elCliente.textContent = 'Consumidor final';
 
     // ── Reset propina ──────────────────────────────────────────
     window._propinaValor = 0;
@@ -816,8 +865,8 @@ window.seleccionarMetodo = function (metodo) {
 };
 
 window.procesarPagoFinal = async function () {
-    // 1. Obtener el total numérico una sola vez
-    var totalEl = document.getElementById('pago-total-val');
+
+    var totalEl = document.getElementById('pago-gran-total'); // CORREGIDO: antes leía 'pago-total-val'
     var total = parseInt(totalEl.innerText.replace(/[^0-9]/g, '')) || 0;
 
     // 2. Validaciones específicas por método de pago
@@ -896,6 +945,7 @@ window.procesarPagoFinal = async function () {
             // Limpiar estado de la App
             window.ticket = [];
             window.mesaSeleccionadaId = null;
+            window.clienteSeleccionado = null;
 
             // Si tienes estas funciones definidas en tu facturacion.js
             if (typeof renderizarTicket === "function") renderizarTicket();
@@ -905,6 +955,8 @@ window.procesarPagoFinal = async function () {
             var lM = document.getElementById('mesa-label');
             if (lA) lA.textContent = 'SELECCIONAR MESA';
             if (lM) lM.textContent = 'Mesa: --';
+            var elCliente = document.getElementById('cliente-nombre-ticket');
+            if (elCliente) elCliente.textContent = 'Consumidor final';
 
             // Actualizar la vista de mesas (para que cambie de color a disponible)
             if (typeof refrescarMesas === "function") await refrescarMesas();
@@ -1098,22 +1150,22 @@ function mostrarToastCierre(icon, estado, diferencia, color) {
     document.body.appendChild(toast);
 }
 
-function calcularArqueoTotal() {
-    let totalFisico = 0;
+// function calcularArqueoTotal() {
+//     let totalFisico = 0;
 
-    document.querySelectorAll('.input-denominacion').forEach(input => {
-        const cantidad = parseInt(input.value) || 0;
-        const valor = parseInt(input.getAttribute('data-valor')) || 0;
-        const subtotal = cantidad * valor;
-        totalFisico += subtotal;
+//     document.querySelectorAll('.input-denominacion').forEach(input => {
+//         const cantidad = parseInt(input.value) || 0;
+//         const valor = parseInt(input.getAttribute('data-valor')) || 0;
+//         const subtotal = cantidad * valor;
+//         totalFisico += subtotal;
 
-        const span = document.getElementById('subtotal_den_' + valor);
-        if (span) span.innerText = '$' + subtotal.toLocaleString('es-CO');
-    });
+//         const span = document.getElementById('subtotal_den_' + valor);
+//         if (span) span.innerText = '$' + subtotal.toLocaleString('es-CO');
+//     });
 
-    document.getElementById('total_efectivo_conteo').innerText =
-        '$' + totalFisico.toLocaleString('es-CO');
-}
+//     document.getElementById('total_efectivo_conteo').innerText =
+//         '$' + totalFisico.toLocaleString('es-CO');
+// }
 
 // ============================================================
 // MOVIMIENTO CAJA — tipo único con selector

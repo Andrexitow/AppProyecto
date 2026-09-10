@@ -27,6 +27,7 @@ class UsuarioController extends Controller
             'name'     => 'required|string|max:255',
             'username' => 'required|string|max:50|unique:users,username',
             'password' => 'required|string|min:4',
+            'clave_anulacion' => 'nullable|string|min:4|max:50',
             'rol_id'   => 'required|exists:roles,id',
             'caja_id'  => 'nullable|exists:cajas,id', // ← agregar
         ], [
@@ -40,6 +41,7 @@ class UsuarioController extends Controller
             'name'     => $request->name,
             'username' => $request->username,
             'password' => Hash::make($request->password),
+            'clave_anulacion' => $request->filled('clave_anulacion') ? Hash::make($request->clave_anulacion) : null,
             'rol_id'   => $request->rol_id,
             'role'     => strtolower(Roles::find($request->rol_id)->nombre),
             'caja_id'  => $request->caja_id ?: null, // ← agregar
@@ -64,6 +66,7 @@ class UsuarioController extends Controller
             'username' => 'required|string|max:50|unique:users,username,' . $id,
             'rol_id'   => 'required|exists:roles,id',
             'caja_id'  => 'nullable|exists:cajas,id', // ← agregar
+            'clave_anulacion' => 'nullable|string|min:4|max:50',
         ], [
             'username.unique' => 'Este nombre de usuario ya está siendo usado por otra persona.',
             'rol_id.exists'   => 'El rol seleccionado no es válido.'
@@ -79,6 +82,9 @@ class UsuarioController extends Controller
 
         if ($request->filled('password')) {
             $usuario->password = Hash::make($request->password);
+        }
+        if ($request->filled('clave_anulacion')) {
+            $usuario->clave_anulacion = Hash::make($request->clave_anulacion);
         }
 
         $usuario->save();

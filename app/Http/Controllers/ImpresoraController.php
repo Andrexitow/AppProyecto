@@ -23,9 +23,10 @@ class ImpresoraController extends Controller
     {
         // 1. Validaciones
         $validated = $request->validate([
+            'id'     => 'nullable|exists:impresoras,id',
             'nombre' => 'required|string|max:50',
             'ip'     => 'required|ip',
-            'puerto' => 'required|integer',
+            'puerto' => 'required|integer|between:1,65535',
         ]);
 
         try {
@@ -50,6 +51,24 @@ class ImpresoraController extends Controller
                 'status' => 'error',
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $impresora = Impresora::findOrFail($id);
+            $impresora->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Impresora eliminada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se puede eliminar una impresora que está asignada a una caja. Reasigna la caja primero.'
+            ], 422);
         }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Caja;
+use App\Models\CierreCaja;
 use App\Models\ComandaPendiente;
 use App\Models\DetallePedido;
 use App\Models\Factura;
@@ -144,8 +145,13 @@ class FacturacionController extends Controller
             // 1. Buscamos o creamos el pedido
             $pedido = Pedido::firstOrCreate(
                 ['mesa_id' => $request->mesa_id, 'estado' => 'pendiente'],
-                ['user_id' => $user->id, 'total' => 0]
+                ['user_id' => $user->id, 'total' => 0, 'cliente_id' => $request->cliente_id ?? 1]
             );
+
+            // Si el pedido ya existía y llega un cliente distinto, actualízalo
+            if ($request->cliente_id && $pedido->cliente_id != $request->cliente_id) {
+                $pedido->update(['cliente_id' => $request->cliente_id]);
+            }
 
             $nuevoSubtotal = 0;
             $itemsNuevosIds = [];
@@ -208,13 +214,33 @@ class FacturacionController extends Controller
         }
     }
 
+    public function actualizarClientePedido(Request $request)
+    {
+        $request->validate([
+            'mesa_id' => 'required|exists:mesas,id',
+            'cliente_id' => 'required|exists:terceros,id',
+        ]);
+
+        $pedido = Pedido::where('mesa_id', $request->mesa_id)
+            ->where('estado', 'pendiente')
+            ->first();
+
+        if (!$pedido) {
+            return response()->json(['status' => 'error', 'message' => 'No hay un pedido pendiente en esta mesa.'], 422);
+        }
+
+        $pedido->update(['cliente_id' => $request->cliente_id]);
+
+        return response()->json(['status' => 'success']);
+    }
+
 
     public function obtenerPedidoPendiente($mesaId)
     {
         $pedido = Pedido::where('mesa_id', $mesaId)
             ->where('estado', 'pendiente')
-            // ← quitamos ->where('user_id', auth()->id())
-            ->with(['detalles.producto', 'user'])
+            ->with(['detalles.producto', 'user', 'cliente'])
+            // ->with(['detalles.producto', 'user'])
             ->first();
 
         if (!$pedido) {
@@ -231,16 +257,26 @@ class FacturacionController extends Controller
             ];
         });
 
+        $nombreCliente = 'Consumidor Final';
+        if ($pedido->cliente) {
+            $nombreCliente = $pedido->cliente->tipo === 'persona'
+                ? trim($pedido->cliente->nombre . ' ' . ($pedido->cliente->apellido ?? ''))
+                : ($pedido->cliente->razon_social ?? 'Consumidor Final');
+        }
+
         return response()->json([
             'status'         => 'success',
             'items'          => $items,
             'mesero_nombre'  => $pedido->user->name ?? 'Sin mesero', // ← nuevo
+            'cliente_id'     => $pedido->cliente_id,
+            'cliente_nombre' => $nombreCliente,
         ]);
     }
 
     public function eliminarItemPedido(Request $request, PrintService $printService)
     {
-        if ($request->clave !== '1234') {
+        $autorizador = Auth::user();
+        if (!$autorizador || !$autorizador->clave_anulacion || !\Illuminate\Support\Facades\Hash::check((string) $request->clave, $autorizador->clave_anulacion)) {
             return response()->json(['status' => 'error', 'message' => 'Clave incorrecta'], 403);
         }
 
@@ -273,17 +309,16 @@ class FacturacionController extends Controller
                 if ($producto && $producto->grupoMenu && $producto->grupoMenu->impresoras->isNotEmpty()) {
 
                     // 💡 Tomamos la primera impresora del grupo para enviar la notificación de anulación
-                    $impresora     = $producto->grupoMenu->impresoras->first();
-                    $nombreDestino = $impresora->nombre;
-
-                    $printService->imprimirComandaAnulacion(
-                        $mesa,
-                        $producto,
-                        $item->cantidad,
-                        $item->observacion ?? '',
-                        $impresora,
-                        $nombreDestino
-                    );
+                    foreach ($producto->grupoMenu->impresoras->where('activa', true) as $impresora) {
+                        $printService->imprimirComandaAnulacion(
+                            $mesa,
+                            $producto,
+                            $item->cantidad,
+                            $item->observacion ?? '',
+                            $impresora,
+                            $impresora->nombre
+                        );
+                    }
                 }
             } catch (\Exception $e) {
                 Log::error("Error encolando anulación: " . $e->getMessage());
@@ -356,6 +391,7 @@ class FacturacionController extends Controller
             DB::beginTransaction();
 
             $todosLosDetalles = $pedidos->flatMap->detalles;
+            $clienteId = $pedidos->first()->cliente_id ?? 1;
 
             // 1. Validar stock
             foreach ($todosLosDetalles as $detalle) {
@@ -395,7 +431,7 @@ class FacturacionController extends Controller
                 'numero_factura'  => $numeroFactura,
                 'mesa_id'         => $request->mesa_id,
                 'user_id'         => auth()->id(),
-                'cliente_id'      => $request->cliente_id ?? 1,
+                'cliente_id'      => $clienteId,
                 'caja_id'         => $caja->id,
                 'subtotal'        => $totales['base'],
                 'impuestos'       => $totales['iva'],
@@ -750,8 +786,8 @@ class FacturacionController extends Controller
                 $txt .= $col('Hasta:',   $hasta->format('d/m/Y H:i'));
                 $txt .= $col('Cajero:',  strtoupper($user->name));
                 $txt .= $col('Caja:',    $caja->nombre ?? 'PRINCIPAL');
-                $txt .= $col('Fac. ini:', ($facturaInicial->prefijo ?? 'N/A') . ($facturaInicial->numero ?? ''));
-                $txt .= $col('Fac. fin:', ($facturaFinal->prefijo   ?? 'N/A') . ($facturaFinal->numero   ?? ''));
+                $txt .= $col('Fac. ini:', $facturaInicial->numero_factura ?? 'N/A');
+                $txt .= $col('Fac. fin:', $facturaFinal->numero_factura ?? 'N/A');
                 $txt .= $col('Cant. facturas:', (string) $cantidadFacturas);
                 $txt .= $col('Impreso:', now()->format('d/m/Y H:i:s'));
 
@@ -785,6 +821,7 @@ class FacturacionController extends Controller
 
                 // ── ARQUEO ───────────────────────────────────────────────
                 $txt .= $seccion('ARQUEO');
+                $txt .= $col('  Base inicial:',  '$ ' . number_format($baseInicial,        0, ',', '.'));
                 $txt .= $col('  Efectivo:',      '$ ' . number_format($arqueoEfectivo,      0, ',', '.'));
                 $txt .= $col('  QR:',            '$ ' . number_format($arqueoQr,            0, ',', '.'));
                 $txt .= $col('  Tarjeta:',       '$ ' . number_format($arqueoTarjeta,       0, ',', '.'));
@@ -793,19 +830,21 @@ class FacturacionController extends Controller
                 // ── CONTEO FÍSICO ────────────────────────────────────────
                 $txt .= $seccion('CONTEO FISICO');
                 $denominaciones = [
-                    'Moneda  $    100' => $m100,
-                    'Moneda  $    200' => $m200,
-                    'Moneda  $    500' => $m500,
-                    'Moneda  $  1.000' => $m1000,
-                    'Billete $  2.000' => $b2000,
-                    'Billete $  5.000' => $b5000,
-                    'Billete $ 10.000' => $b10000,
-                    'Billete $ 20.000' => $b20000,
-                    'Billete $ 50.000' => $b50000,
-                    'Billete $100.000' => $b100000,
+                    ['Moneda $100',      intval($request->m100 ?? 0), 100],
+                    ['Moneda $200',      intval($request->m200 ?? 0), 200],
+                    ['Moneda $500',      intval($request->m500 ?? 0), 500],
+                    ['Moneda $1.000',    intval($request->m1000 ?? 0), 1000],
+                    ['Billete $2.000',   intval($request->b2000 ?? 0), 2000],
+                    ['Billete $5.000',   intval($request->b5000 ?? 0), 5000],
+                    ['Billete $10.000',  intval($request->b10000 ?? 0), 10000],
+                    ['Billete $20.000',  intval($request->b20000 ?? 0), 20000],
+                    ['Billete $50.000',  intval($request->b50000 ?? 0), 50000],
+                    ['Billete $100.000', intval($request->b100000 ?? 0), 100000],
                 ];
-                foreach ($denominaciones as $label => $valor) {
-                    $txt .= $col('  ' . $label, '$ ' . number_format($valor, 0, ',', '.'));
+                foreach ($denominaciones as [$label, $cantidad, $valor]) {
+                    $detalle = $label . ' (' . $cantidad . ' x)';
+                    $subtotal = '$ ' . number_format($cantidad * $valor, 0, ',', '.');
+                    $txt .= $col('  ' . $detalle, $subtotal);
                 }
                 $txt .= $lineaSimple;
                 $txt .= $col('TOTAL FISICO:', '$ ' . number_format($totalFisico, 0, ',', '.'));
@@ -842,6 +881,37 @@ class FacturacionController extends Controller
                     'estado'       => 'pendiente',
                 ]);
             }
+
+            CierreCaja::create([
+                'caja_id' => $caja->id, 'user_id' => $user->id,
+                'fecha_inicio' => $desde, 'fecha_fin' => $hasta,
+                'factura_inicial' => $facturaInicial->numero_factura ?? null,
+                'factura_final' => $facturaFinal->numero_factura ?? null,
+                'cantidad_facturas' => $cantidadFacturas, 'base_inicial' => $baseInicial,
+                'efectivo_esperado' => $efectivoEsperado, 'total_fisico' => $totalFisico,
+                'diferencia' => $diferencia,
+                'denominaciones' => $request->only(['m100','m200','m500','m1000','b2000','b5000','b10000','b20000','b50000','b100000']),
+                'resumen' => [
+                    'ventas' => [
+                        'bruta' => (float) ($ventas->total_ventas ?? 0),
+                        'efectivo' => (float) ($ventas->efectivo ?? 0),
+                        'qr' => (float) ($ventas->qr ?? 0),
+                        'tarjeta' => (float) ($ventas->tarjeta ?? 0),
+                        'transferencia' => (float) ($ventas->transferencia ?? 0),
+                    ],
+                    'propinas' => [
+                        'total' => (float) ($propinas->total_propinas ?? 0),
+                        'efectivo' => (float) ($propinas->efectivo ?? 0),
+                        'qr' => (float) ($propinas->qr ?? 0),
+                        'tarjeta' => (float) ($propinas->tarjeta ?? 0),
+                        'transferencia' => (float) ($propinas->transferencia ?? 0),
+                    ],
+                    'movimientos' => [
+                        'entradas' => (float) $totalEntradas,
+                        'salidas' => (float) $totalSalidas,
+                    ],
+                ],
+            ]);
 
             return response()->json([
                 'success'       => true,

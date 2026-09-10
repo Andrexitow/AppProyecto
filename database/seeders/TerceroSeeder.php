@@ -15,6 +15,19 @@ class TerceroSeeder extends Seeder
     {
         DB::table('terceros')->insert([
             [
+                'tipo' => 'empresa',
+                'nombre' => null,
+                'apellido' => null,
+                'cedula' => null,
+                'razon_social' => 'Consumidor Final',
+                'nit' => '222222222222',
+                'email' => null,
+                'celular' => null,
+                'direccion' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
                 'tipo' => 'persona',
                 'nombre' => 'Andres',
                 'apellido' => 'Vargas',

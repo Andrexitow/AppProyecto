@@ -344,7 +344,8 @@
             padding: 16px;
         }
 
-        #modalConfirm.show {
+        #modalConfirm.show,
+        #modalConfirm.flex {
             display: flex;
         }
 
@@ -394,67 +395,38 @@
         </a>
 
         <nav class="sidebar-nav">
+            @php
+                $rolActual = auth()->user()->rol->nombre ?? '';
+                $esAdministrador = $rolActual === 'Administrador';
+                $esContabilidad = $rolActual === 'Contabilidad';
+            @endphp
 
-            {{-- ARCHIVO --}}
-            <div class="nav-section-label">Archivo</div>
-            <button class="nav-item" onclick="loadViewAndClose('usuarios')">
-                <span class="nav-item-icon">👤</span>
-                <span class="nav-item-label">Cuentas</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('terceros')">
-                <span class="nav-item-icon">👥</span>
-                <span class="nav-item-label">Terceros</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('impresoras')">
-                <span class="nav-item-icon">🖨️</span>
-                <span class="nav-item-label">Impresoras</span>
-            </button>
+            @if ($esAdministrador)
+                <div class="nav-section-label">Administración</div>
+                <button class="nav-item" onclick="loadViewAndClose('usuarios')"><span class="nav-item-icon">👤</span><span class="nav-item-label">Cuentas y roles</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('cajas')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cajas</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('impresoras')"><span class="nav-item-icon">🖨️</span><span class="nav-item-label">Impresoras</span></button>
 
-            <div class="nav-sep"></div>
+                <div class="nav-sep"></div>
+                <div class="nav-section-label">Catálogo e inventario</div>
+                <button class="nav-item" onclick="loadViewAndClose('productos')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Productos</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('grupos')"><span class="nav-item-icon">🏷️</span><span class="nav-item-label">Grupos de menú</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('categorias_pos')"><span class="nav-item-icon">🗂️</span><span class="nav-item-label">Categorías POS</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('bodegas')"><span class="nav-item-icon">🏭</span><span class="nav-item-label">Bodegas</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('existencias')"><span class="nav-item-icon">📋</span><span class="nav-item-label">Existencias</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('ajustes')"><span class="nav-item-icon">⚙️</span><span class="nav-item-label">Ajustes de inventario</span></button>
+            @endif
 
-            {{-- OPERACIONES --}}
-            <div class="nav-section-label">Operaciones</div>
-            <button class="nav-item" onclick="loadViewAndClose('productos')">
-                <span class="nav-item-icon">📦</span>
-                <span class="nav-item-label">Productos</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('cajas')">
-                <span class="nav-item-icon">💰</span>
-                <span class="nav-item-label">Cajas</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('grupos')">
-                <span class="nav-item-icon">🏷️</span>
-                <span class="nav-item-label">Grupos menú</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('bodegas')">
-                <span class="nav-item-icon">🏭</span>
-                <span class="nav-item-label">Bodegas</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('categorias_pos')">
-                <span class="nav-item-icon">🏷️</span>
-                <span class="nav-item-label">Categorías POS</span>
-            </button>
-            <button class="nav-item" onclick="toggleMenu('menuList'); cerrarSidebar()">
-                <span class="nav-item-icon">📁</span>
-                <span class="nav-item-label">Clasificación</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('facturas')">
-                <span class="nav-item-icon">📄</span>
-                <span class="nav-item-label">Facturas</span>
-            </button>
-
-            <div class="nav-sep"></div>
-
-            {{-- REPORTES --}}
-            <div class="nav-section-label">Reportes</div>
-            <button class="nav-item" onclick="loadViewAndClose('existencias')">
-                <span class="nav-item-icon">📋</span>
-                <span class="nav-item-label">Stock</span>
-            </button>
-            <button class="nav-item" onclick="loadViewAndClose('ajustes')">
-                <span class="nav-item-icon">⚙️</span>
-                <span class="nav-item-label">Ajustes</span>
-            </button>
+            @if ($esAdministrador || $esContabilidad)
+                @if ($esAdministrador)<div class="nav-sep"></div>@endif
+                <div class="nav-section-label">Contabilidad</div>
+                <button class="nav-item" onclick="loadViewAndClose('facturas')"><span class="nav-item-icon">📄</span><span class="nav-item-label">Facturas</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('compras')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Compras</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('comprobantes')"><span class="nav-item-icon">📊</span><span class="nav-item-label">Comprobantes</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('cierres-caja')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cierres de caja</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('terceros')"><span class="nav-item-icon">👥</span><span class="nav-item-label">Terceros</span></button>
+            @endif
 
         </nav>
 
@@ -491,7 +463,7 @@
             </span>
         </div>
 
-        <main id="main-content"></main>
+        <main id="main-content">{{ $slot }}</main>
 
     </div>
 
@@ -532,6 +504,9 @@
     </script>
     <script
         src="{{ asset('js/modales.js') }}?v={{ file_exists(public_path('js/modales.js')) ? filemtime(public_path('js/modales.js')) : time() }}">
+    </script>
+    <script
+        src="{{ asset('js/bodegas.js') }}?v={{ file_exists(public_path('js/bodegas.js')) ? filemtime(public_path('js/bodegas.js')) : time() }}">
     </script>
     <script
         src="{{ asset('js/terceros.js') }}?v={{ file_exists(public_path('js/terceros.js')) ? filemtime(public_path('js/terceros.js')) : time() }}">
@@ -603,9 +578,12 @@
             impresoras: 'Archivo',
             productos: 'Operaciones',
             cajas: 'Operaciones',
+            'cierres-caja': 'Operaciones',
             grupos: 'Operaciones',
             bodegas: 'Operaciones',
             categorias_pos: 'Operaciones',
+            facturas: 'Operaciones',
+            compras: 'Operaciones',
             existencias: 'Reportes',
             ajustes: 'Reportes'
         };
@@ -616,9 +594,12 @@
             impresoras: 'Impresoras',
             productos: 'Productos',
             cajas: 'Cajas',
+            'cierres-caja': 'Cierres de caja',
             grupos: 'Grupos menú',
             bodegas: 'Bodegas',
             categorias_pos: 'Categorías POS',
+            facturas: 'Facturas',
+            compras: 'Compras',
             existencias: 'Stock',
             ajustes: 'Ajustes'
         };
@@ -660,7 +641,10 @@
         // MODAL CONFIRMAR
         // ══════════════════════════
         function cerrarConfirm() {
-            document.getElementById('modalConfirm').classList.remove('show');
+            var modal = document.getElementById('modalConfirm');
+            if (!modal) return;
+            modal.classList.remove('show', 'flex');
+            modal.classList.add('hidden');
         }
     </script>
 

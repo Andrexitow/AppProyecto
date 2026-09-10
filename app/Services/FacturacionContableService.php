@@ -26,7 +26,7 @@ class FacturacionContableService
     public function calcularDesglose(Collection $detalles): Collection
     {
         return $detalles
-            ->groupBy(fn ($detalle) => $detalle->producto->integracion_contable_id)
+            ->groupBy(fn($detalle) => $detalle->producto->integracion_contable_id)
             ->map(function (Collection $detallesGrupo) {
                 $integracion = $detallesGrupo->first()->producto->integracionContable;
 
@@ -34,18 +34,27 @@ class FacturacionContableService
                 $iva  = 0;
 
                 foreach ($detallesGrupo as $detalle) {
+
                     $subtotal = $detalle->subtotal;
+
+                    $producto = $detalle->producto;
+
+                    $porcentajeIva = (float) ($producto->iva_ventas ?? 0);
+
                     $ivaLinea = 0;
 
-                    if ($integracion && $integracion->porcentaje_iva > 0) {
+                    if ($porcentajeIva > 0) {
+
                         $ivaLinea = round(
-                            $subtotal * $integracion->porcentaje_iva
-                                / (100 + $integracion->porcentaje_iva)
+                            $subtotal * $porcentajeIva /
+                                (100 + $porcentajeIva),
+                            2
                         );
                     }
 
                     $base += ($subtotal - $ivaLinea);
-                    $iva  += $ivaLinea;
+
+                    $iva += $ivaLinea;
                 }
 
                 return [

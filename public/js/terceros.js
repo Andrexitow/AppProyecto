@@ -165,6 +165,10 @@ window.toggleTipoTercero = function (tipo) {
 }
 
 window.openModalNuevoTercero = function () {
+    window.terceroEditandoId = null;
+    document.getElementById('formTercero').reset();
+    document.getElementById('tituloModalTercero').textContent = 'Nuevo Tercero';
+    toggleTipoTercero('persona');
     document.getElementById('modalNuevoTercero').classList.remove('hidden');
     document.getElementById('modalNuevoTercero').classList.add('flex');
 }
@@ -173,6 +177,7 @@ window.closeModalNuevoTercero = function () {
     document.getElementById('modalNuevoTercero').classList.add('hidden');
     document.getElementById('modalNuevoTercero').classList.remove('flex');
     document.getElementById('formTercero').reset();
+    window.terceroEditandoId = null;
     toggleTipoTercero('persona'); // Reset a persona por defecto
 }
 
@@ -181,14 +186,15 @@ window.guardarTercero = function () {
     const form = document.getElementById('formTercero');
     if (!form) return;
 
-    const btn = form.querySelector('button');
+    const btn = form.querySelector('[onclick="guardarTercero()"]');
     const formData = new FormData(form);
 
     // 🔥 evitar doble click
     btn.disabled = true;
 
-    fetch('/terceros', {
-        method: 'POST',
+    const editando = window.terceroEditandoId;
+    fetch(editando ? `/terceros/${editando}` : '/terceros', {
+        method: editando ? 'PUT' : 'POST',
         body: formData,
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -238,6 +244,7 @@ window.guardarTercero = function () {
             mostrarNotificacion(data.message || 'Guardado correctamente', 'success');
 
             form.reset();
+            if (typeof loadView === 'function') loadView('terceros');
 
         })
         .catch(error => {
@@ -248,5 +255,56 @@ window.guardarTercero = function () {
         .finally(() => {
         // 🔥 volver a habilitar botón SIEMPRE
         btn.disabled = false;
+    });
+};
+
+window.verTercero = function (id) {
+    fetch(`/terceros/${id}`, {headers: {'Accept': 'application/json'}})
+        .then(r => r.json().then(data => ({ok: r.ok, data})))
+        .then(({ok, data}) => {
+            if (!ok) throw new Error(data.message || 'No se pudo consultar el tercero.');
+            const nombre = data.razon_social || `${data.nombre || ''} ${data.apellido || ''}`.trim();
+            const documento = data.cedula || data.nit || 'Sin documento';
+            const detalle = [documento, data.email, data.celular, data.direccion].filter(Boolean).join('\n');
+            if (window.Swal) Swal.fire({title: nombre, text: detalle, icon: 'info'});
+            else mostrarNotificacion(`${nombre}: ${detalle}`, 'info');
+        })
+        .catch(error => mostrarNotificacion(error.message, 'error'));
+};
+
+window.editarTercero = function (id) {
+    fetch(`/terceros/${id}`, {headers: {'Accept': 'application/json'}})
+        .then(r => r.json().then(data => ({ok: r.ok, data})))
+        .then(({ok, data}) => {
+            if (!ok) throw new Error(data.message || 'No se pudo cargar el tercero.');
+            const form = document.getElementById('formTercero');
+            window.terceroEditandoId = id;
+            form.querySelector(`input[name="tipo"][value="${data.tipo}"]`).checked = true;
+            ['nombre', 'apellido', 'cedula', 'razon_social', 'nit', 'email', 'celular', 'direccion'].forEach(campo => {
+                form.elements[campo].value = data[campo] || '';
+            });
+            toggleTipoTercero(data.tipo);
+            document.getElementById('tituloModalTercero').textContent = 'Editar Tercero';
+            document.getElementById('modalNuevoTercero').classList.remove('hidden');
+            document.getElementById('modalNuevoTercero').classList.add('flex');
+        })
+        .catch(error => mostrarNotificacion(error.message, 'error'));
+};
+
+window.eliminarTercero = function (id) {
+    const confirmar = window.Swal
+        ? Swal.fire({title: '¿Eliminar tercero?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar'})
+        : Promise.resolve({isConfirmed: confirm('¿Eliminar este tercero?')});
+    confirmar.then(resultado => {
+        if (!resultado.isConfirmed) return;
+        fetch(`/terceros/${id}`, {
+            method: 'DELETE',
+            headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json'}
+        }).then(r => r.json().then(data => ({ok: r.ok, data})))
+          .then(({ok, data}) => {
+              if (!ok) throw new Error(data.message || 'No se pudo eliminar el tercero.');
+              mostrarNotificacion(data.message, 'success');
+              if (typeof loadView === 'function') loadView('terceros');
+          }).catch(error => mostrarNotificacion(error.message, 'error'));
     });
 };

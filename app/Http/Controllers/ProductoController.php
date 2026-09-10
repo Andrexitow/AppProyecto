@@ -40,7 +40,9 @@ class ProductoController extends Controller
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
-            'grupo_menu_id' => 'required|exists:grupo_menus,id' // Validación del nuevo campo
+            'grupo_menu_id' => 'required|exists:grupo_menus,id',
+            'iva_ventas' => 'nullable|numeric|min:0|max:100', 
+            
         ]);
 
         Producto::create([
@@ -52,6 +54,7 @@ class ProductoController extends Controller
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,
             'afecta_inventario' => $request->afecta_inventario,
+            'iva_ventas' => $request->iva_ventas ?: null,
             'inactivo' => 0
         ]);
 
@@ -107,7 +110,8 @@ class ProductoController extends Controller
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
-            'grupo_menu_id' => 'required|exists:grupo_menus,id' // Validación del nuevo campo
+            'grupo_menu_id' => 'required|exists:grupo_menus,id',
+            'iva_ventas' => 'nullable|numeric|min:0|max:100'
         ]);
 
         $producto->update([
@@ -118,7 +122,8 @@ class ProductoController extends Controller
             'und_detal' => $request->und_detal,
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,
-            'afecta_inventario' => $request->afecta_inventario
+            'afecta_inventario' => $request->afecta_inventario,
+            'iva_ventas' => $request->iva_ventas ?: null
         ]);
 
         return response()->json([

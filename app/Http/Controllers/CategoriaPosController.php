@@ -15,6 +15,11 @@ class CategoriaPosController extends Controller
         return view('categorias_pos.index', compact('categoria'));
     }
 
+    public function data()
+    {
+        return response()->json(CategoriaPos::orderBy('orden')->get());
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -41,6 +46,7 @@ class CategoriaPosController extends Controller
 
     public function destroy(CategoriaPos $categoriaPos)
     {
+        // Las categorías POS son independientes del catálogo actual de productos.
         $categoriaPos->delete();
         return response()->json(['ok' => true]);
     }

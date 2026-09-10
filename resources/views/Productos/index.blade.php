@@ -40,9 +40,23 @@
             </button>
         </div>
 
+        <!-- TABS -->
+        <div class="flex border-b border-gray-100 px-6 bg-gray-50">
+            <button type="button" onclick="switchProductoTab('info')" data-tab="info"
+                class="producto-tab px-4 py-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition-colors">
+                Información
+            </button>
+            <button type="button" onclick="switchProductoTab('impuestos')" data-tab="impuestos"
+                class="producto-tab px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                Impuestos y Precios
+            </button>
+        </div>
+
         <form id="formProducto" class="p-6">
             <input type="hidden" id="producto_id">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <!-- HOJA 1: INFORMACIÓN -->
+            <div id="tab-info" class="producto-tab-panel grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div class="space-y-1">
                     <label class="text-sm font-semibold text-gray-700">Código del Producto</label>
                     <input name="codigo" placeholder="Ej: PROD-001"
@@ -58,7 +72,6 @@
                     </select>
                 </div>
 
-                <!-- Buscamos el div de Categoría en tu código y añadimos este abajo -->
                 <div class="space-y-1">
                     <label class="text-sm font-semibold text-gray-700">Grupo / Destino de Impresión</label>
                     <select name="grupo_menu_id" id="prod_grupo_menu_id"
@@ -70,21 +83,15 @@
                     </select>
                 </div>
 
-                <div class="space-y-1 md:col-span-2">
-                    <label class="text-sm font-semibold text-gray-700">Nombre / Descripción</label>
-                    <input name="descripcion" placeholder="Nombre completo del producto"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
-                </div>
-
                 <div class="space-y-1">
                     <label class="text-sm font-semibold text-gray-700">Unidad de Medida</label>
                     <input name="und_detal" placeholder="Ej: Unidad, Kg, Paquete"
                         class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Precio de Venta</label>
-                    <input type="number" name="precio" placeholder="0.00"
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-sm font-semibold text-gray-700">Nombre / Descripción</label>
+                    <input name="descripcion" placeholder="Nombre completo del producto"
                         class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
                 </div>
 
@@ -93,15 +100,35 @@
                     <textarea name="caracteristicas" rows="3" placeholder="Detalles técnicos, colores, etc."
                         class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all"></textarea>
                 </div>
-            </div>
-            <div class="space-y-1">
-                <label class="text-sm font-semibold text-gray-700">Afecta Inventario</label>
 
-                <select name="afecta_inventario"
-                    class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50">
-                    <option value="1">Sí</option>
-                    <option value="0">No</option>
-                </select>
+                <div class="space-y-1 md:col-span-2">
+                    <label class="text-sm font-semibold text-gray-700">Afecta Inventario</label>
+                    <select name="afecta_inventario"
+                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50">
+                        <option value="1">Sí</option>
+                        <option value="0">No</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- HOJA 2: IMPUESTOS Y PRECIOS -->
+            <div id="tab-impuestos" class="producto-tab-panel hidden grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="space-y-1">
+                    <label class="text-sm font-semibold text-gray-700">Precio de Venta</label>
+                    <input type="number" name="precio" placeholder="0.00"
+                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-semibold text-gray-700">IVA Venta (%)</label>
+                    <select name="iva_ventas"
+                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+                        <option value="">Heredar del Grupo Contable</option>
+                        <option value="0">0% (Excluido)</option>
+                        <option value="5">5%</option>
+                        <option value="19">19%</option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-100">

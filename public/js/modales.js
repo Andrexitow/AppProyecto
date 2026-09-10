@@ -12,13 +12,14 @@ window.closeModalProducto = function () {
 
 window.openModalBodega = function () {
     const modal = document.getElementById('modalBodega');
+    if (!modal) return;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
 window.closeModalBodega = function () {
-    window.ajusteActivoId = null;
     const modal = document.getElementById('modalBodega');
+    if (!modal) return;
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }

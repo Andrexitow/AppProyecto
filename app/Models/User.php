@@ -26,6 +26,7 @@ class User extends Authenticatable
         'name',
         'username',
         'password',
+        'clave_anulacion',
         'rol_id',
         'role',
         'caja_id',

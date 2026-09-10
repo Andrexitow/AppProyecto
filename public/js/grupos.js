@@ -13,8 +13,6 @@ window.agregarFilaImpresora = function (impresoraId = '', punto = '') {
             <option value="">Punto...</option>
             <option value="RESTAURANTE" ${punto === 'RESTAURANTE' ? 'selected' : ''}>Restaurante</option>
             <option value="DISCOTECA" ${punto === 'DISCOTECA' ? 'selected' : ''}>Discoteca</option>
-            <option value="PISO 1" ${punto === 'PISO 1' ? 'selected' : ''}>Piso 1</option>
-            <option value="PISO 2" ${punto === 'PISO 2' ? 'selected' : ''}>Piso 2</option>
         </select>
         <button type="button" onclick="this.parentElement.remove()" class="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors">❌</button>
     `;

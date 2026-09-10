@@ -67,6 +67,7 @@ window.guardarProducto = function () {
             mostrarNotificacion(data.message || 'Producto guardado', 'success');
             form.reset();
             document.getElementById('producto_id').value = '';
+            switchProductoTab('info');
             closeModalProducto();
             loadView('productos');
         })
@@ -84,13 +85,14 @@ window.editarProducto = function (id) {
             document.querySelector('[name="und_detal"]').value = data.und_detal;
             document.querySelector('[name="precio"]').value = data.precio;
             document.querySelector('[name="caracteristicas"]').value = data.caracteristicas ?? '';
+            document.querySelector('[name="iva_ventas"]').value = data.iva_ventas ?? '';
 
             // ASIGNAR EL GRUPO DE MENU
             const selectGrupo = document.querySelector('[name="grupo_menu_id"]');
             if (selectGrupo) {
                 selectGrupo.value = data.grupo_menu_id ?? '';
             }
-
+            switchProductoTab('info');
             openModalProducto();
         })
         .catch(error => {
@@ -269,3 +271,16 @@ window.filtrarProducto = debounce(function () {
         });
 
 }, 300);
+
+window.switchProductoTab = function (tab) {
+    document.querySelectorAll('.producto-tab-panel').forEach(panel => panel.classList.add('hidden'));
+    document.getElementById('tab-' + tab).classList.remove('hidden');
+
+    document.querySelectorAll('.producto-tab').forEach(btn => {
+        btn.classList.remove('border-blue-600', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    const activeBtn = document.querySelector(`.producto-tab[data-tab="${tab}"]`);
+    activeBtn.classList.remove('border-transparent', 'text-gray-500');
+    activeBtn.classList.add('border-blue-600', 'text-blue-600');
+};

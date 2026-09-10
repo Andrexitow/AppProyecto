@@ -1,0 +1,1 @@
+<?php namespace App\Models; use Illuminate\Database\Eloquent\Model; class Compra extends Model {protected $guarded=[]; public function proveedor(){return $this->belongsTo(Tercero::class,'proveedor_id');} public function detalles(){return $this->hasMany(CompraDetalle::class);} public function pagos(){return $this->hasMany(CompraPago::class);}}

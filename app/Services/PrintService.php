@@ -141,7 +141,7 @@ class PrintService
             $txt .= $this->piePaginaTexto();
             $txt .= "\n\n\n";
 
-            $this->encolar('comanda', $impresora->id, $txt, $pedido->id);
+            $this->encolar('comanda', $impresora->id, $txt, $pedido->id, null, $items->pluck('id')->values()->all());
         } catch (\Exception $e) {
             Log::error("Error encolando comanda: " . $e->getMessage());
         }
@@ -178,31 +178,32 @@ class PrintService
      * Reemplaza al cuerpo de procesarYEnviarComandas: mismo agrupamiento por
      * impresora, pero ahora encola en vez de imprimir directo.
      */
-    public function procesarYEnviarComandas($pedido, $puntoActual = 'RESTAURANTE')
+    public function procesarYEnviarComandas($pedido, string $puntoActual)
     {
         $destinosImpresos = [];
+        $itemsPorImpresora = [];
 
-        $productosPorImpresora = $pedido->detalles->groupBy(function ($detalle) use ($puntoActual) {
-            $impresoraAsignada = $detalle->producto->grupoMenu->impresoras->first(function ($impresora) use ($puntoActual) {
-                return $impresora->pivot->punto === $puntoActual;
-            });
-            return $impresoraAsignada ? $impresoraAsignada->id : null;
-        });
-
-        foreach ($productosPorImpresora as $impresoraId => $items) {
-            if ($impresoraId) {
-                $impresora = $items->first()->producto->grupoMenu->impresoras->first(function ($imp) use ($puntoActual) {
-                    return $imp->pivot->punto === $puntoActual;
-                });
-
-                if ($impresora) {
-                    $nombreDestino = $impresora->nombre;
-                    $destinosImpresos[] = $nombreDestino;
-
-                    // Ya no imprime directo: encola
-                    $this->imprimirComanda($pedido, $items, $impresora, $nombreDestino);
-                }
+        foreach ($pedido->detalles as $detalle) {
+            $grupo = $detalle->producto?->grupoMenu;
+            if (!$grupo) {
+                continue;
             }
+
+            // Each group can target one or more printers within the user's venue.
+            foreach ($grupo->impresoras->where('activa', true)->filter(function ($impresora) use ($puntoActual) {
+                return strtoupper((string) $impresora->pivot->punto) === $puntoActual;
+            }) as $impresora) {
+                $itemsPorImpresora[$impresora->id]['impresora'] = $impresora;
+                $itemsPorImpresora[$impresora->id]['items'][] = $detalle;
+            }
+        }
+
+        foreach ($itemsPorImpresora as $grupoImpresion) {
+            $impresora = $grupoImpresion['impresora'];
+            $nombreDestino = $impresora->nombre;
+            $destinosImpresos[] = $nombreDestino;
+
+            $this->imprimirComanda($pedido, collect($grupoImpresion['items']), $impresora, $nombreDestino);
         }
 
         return [
@@ -215,7 +216,7 @@ class PrintService
      * Inserta el ticket de texto en la cola. El agente local lo recoge,
      * lo manda a node-thermal-printer / python-escpos, y marca como impreso.
      */
-    private function encolar(string $tipo, int $impresoraId, string $contenido, $pedidoId = null, $facturaId = null)
+    private function encolar(string $tipo, int $impresoraId, string $contenido, $pedidoId = null, $facturaId = null, ?array $detalleIds = null)
     {
         ComandaPendiente::create([
             'pedido_id'    => $pedidoId,
@@ -223,6 +224,7 @@ class PrintService
             'tipo'         => $tipo,
             'impresora_id' => $impresoraId,
             'contenido'    => $contenido,
+            'detalle_ids'  => $detalleIds,
             'estado'       => 'pendiente',
         ]);
     }

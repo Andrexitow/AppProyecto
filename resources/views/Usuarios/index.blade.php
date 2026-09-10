@@ -177,6 +177,13 @@
             </div>
 
             <div class="space-y-1">
+                <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Clave para anulaciones</label>
+                <input type="password" name="clave_anulacion" placeholder="Mínimo 4 caracteres"
+                    class="w-full px-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all text-gray-700">
+                <p class="text-[10px] text-gray-400 px-2">Déjala vacía al editar para conservar la clave actual.</p>
+            </div>
+
+            <div class="space-y-1">
                 <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Rol Asignado</label>
                 <select name="rol_id"
                     class="w-full px-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all font-bold text-gray-600 appearance-none cursor-pointer">

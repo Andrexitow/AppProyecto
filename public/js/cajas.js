@@ -36,7 +36,9 @@ window.editarCaja = function (id) {
             // ← nombres corregidos: user_id (no cajero_id), sin proximo_numero
             form.nombre.value    = caja.nombre    || '';
             form.prefijo.value   = caja.prefijo   || '';
+            form.proximo_numero.value = caja.proximo_numero || 1;
             form.bodega_id.value = caja.bodega_id || '';
+            form.impresora_id.value = caja.impresora_id || '';
             form.user_id.value   = caja.user_id   || '';
             document.getElementById('checkActiva').checked = !!caja.activa;
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tercero;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TerceroController extends Controller
 {
@@ -37,6 +38,47 @@ class TerceroController extends Controller
 
     public function store(Request $request)
     {
+        $validated = $this->validar($request);
+        $tercero = Tercero::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'data' => $tercero,
+            'message' => 'Tercero guardado correctamente'
+        ]);
+    }
+
+    public function show(Tercero $tercero)
+    {
+        return response()->json($tercero);
+    }
+
+    public function update(Request $request, Tercero $tercero)
+    {
+        $tercero->update($this->validar($request, $tercero));
+
+        return response()->json([
+            'success' => true,
+            'data' => $tercero->fresh(),
+            'message' => 'Tercero actualizado correctamente',
+        ]);
+    }
+
+    public function destroy(Tercero $tercero)
+    {
+        if ($tercero->ajustes()->exists()) {
+            return response()->json([
+                'message' => 'No se puede eliminar: el tercero tiene movimientos de inventario asociados.',
+            ], 422);
+        }
+
+        $tercero->delete();
+
+        return response()->json(['message' => 'Tercero eliminado correctamente.']);
+    }
+
+    private function validar(Request $request, ?Tercero $tercero = null): array
+    {
         $rules = [
             'tipo' => 'required|in:persona,empresa',
             'email' => 'nullable|email',
@@ -46,11 +88,11 @@ class TerceroController extends Controller
             // persona
             'nombre' => 'required_if:tipo,persona',
             'apellido' => 'required_if:tipo,persona',
-            'cedula' => 'required_if:tipo,persona|unique:terceros,cedula',
+            'cedula' => ['required_if:tipo,persona', Rule::unique('terceros', 'cedula')->ignore($tercero?->id)],
 
             // empresa
             'razon_social' => 'required_if:tipo,empresa',
-            'nit' => 'required_if:tipo,empresa|unique:terceros,nit',
+            'nit' => ['required_if:tipo,empresa', Rule::unique('terceros', 'nit')->ignore($tercero?->id)],
         ];
 
         $messages = [
@@ -62,15 +104,7 @@ class TerceroController extends Controller
             'razon_social.required_if' => 'La razón social es obligatoria',
         ];
 
-        $validated = $request->validate($rules, $messages);
-
-        $tercero = Tercero::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'data' => $tercero,
-            'message' => 'Tercero guardado correctamente'
-        ]);
+        return $request->validate($rules, $messages);
     }
 
     public function buscar(Request $request)

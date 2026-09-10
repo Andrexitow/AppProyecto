@@ -13,6 +13,7 @@ class Pedido extends Model
     protected $fillable = [
         'mesa_id',
         'user_id',
+        'cliente_id',
         'total',
         'estado'
     ];
@@ -20,6 +21,11 @@ class Pedido extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function cliente()
+    {
+        return $this->belongsTo(Tercero::class, 'cliente_id');
     }
 
     // Relación: Un pedido pertenece a una mesa

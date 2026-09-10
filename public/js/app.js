@@ -1,16 +1,31 @@
 window.loadView = function (view) {
     fetch('/views/' + view)
-        .then(function(res) { return res.text(); })
-        .then(function(html) {
-            document.getElementById('main-content').innerHTML = html;
+        .then(function (res) { return res.text(); })
+        .then(function (html) {
+            var container = document.getElementById('main-content');
+            container.innerHTML = html;
+
+            // Los <script> insertados vía innerHTML NO se ejecutan solos.
+            // Hay que recrearlos para que el navegador sí los corra.
+            var scripts = container.querySelectorAll('script');
+            scripts.forEach(function (oldScript) {
+                var newScript = document.createElement('script');
+                if (oldScript.src) {
+                    newScript.src = oldScript.src;
+                } else {
+                    newScript.textContent = oldScript.textContent;
+                }
+                oldScript.replaceWith(newScript);
+            });
+
             if (typeof initEventos === 'function') {
                 initEventos();
             }
         })
-        .catch(function(err) { console.error(err); });
+        .catch(function (err) { console.error(err); });
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('App cargada correctamente');
 });
 
@@ -36,7 +51,7 @@ function toggleTab(tabId) {
     // Mostrar el seleccionado
     ribbon.classList.remove('hidden');
     target.classList.remove('hidden');
-    
+
     // Estilizar botón activo
     const activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('text-blue-600', 'border-blue-600');
