@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Services\AccountingService;
 
 class ComprobanteController extends Controller
 {
     public function index()
     {
-        return view('comprobantes.index');
+        return view('comprobantes.nuevo');
     }
 
     /**
@@ -23,6 +24,11 @@ class ComprobanteController extends Controller
      */
     public function data()
     {
+        $q=ComprobanteContable::with(['tercero','usuario','tipoDocumento'])->orderByDesc('id');
+        foreach(['desde'=>'fecha','hasta'=>'fecha'] as $key=>$col){if(request($key))$key==='desde'?$q->whereDate($col,'>=',request($key)):$q->whereDate($col,'<=',request($key));}
+        if(request('estado'))$q->where('estado',request('estado')); if(request('tercero'))$q->where('tercero_id',request('tercero')); if(request('tipo'))$q->where('tipo',request('tipo')); if(request('numero'))$q->where(fn($x)=>$x->where('numero','like','%'.request('numero').'%')->orWhere('prefijo','like','%'.request('numero').'%'));
+        return response()->json(['data'=>$q->get()->map(fn($c)=>['id'=>$c->id,'tipo'=>$c->tipo ?: ($c->tipoDocumento?->nombre ?: 'Comprobante contable'),'prefijo'=>$c->prefijo ?: ($c->tipoDocumento?->prefijo ?: '—'),'numero'=>$c->numero ?: '—','fecha'=>$c->fecha?->format('Y-m-d'),'tercero'=>$c->tercero?->nombre_completo ?: '—','descripcion'=>$c->descripcion ?: $c->observacion ?: '—','debito'=>(float)$c->total_debito,'credito'=>(float)$c->total_credito,'estado'=>$c->estado,'usuario'=>$c->usuario?->name ?: '—'])]);
+
         $documentos = DB::table('comprobantes_contables')
             ->join(
                 'tipos_documento_contable',
@@ -39,6 +45,7 @@ class ComprobanteController extends Controller
             ->select(
                 DB::raw('MIN(comprobantes_contables.id) as id'),
                 'comprobantes_contables.documento_origen',
+                'comprobantes_contables.documento_origen_id',
                 DB::raw('MAX(comprobantes_contables.fecha) as fecha'),
                 DB::raw('MAX(comprobantes_contables.estado) as estado'),
                 DB::raw('MAX(comprobantes_contables.observacion) as observacion'),
@@ -46,7 +53,7 @@ class ComprobanteController extends Controller
                 DB::raw('MAX(tipos_documento_contable.prefijo) as tipo_prefijo'),
                 DB::raw('MAX(users.name) as usuario_nombre')
             )
-            ->groupBy('comprobantes_contables.documento_origen')
+            ->groupBy('comprobantes_contables.documento_origen', 'comprobantes_contables.documento_origen_id')
             ->orderByDesc(DB::raw('MIN(comprobantes_contables.id)'))
             ->get();
 
@@ -54,9 +61,10 @@ class ComprobanteController extends Controller
 
         foreach ($documentos as $doc) {
 
-            $ids = DB::table('comprobantes_contables')
-                ->where('documento_origen', $doc->documento_origen)
-                ->pluck('id');
+            $idsQuery = DB::table('comprobantes_contables')->where('documento_origen', $doc->documento_origen);
+            if ($doc->documento_origen_id === null) $idsQuery->whereNull('documento_origen_id');
+            else $idsQuery->where('documento_origen_id', $doc->documento_origen_id);
+            $ids = $idsQuery->pluck('id');
 
             $totales = DB::table('movimientos_contables')
                 ->whereIn('comprobante_contable_id', $ids)
@@ -67,9 +75,11 @@ class ComprobanteController extends Controller
                 'id' => $doc->id,
                 'tipo' => $doc->tipo_nombre,
                 'prefijo' => $doc->tipo_prefijo ?? '',
-                'numero' => Str::startsWith((string) $doc->documento_origen, 'MANUAL-')
+                'numero' => in_array($doc->documento_origen, ['COMPRA', 'PAGO_PROVEEDOR', 'AJUSTE'], true)
+                    ? ($doc->observacion ?: $doc->documento_origen . ' #' . $doc->documento_origen_id)
+                    : (Str::startsWith((string) $doc->documento_origen, 'MANUAL-')
                     ? Str::afterLast((string) $doc->documento_origen, '-')
-                    : $doc->documento_origen,
+                    : $doc->documento_origen),
                 'fecha' => $doc->fecha,
                 'observaciones' => $doc->observacion,
                 'debito' => (float) ($totales->debitos ?? 0),
@@ -92,6 +102,10 @@ class ComprobanteController extends Controller
      */
     public function show($id)
     {
+        $c=ComprobanteContable::with(['tercero','usuario','registradoPor','anuladoPor','reversion','movimientos.cuenta','movimientos.tercero','movimientos.centroCosto'])->findOrFail($id);
+        $original=ComprobanteContable::where('comprobante_reversion_id',$c->id)->first();
+        return response()->json(['id'=>$c->id,'tipo'=>$c->tipo,'prefijo'=>$c->prefijo,'numero'=>$c->numero,'fecha'=>$c->fecha?->format('Y-m-d'),'estado'=>$c->estado,'descripcion'=>$c->descripcion,'tercero'=>$c->tercero?->nombre_completo,'usuario'=>$c->usuario?->name,'registrado_por'=>$c->registradoPor?->name,'registrado_at'=>$c->registrado_at,'anulado_por'=>$c->anuladoPor?->name,'anulado_at'=>$c->anulado_at,'motivo'=>$c->motivo_anulacion,'reversion'=>$c->reversion?['id'=>$c->reversion->id,'documento'=>$c->reversion->prefijo.'-'.$c->reversion->numero]:null,'original'=>$original?['id'=>$original->id,'documento'=>$original->prefijo.'-'.$original->numero]:null,'total_debito'=>$c->total_debito,'total_credito'=>$c->total_credito,'lineas'=>$c->movimientos->map(fn($m)=>['cuenta_id'=>$m->cuenta_contable_id,'codigo'=>$m->cuenta?->codigo,'cuenta'=>$m->cuenta?->nombre,'descripcion'=>$m->detalle,'tercero_id'=>$m->tercero_id,'tercero'=>$m->tercero?->nombre_completo,'centro_costo_id'=>$m->centro_costo_id,'centro_costo'=>$m->centroCosto?->nombre,'debito'=>(float)$m->debito,'credito'=>(float)$m->credito])]);
+
         $principal = DB::table('comprobantes_contables')
             ->where('id', $id)
             ->first();
@@ -102,17 +116,19 @@ class ComprobanteController extends Controller
             ], 404);
         }
 
-        $comprobantes = DB::table('comprobantes_contables')
+        $comprobantesQuery = DB::table('comprobantes_contables')
             ->join(
                 'tipos_documento_contable',
                 'tipos_documento_contable.id',
                 '=',
                 'comprobantes_contables.tipo_documento_contable_id'
             )
-            ->where(
-                'comprobantes_contables.documento_origen',
-                $principal->documento_origen
-            )
+            ->where('comprobantes_contables.documento_origen', $principal->documento_origen);
+
+        if ($principal->documento_origen_id === null) $comprobantesQuery->whereNull('comprobantes_contables.documento_origen_id');
+        else $comprobantesQuery->where('comprobantes_contables.documento_origen_id', $principal->documento_origen_id);
+
+        $comprobantes = $comprobantesQuery
             ->select(
                 'comprobantes_contables.*',
                 'tipos_documento_contable.nombre as tipo_nombre',
@@ -165,6 +181,10 @@ class ComprobanteController extends Controller
 
     public function edit(ComprobanteContable $comprobante)
     {
+        abort_if($comprobante->estado !== 'BORRADOR',422,'Solo se editan borradores.');
+        $comprobante->load('movimientos');
+        return response()->json(['id'=>$comprobante->id,'tipo'=>$comprobante->tipo,'prefijo'=>$comprobante->prefijo,'numero'=>$comprobante->numero,'fecha'=>$comprobante->fecha?->format('Y-m-d'),'descripcion'=>$comprobante->descripcion,'items'=>$comprobante->movimientos->map(fn($m)=>['cuenta_id'=>$m->cuenta_contable_id,'tercero_id'=>$m->tercero_id,'centro_costo_id'=>$m->centro_costo_id,'detalle'=>$m->detalle,'debito'=>(float)$m->debito,'credito'=>(float)$m->credito])]);
+
         $this->asegurarManualActivo($comprobante);
         $comprobante->load(['tipoDocumento', 'movimientos']);
 
@@ -185,76 +205,49 @@ class ComprobanteController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, AccountingService $accounting)
     {
-        $datos = $this->validarComprobante($request);
-
-        $comprobante = DB::transaction(function () use ($datos) {
-            $tipo = $this->resolverTipo($datos['tipo'], $datos['prefijo']);
-            $numero = $this->siguienteNumero($tipo);
-            $tipo->increment('consecutivo');
-            $comprobante = ComprobanteContable::create([
-                'tipo_documento_contable_id' => $tipo->id,
-                'numero' => $numero,
-                'fecha' => $datos['fecha'],
-                'observacion' => $datos['observaciones'] ?? null,
-                'usuario_id' => Auth::id(),
-                'documento_origen' => 'MANUAL-' . $tipo->id . '-' . $numero,
-                'referencia_grupo' => 'Comprobante manual',
-                'estado' => 'CONTABILIZADO',
-            ]);
-            $this->guardarMovimientos($comprobante, $datos['items']);
-
-            return $comprobante;
-        });
+        $datos = $request->validate(['tipo'=>'required|string|max:100','prefijo'=>'required|string|max:10','fecha'=>'required|date','tercero_id'=>'nullable|exists:terceros,id','descripcion'=>'nullable|string|max:2000']);
+        $tipo = $this->resolverTipo($datos['tipo'], $datos['prefijo']);
+        $comprobante = $accounting->crearBorrador($datos + ['tipo_documento_contable_id'=>$tipo->id], Auth::id());
 
         return response()->json(['message' => 'Comprobante creado correctamente.', 'id' => $comprobante->id], 201);
     }
 
-    public function update(Request $request, ComprobanteContable $comprobante)
+    public function update(Request $request, ComprobanteContable $comprobante, AccountingService $accounting)
     {
-        $this->asegurarManualActivo($comprobante);
-        $datos = $this->validarComprobante($request);
-
-        DB::transaction(function () use ($comprobante, $datos) {
-            $tipo = $this->resolverTipo($datos['tipo'], $datos['prefijo']);
-            $comprobante->update([
-                'tipo_documento_contable_id' => $tipo->id,
-                'fecha' => $datos['fecha'],
-                'observacion' => $datos['observaciones'] ?? null,
-            ]);
-            $comprobante->movimientos()->delete();
-            $this->guardarMovimientos($comprobante, $datos['items']);
-        });
+        $datos = $request->validate(['fecha'=>'required|date','tercero_id'=>'nullable|exists:terceros,id','descripcion'=>'nullable|string|max:2000','items'=>'array','items.*.cuenta_id'=>'required|exists:cuentas_contables,id','items.*.tercero_id'=>'nullable|integer|exists:terceros,id','items.*.centro_costo_id'=>'nullable|integer|exists:centros_costo,id','items.*.descripcion'=>'nullable|string|max:1000','items.*.debito'=>'nullable|numeric|min:0','items.*.credito'=>'nullable|numeric|min:0']);
+        $accounting->actualizarBorrador($comprobante,$datos,$datos['items']??[]);
 
         return response()->json(['message' => 'Comprobante actualizado correctamente.']);
     }
 
-    public function anular(ComprobanteContable $comprobante)
+    public function anular(Request $request, ComprobanteContable $comprobante, AccountingService $accounting)
     {
-        $this->asegurarManual($comprobante);
-        if ($comprobante->estado === 'ANULADO') {
-            return response()->json(['message' => 'El comprobante ya está anulado.'], 422);
-        }
-        $comprobante->update(['estado' => 'ANULADO']);
+        $motivo=$request->validate(['motivo_anulacion'=>'required|string|max:2000'])['motivo_anulacion'];
+        $accounting->anular($comprobante,$motivo,Auth::id());
 
         return response()->json(['message' => 'Comprobante anulado correctamente.']);
     }
 
-    public function revertir(ComprobanteContable $comprobante)
+    public function registrar(Request $request, ComprobanteContable $comprobante, AccountingService $accounting)
+    {
+        $items = $request->validate(['items'=>'required|array|min:2','items.*.cuenta_id'=>'required|exists:cuentas_contables,id','items.*.tercero_id'=>'nullable|integer|exists:terceros,id','items.*.centro_costo_id'=>'nullable|integer|exists:centros_costo,id','items.*.descripcion'=>'nullable|string|max:1000','items.*.debito'=>'nullable|numeric|min:0','items.*.credito'=>'nullable|numeric|min:0'])['items'];
+        $accounting->registrar($comprobante, $items, Auth::id());
+        return response()->json(['message'=>'Comprobante registrado correctamente.']);
+    }
+
+    public function revertir(ComprobanteContable $comprobante, AccountingService $accounting)
     {
         $this->asegurarManual($comprobante);
-        if ($comprobante->estado !== 'ANULADO') {
-            return response()->json(['message' => 'Solo puede revertirse un comprobante anulado.'], 422);
-        }
-        $comprobante->update(['estado' => 'CONTABILIZADO']);
+        $accounting->revertirAnulacion($comprobante, Auth::id());
 
         return response()->json(['message' => 'Anulación revertida correctamente.']);
     }
 
     public function destroy(ComprobanteContable $comprobante)
     {
-        $this->asegurarManualActivo($comprobante);
+        abort_if($comprobante->estado !== 'BORRADOR',422,'Solo se eliminan borradores.');
         $comprobante->delete();
 
         return response()->json(['message' => 'Comprobante eliminado correctamente.']);
@@ -329,7 +322,15 @@ class ComprobanteController extends Controller
 
     private function esManual(?string $origen): bool
     {
-        return Str::startsWith((string) $origen, 'MANUAL-');
+        // Ningún comprobante en el sistema lleva realmente el prefijo "MANUAL-"
+        // (nada lo genera al crearlo) — con Str::startsWith() esto era siempre
+        // false, así que asegurarManual() rechazaba el revertir()/destroy() de
+        // CUALQUIER comprobante manual, incluidos los legítimos. Los comprobantes
+        // que sí vienen de un módulo (ventas, compras, ajustes...) siempre traen
+        // documento_origen con un valor; los creados a mano vía
+        // AccountingService::crearBorrador() nunca lo asignan, así que null es la
+        // señal real de "es manual".
+        return $origen === null;
     }
 
     private function asegurarManual(ComprobanteContable $comprobante): void

@@ -15,10 +15,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Services\LegacyDocumentSyncService;
 use App\Services\PrintService;
 use App\Services\ContabilidadService;
 use App\DataTransferObjects\ContabilidadData;
 use App\Services\FacturacionContableService;
+use App\Services\AuditoriaService;
 use Carbon\Carbon;
 
 class FacturacionController extends Controller
@@ -203,6 +205,21 @@ class FacturacionController extends Controller
 
             DB::commit();
 
+            $productosComandados = $pedidoParaImprimir->detalles
+                ->map(fn ($detalle) => $detalle->cantidad . 'x ' . ($detalle->producto?->descripcion ?? 'Producto'))
+                ->implode(', ');
+            $mesaNumero = $pedidoParaImprimir->mesa?->numero ?? $request->mesa_id;
+            $request->attributes->set('auditoria_detallada', true);
+            AuditoriaService::registrar(
+                $user,
+                'Facturación / Comandas',
+                'Comanda enviada',
+                'Comanda enviada para Mesa ' . $mesaNumero . ': ' . $productosComandados . '.',
+                $request,
+                'Pedido #' . $pedido->id,
+                ['mesa' => $mesaNumero, 'productos' => $productosComandados, 'punto' => $puntoActual]
+            );
+
             return response()->json([
                 'status' => 'success',
                 'message' => '¡Pedido enviado y comanda en cola de impresión!',
@@ -353,9 +370,18 @@ class FacturacionController extends Controller
         PrintService $printService,
         FacturacionContableService $facturacionContableService
     ) {
+        $user = Auth::user();
+
+        if (!in_array($user?->rol?->nombre, ['Administrador', 'Cajero'], true)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Solo un usuario con rol Cajero o Administrador puede cerrar una cuenta.'
+            ], 403);
+        }
+
         $request->validate([
             'mesa_id'       => 'required|exists:mesas,id',
-            'metodo_pago'   => 'required|in:efectivo,tarjeta,transferencia,mixto',
+            'metodo_pago'   => 'required|in:efectivo,tarjeta,transferencia,mixto,credito',
             'total'         => 'required|numeric|min:0',
             'propina'       => 'nullable|numeric|min:0',
             'tipo_tarjeta'  => 'nullable|string',
@@ -364,9 +390,9 @@ class FacturacionController extends Controller
             'cliente_id'    => 'nullable|integer',
         ]);
 
-        $caja = Caja::with('impresora')->find(auth()->user()->caja_id);
+        $caja = Caja::with('impresora')->find($user->caja_id);
 
-        if (!$caja) {
+        if (!$caja || !$caja->activa) {
             Log::warning("Usuario ID " . auth()->id() . " intentó facturar sin caja asignada.");
 
             return response()->json([
@@ -392,6 +418,20 @@ class FacturacionController extends Controller
 
             $todosLosDetalles = $pedidos->flatMap->detalles;
             $clienteId = $pedidos->first()->cliente_id ?? 1;
+
+            // Una venta a crédito queda como cuenta por cobrar de un cliente real:
+            // no se puede dejar a nombre del "Consumidor Final" (id 1) genérico.
+            // Se valida sobre $clienteId (el del pedido, que es el que realmente
+            // queda en la factura) y no sobre $request->cliente_id, que el
+            // frontend puede resetear después de "Enviar pedido".
+            if ($request->metodo_pago === 'credito' && (int) $clienteId <= 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Para vender a crédito el pedido debe tener un cliente registrado (no "Consumidor Final"). Selecciona el cliente antes de enviar el pedido a cocina.',
+                ], 422);
+            }
 
             // 1. Validar stock
             foreach ($todosLosDetalles as $detalle) {
@@ -442,6 +482,9 @@ class FacturacionController extends Controller
                 'banco_destino'   => $request->banco_destino,
                 'referencia_pago' => $request->referencia,
                 'estado'          => 'pagada',
+                'estado_pago'     => $request->metodo_pago === 'credito' ? 'pendiente' : 'pagada',
+                'total_pagado'    => $request->metodo_pago === 'credito' ? 0 : $request->total,
+                'saldo_pendiente' => $request->metodo_pago === 'credito' ? $request->total : 0,
             ]);
 
             // 5. Detalles + inventario
@@ -462,6 +505,7 @@ class FacturacionController extends Controller
             }
 
             // 6. Cerrar pedidos y liberar mesa
+            app(LegacyDocumentSyncService::class)->factura($factura);
             $pedidos->each->update(['estado' => 'pagado']);
 
             Mesa::where('id', $request->mesa_id)->update(['estado' => 'disponible']);
@@ -487,6 +531,25 @@ class FacturacionController extends Controller
             }
 
             DB::commit();
+
+            $productosFacturados = $todosLosDetalles
+                ->map(fn ($detalle) => $detalle->cantidad . 'x ' . ($detalle->producto?->descripcion ?? 'Producto'))
+                ->implode(', ');
+            $request->attributes->set('auditoria_detallada', true);
+            AuditoriaService::registrar(
+                auth()->user(),
+                'Facturación',
+                'Factura pagada',
+                'Factura ' . $factura->numero_factura . ' pagada por $' . number_format($factura->total, 0, ',', '.') . '. Productos: ' . $productosFacturados . '.',
+                $request,
+                $factura->numero_factura,
+                [
+                    'mesa' => $factura->mesa_id,
+                    'total' => $factura->total,
+                    'metodo_pago' => $factura->metodo_pago,
+                    'productos' => $productosFacturados,
+                ]
+            );
 
             return response()->json([
                 'status'     => 'success',

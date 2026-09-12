@@ -5,17 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="{{ asset('imgs/Logo.png') }}" type="image/x-icon">
-    <title> {{ $title ?? 'example' }} </title>
+    <link rel="icon" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" type="image/png">
+    <title>{{ $title ?? 'Nexora' }}</title>
 </head>
 
 <body class="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
     <main class="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md dark:bg-gray-800">
         <div class="text-center">
-            <img src="{{ asset('imgs/Simbolo.png') }}" alt="Logo de AppSystem" class="w-34 h-24 mx-auto mb-4">
+            <img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Logo Nexora" class="w-24 h-24 object-contain rounded-2xl mx-auto mb-4">
 
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Bienvenido a <span><img
-                        src="{{ asset('imgs/LogoLetras.png') }}" alt="Logo de AppSystem" class="mb-2"></span> </h1>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Bienvenido a Nexora</h1>
             @if ($errors->any())
                 <div
                     class="p-4 mb-4 text-sm rounded-lg 

@@ -84,6 +84,27 @@ class ProcesoContableSeeder extends Seeder
                 'estado' => true,
             ],
 
+            [
+                'codigo' => 'INGRESO_TESORERIA',
+                'nombre' => 'Ingreso de tesorería',
+                'tipo_documento_contable_id' => $tipos['RC'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'EGRESO_TESORERIA',
+                'nombre' => 'Egreso de tesorería',
+                'tipo_documento_contable_id' => $tipos['CE'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'TRANSFERENCIA_TESORERIA',
+                'nombre' => 'Transferencia entre cuentas de tesorería',
+                'tipo_documento_contable_id' => $tipos['CD'],
+                'estado' => true,
+            ],
+
         ];
 
         foreach ($procesos as $proceso) {

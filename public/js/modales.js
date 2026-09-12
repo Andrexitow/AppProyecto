@@ -31,10 +31,9 @@ window.openModalAjuste = function () {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
-    document.querySelector('#modalAjuste h2').innerText = 'Nuevo Ajuste';
+    const titulo = modal.querySelector('.aj-modal-title');
+    if (titulo) titulo.innerText = 'Nuevo Ajuste';
 
-    document.getElementById('paso1').classList.remove('hidden');
-    document.getElementById('paso2').classList.add('hidden');
     obtenerSiguienteNumero();
 };
 
@@ -52,7 +51,7 @@ window.closeModalAjuste = function () {
 function resetModalAjuste() {
     const inputs = document.querySelectorAll('#modalAjuste input, #modalAjuste textarea, #modalAjuste select');
     inputs.forEach(el => {
-        if (el.hasAttribute('data-no-reset') || el.readOnly && el.id !== 'inputNombre') return;
+        if (el.hasAttribute('data-no-reset') || el.readOnly) return;
 
         if (el.tagName === 'SELECT') {
             el.selectedIndex = 0;
@@ -61,11 +60,11 @@ function resetModalAjuste() {
         }
     });
 
-    document.getElementById('inputNombre')?.setAttribute('value', '');
-    document.getElementById('tercero_id')?.setAttribute('value', '');
-    document.getElementById('resultadosTercero')?.classList.add('hidden');
+    document.getElementById('aj-tercero-resultados')?.classList.add('hidden');
+    document.getElementById('aj-contraparte-resultados')?.classList.add('hidden');
+    document.getElementById('resultadosProducto')?.classList.add('hidden');
 
-    const tbody = document.querySelector('#paso2 tbody');
+    const tbody = document.getElementById('tablaProductos');
     if (tbody) tbody.innerHTML = '';
 }
 

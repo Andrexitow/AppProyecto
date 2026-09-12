@@ -251,12 +251,15 @@ window.eliminarProducto = function (id) {
 
 window.filtrarProducto = debounce(function () {
 
-    const texto = document.getElementById('buscarTablaProducto')?.value.trim();
+    const texto = document.getElementById('buscarTablaProducto')?.value.trim() || '';
+    const estado = document.getElementById('filtroEstadoProducto')?.value ?? '';
     const tabla = document.getElementById('tablaProductos');
 
     if (!tabla) return;
 
-    fetch(`/productos/buscar-admin?texto=${encodeURIComponent(texto)}`, {
+    const params = new URLSearchParams({ texto, estado });
+
+    fetch(`/productos/buscar-admin?${params.toString()}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }

@@ -6,6 +6,7 @@ use App\Models\ComandaPendiente;
 use App\Models\DetallePedido;
 use App\Models\NotificacionPedido;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class CocinaController extends Controller
@@ -56,6 +57,106 @@ class CocinaController extends Controller
 
         return response()
             ->json(['data' => $comandas->values()->all()])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    public function historial(Request $request)
+    {
+        $this->autorizar($request);
+
+        return view('cocina.historial');
+    }
+
+    public function historialDatos(Request $request)
+    {
+        $this->autorizar($request);
+
+        $filtros = $request->validate([
+            'desde' => ['nullable', 'date_format:Y-m-d'],
+            'hasta' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $desde = Carbon::createFromFormat('Y-m-d', $filtros['desde'] ?? now()->toDateString())->startOfDay();
+        $hasta = Carbon::createFromFormat('Y-m-d', $filtros['hasta'] ?? now()->toDateString())->endOfDay();
+
+        if ($desde->gt($hasta)) {
+            return response()->json(['message' => 'La fecha inicial no puede ser posterior a la fecha final.'], 422);
+        }
+
+        $comandas = ComandaPendiente::query()
+            ->with(['pedido.mesa.zona', 'pedido.mesero', 'impresora'])
+            ->where('tipo', 'comanda')
+            ->where('estado', 'finalizado')
+            ->whereBetween('finalizado_at', [$desde, $hasta])
+            ->whereHas('impresora', fn ($query) => $query->whereRaw('LOWER(nombre) LIKE ?', ['%cocina%']))
+            ->orderByDesc('finalizado_at')
+            ->get();
+
+        $detalleIds = $comandas
+            ->flatMap(fn (ComandaPendiente $comanda) => $comanda->detalle_ids ?? [])
+            ->filter()
+            ->unique()
+            ->values();
+
+        $detalles = DetallePedido::query()
+            ->with('producto:id,descripcion')
+            ->whereIn('id', $detalleIds)
+            ->get()
+            ->keyBy('id');
+
+        $productos = [];
+        $historial = $comandas->map(function (ComandaPendiente $comanda) use ($detalles, &$productos) {
+            $items = collect($comanda->detalle_ids ?? [])
+                ->map(fn ($id) => $detalles->get($id))
+                ->filter();
+
+            $unidades = 0;
+            foreach ($items as $detalle) {
+                $cantidad = (float) $detalle->cantidad;
+                $unidades += $cantidad;
+                $clave = $detalle->producto_id ?: 'eliminado-' . $detalle->id;
+
+                if (!isset($productos[$clave])) {
+                    $productos[$clave] = [
+                        'producto' => $detalle->producto?->descripcion ?? 'Producto eliminado',
+                        'cantidad' => 0,
+                    ];
+                }
+
+                $productos[$clave]['cantidad'] += $cantidad;
+            }
+
+            return [
+                'id' => $comanda->id,
+                'mesa' => $comanda->pedido?->mesa?->numero ?? 'Sin mesa',
+                'zona' => $comanda->pedido?->mesa?->zona?->nombre,
+                'mesero' => $comanda->pedido?->mesero?->name ?? 'Sin asignar',
+                'finalizado_en' => $comanda->finalizado_at?->toIso8601String(),
+                'unidades' => $unidades,
+                'items' => $items->map(fn (DetallePedido $detalle) => [
+                    'producto' => $detalle->producto?->descripcion ?? 'Producto eliminado',
+                    'cantidad' => $detalle->cantidad,
+                ])->values(),
+                'minutos_preparacion' => $comanda->created_at && $comanda->finalizado_at
+                    ? $comanda->created_at->diffInMinutes($comanda->finalizado_at)
+                    : null,
+            ];
+        });
+
+        $tiempos = $historial->pluck('minutos_preparacion')->filter(fn ($minutos) => $minutos !== null);
+        $productosOrdenados = collect($productos)->sortByDesc('cantidad')->values();
+
+        return response()
+            ->json([
+                'resumen' => [
+                    'comandas_finalizadas' => $historial->count(),
+                    'unidades_preparadas' => $historial->sum('unidades'),
+                    'productos_distintos' => $productosOrdenados->count(),
+                    'minutos_promedio' => $tiempos->isNotEmpty() ? round($tiempos->avg()) : 0,
+                ],
+                'productos' => $productosOrdenados,
+                'historial' => $historial->take(50)->values(),
+            ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 

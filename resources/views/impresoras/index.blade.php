@@ -1,72 +1,48 @@
-<div class="p-6 space-y-8 animate-fadeIn">
-
-    {{-- ENCABEZADO + BOTÓN --}}
-    <div class="flex justify-between items-center">
-        <div>
-            <h1 class="text-3xl font-black text-gray-800 tracking-tight">Impresoras de Red</h1>
-            <p class="text-gray-500 text-sm">Administra las impresoras térmicas conectadas por LAN al sistema.</p>
-        </div>
-        <button onclick="openModalImpresora()"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl shadow-lg shadow-blue-100 flex items-center gap-2 transition-all font-bold">
-            <span>+ Nueva Impresora</span>
-        </button>
+<style>
+    #view-impresoras{padding:26px;max-width:1440px;margin:0 auto;color:#172033}.imp-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:24px}.imp-kicker{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#2563eb;margin:0 0 7px}.imp-title{margin:0;color:#172033;font-size:26px;font-weight:800;letter-spacing:-.5px}.imp-sub{margin:6px 0 0;color:#667085;font-size:13px}.imp-primary{border:0;border-radius:8px;background:#1d4ed8;color:#fff;padding:11px 16px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 6px 14px #1d4ed82e}.imp-primary:hover{background:#1e40af}.imp-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}.imp-metric{background:#fff;border:1px solid #e6eaf0;border-radius:10px;padding:16px 18px}.imp-metric p{margin:0}.imp-metric-label{color:#667085;font-size:12px;font-weight:700}.imp-metric-value{color:#172033;font-size:26px;font-weight:800;margin-top:7px!important}.imp-metric-sub{color:#98a2b3;font-size:11px;margin-top:3px!important}.imp-table-card{background:#fff;border:1px solid #e6eaf0;border-radius:10px;overflow:hidden}.imp-table-head{padding:16px 18px;border-bottom:1px solid #edf0f4;display:flex;justify-content:space-between;align-items:center}.imp-table-head h3{margin:0;font-size:14px;color:#344054}.imp-table-head span{font-size:12px;color:#667085}#view-impresoras table{width:100%;border-collapse:collapse;font-size:13px}#view-impresoras thead{background:#f8fafc;border-bottom:1px solid #e7ebf0}#view-impresoras th{padding:12px 16px;text-align:left;font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.05em}#view-impresoras td{padding:14px 16px;border-bottom:1px solid #eff2f5}#view-impresoras tbody tr:last-child td{border-bottom:0}#view-impresoras tbody tr:hover{background:#f8fbff}.imp-name{display:flex;align-items:center;gap:11px}.imp-icon{width:35px;height:35px;border-radius:8px;display:grid;place-items:center;background:#eaf2ff;color:#1d4ed8;font-size:17px}.imp-name strong{display:block;color:#344054}.imp-name small{color:#98a2b3;font-size:11px}.imp-chip{display:inline-block;border-radius:5px;background:#f1f5f9;color:#334155;font:600 12px ui-monospace,monospace;padding:5px 8px}.imp-status{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}.imp-status:before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}.imp-on{background:#ecfdf3;color:#027a48}.imp-off{background:#fef3f2;color:#b42318}.imp-action{border:0;background:transparent;border-radius:6px;padding:7px;cursor:pointer;font-size:14px}.imp-action:hover{background:#eef4ff}.imp-delete:hover{background:#fff1f2}@media(max-width:700px){#view-impresoras{padding:16px}.imp-top{flex-direction:column}.imp-metrics{grid-template-columns:1fr}.imp-table-card{overflow:auto}#view-impresoras table{min-width:620px}}
+</style>
+<div id="view-impresoras">
+    <div class="imp-top">
+        <div><p class="imp-kicker">Administración</p><h1 class="imp-title">Impresoras de red</h1><p class="imp-sub">Configure los destinos térmicos para caja, cocina y barra.</p></div>
+        <button onclick="openModalImpresora()" class="imp-primary">+ Nueva impresora</button>
     </div>
-
-    {{-- TABLA --}}
-    <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-        <table class="min-w-full text-sm">
-            <thead class="bg-gray-50/50 border-b border-gray-100">
+    <div class="imp-metrics">
+        <div class="imp-metric"><p class="imp-metric-label">Total impresoras</p><p class="imp-metric-value">{{ $impresoras->count() }}</p><p class="imp-metric-sub">Registradas en el sistema</p></div>
+        <div class="imp-metric"><p class="imp-metric-label">Impresoras activas</p><p class="imp-metric-value">{{ $impresoras->where('activa', true)->count() }}</p><p class="imp-metric-sub">Disponibles para impresión</p></div>
+        <div class="imp-metric"><p class="imp-metric-label">Impresoras inactivas</p><p class="imp-metric-value">{{ $impresoras->where('activa', false)->count() }}</p><p class="imp-metric-sub">Revisar conexión o configuración</p></div>
+    </div>
+    <div class="imp-table-card">
+        <div class="imp-table-head"><h3>Listado de impresoras</h3><span>{{ $impresoras->count() }} registro(s)</span></div>
+        <table>
+            <thead>
                 <tr>
-                    <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Destino</th>
-                    <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Dirección IP</th>
-                    <th class="px-6 py-4 text-left font-black text-gray-400 uppercase tracking-widest">Puerto</th>
-                    <th class="px-6 py-4 text-center font-black text-gray-400 uppercase tracking-widest">Acciones</th>
+                    <th>Destino</th><th>Dirección IP</th><th>Puerto</th><th>Estado</th><th style="text-align:center">Acciones</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-50" id="listaImpresoras">
+            <tbody id="listaImpresoras">
                 @forelse ($impresoras as $imp)
-                    <tr class="hover:bg-blue-50/30 transition-colors">
+                    <tr>
 
                         {{-- Nombre / Destino --}}
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center font-bold text-lg">
-                                    🖨️
-                                </div>
-                                <div>
-                                    <p class="font-bold text-gray-800">{{ $imp->nombre }}</p>
-                                    <p class="text-xs text-gray-400">Impresora térmica ESC/POS</p>
-                                </div>
-                            </div>
+                        <td><div class="imp-name"><div class="imp-icon">🖨️</div><div><strong>{{ $imp->nombre }}</strong><small>Impresora térmica ESC/POS</small></div></div>
                         </td>
 
                         {{-- IP --}}
-                        <td class="px-6 py-4">
-                            <span
-                                class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-[11px] font-black tracking-tight font-mono">
-                                {{ $imp->ip }}
-                            </span>
-                        </td>
+                        <td><span class="imp-chip">{{ $imp->ip }}</span></td>
 
                         {{-- Puerto --}}
-                        <td class="px-6 py-4">
-                            <span
-                                class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[11px] font-black tracking-tight font-mono">
-                                :{{ $imp->puerto }}
-                            </span>
-                        </td>
+                        <td><span class="imp-chip">:{{ $imp->puerto }}</span></td>
+                        <td><span class="imp-status {{ $imp->activa ? 'imp-on' : 'imp-off' }}">{{ $imp->activa ? 'Activa' : 'Inactiva' }}</span></td>
 
                         {{-- Acciones --}}
-                        <td class="px-6 py-4 text-center">
-                            <div class="flex justify-center gap-2">
+                        <td style="text-align:center"><div>
                                 <button onclick='editarImpresora({{ json_encode($imp) }})'
-                                    class="p-2 text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                                    class="imp-action"
                                     title="Editar">
                                     ✏️
                                 </button>
                                 <button onclick="eliminarImpresora({{ $imp->id }})"
-                                    class="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                    class="imp-action imp-delete"
                                     title="Eliminar">
                                     🗑️
                                 </button>
@@ -75,7 +51,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="px-6 py-16 text-center">
+                        <td colspan="5" style="padding:52px;text-align:center">
                             <div class="flex flex-col items-center gap-3 text-gray-300">
                                 <span class="text-5xl">🖨️</span>
                                 <p class="font-black text-sm uppercase tracking-widest">Sin impresoras registradas</p>
@@ -86,9 +62,7 @@
                 @endforelse
             </tbody>
         </table>
-    </div>
-
-</div>
+    </div></div>
 
 {{-- ══════════════════════════════════════════════════════
      MODAL — NUEVA / EDITAR IMPRESORA

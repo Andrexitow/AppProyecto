@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'auth.agente' => \App\Http\Middleware\AutenticarAgenteImpresion::class,
+            'auditar' => \App\Http\Middleware\RegistrarActividad::class,
             'permission' => \App\Http\Middleware\RequirePermission::class,
             'role' => \App\Http\Middleware\RequireRole::class,
         ]);

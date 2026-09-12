@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>POS Terminal | AppSystem</title>
+    <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+    <title>Nexora | POS Terminal</title>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <link rel="stylesheet"
@@ -16,6 +17,9 @@
 </head>
 
 <body class="bg-[#0b1120] text-slate-200 h-screen overflow-hidden flex flex-col">
+    @php
+        $puedeCobrar = in_array(auth()->user()->rol?->nombre, ['Administrador', 'Cajero'], true);
+    @endphp
 
     {{-- ===================== HEADER ===================== --}}
     <header
@@ -23,14 +27,9 @@
         style="height:52px;">
 
         <div class="flex items-center gap-3">
-            <div class="bg-[#2d4faa] p-1.5 rounded-xl">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-            </div>
+            <div class="w-8 h-8 rounded-xl overflow-hidden border border-slate-700"><img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora" class="w-full h-full object-contain"></div>
             <div class="hidden sm:block">
-                <h1 class="text-sm font-black italic tracking-tight leading-none text-white">POS Terminal</h1>
+                <h1 class="text-sm font-black italic tracking-tight leading-none text-white">Nexora POS</h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Facturación rápida</p>
             </div>
             <h1 class="sm:hidden text-sm font-black italic text-white">POS</h1>
@@ -71,7 +70,7 @@
             </form>
 
             {{-- MÓVIL: botones rápidos --}}
-            @if (auth()->user()->rol_id == 4 || auth()->user()->rol_id == 1)
+            @if ($puedeCobrar)
                 <button onclick="abrirModalMovimiento()" class="md:hidden p-2 rounded-xl border transition-all"
                     style="background:#1a1a2e; border-color:#4338ca;">
                     <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2"
@@ -125,7 +124,7 @@
             </div>
 
             {{-- ── ZONA FIJA: Acciones siempre visibles ── --}}
-            @if (auth()->user()->rol_id == 4 || auth()->user()->rol_id == 1)
+            @if ($puedeCobrar)
                 <div
                     style="flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 0 14px; border-top:0.5px solid #1e293b; width:100%;">
 
@@ -250,7 +249,7 @@
                 </p>
 
                 {{-- Cliente --}}
-                @if (auth()->user()->rol_id == 4 || auth()->user()->rol_id == 1)
+                @if ($puedeCobrar)
                     <button onclick="abrirModalCliente()" class="client-btn">
                         <div class="flex items-center gap-2">
                             <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -323,7 +322,7 @@
                     <button onclick="enviarPedido()" class="btn-send">Enviar pedido</button>
                 </div>
 
-                @if (auth()->user()->rol_id == 4 || auth()->user()->rol_id == 1)
+                @if ($puedeCobrar)
                     <button onclick="abrirModalPago()" class="btn-pay">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5"
                             viewBox="0 0 24 24">
@@ -491,7 +490,7 @@
                 </div>
 
                 {{-- Métodos --}}
-                <div class="grid grid-cols-3 gap-2 mb-5">
+                <div class="grid grid-cols-4 gap-2 mb-5">
                     <button onclick="seleccionarMetodo('efectivo')" id="btn-pago-efectivo"
                         class="metodo-pago p-3 rounded-xl text-center transition-all"
                         style="border:0.5px solid #2d4a7a; background:#1a2d50;">
@@ -510,6 +509,18 @@
                         <span class="block text-xl mb-1">📱</span>
                         <span class="text-[9px] font-bold text-slate-400 uppercase">Nequi/Davi</span>
                     </button>
+                    <button onclick="seleccionarMetodo('credito')" id="btn-pago-credito"
+                        class="metodo-pago p-3 rounded-xl text-center transition-all"
+                        style="border:0.5px solid #283347; background:#1a2235;">
+                        <span class="block text-xl mb-1">🧾</span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase">Crédito</span>
+                    </button>
+                </div>
+
+                <div id="aviso-credito-cliente" class="hidden mb-5 rounded-xl px-3 py-2"
+                    style="background:#3a1a1a; border:0.5px solid #7a2d2d;">
+                    <p class="text-[10px] text-amber-300 font-bold">⚠️ Selecciona un cliente registrado (no
+                        "Consumidor Final") en la mesa antes de vender a crédito.</p>
                 </div>
 
                 <div id="detalles-pago-extra" class="mb-5">

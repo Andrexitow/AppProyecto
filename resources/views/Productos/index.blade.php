@@ -1,47 +1,469 @@
-<div class="p-6 space-y-6 bg-gray-50 min-h-screen">
-    <div
-        class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-        <div class="relative w-full md:w-1/3">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-            </span>
+<style>
+    .sec-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
 
-            <input type="text" id="buscarTablaProducto" oninput="filtrarProducto()"
-                placeholder="Buscar producto por nombre o código..."
-                class="w-full pl-10 pr-4 py-2 border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+    .sec-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: #111827;
+        letter-spacing: -0.3px;
+    }
+
+    .sec-subtitle {
+        font-size: 12px;
+        color: #6B7280;
+        margin-top: 2px;
+    }
+
+    /* ── Métricas resumen ── */
+    .metrics-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+
+    .metric-card {
+        background: #fff;
+        border: 1px solid #EAECF0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--accent, #1D4ED8);
+    }
+
+    .metric-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #111827;
+        margin-top: 4px;
+        letter-spacing: -0.5px;
+    }
+
+    .metric-value.money { font-size: 16px; }
+
+    .metric-sub {
+        font-size: 11px;
+        color: #6B7280;
+        margin-top: 2px;
+    }
+
+    /* ── Barra de filtros ── */
+    .filter-bar {
+        background: #fff;
+        border: 1px solid #EAECF0;
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .filter-bar .fi-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        min-width: 160px;
+    }
+
+    .fi-label { font-size: 12px; color: #6B7280; white-space: nowrap; }
+
+    .fi-input {
+        flex: 1;
+        border: 1px solid #D1D5DB;
+        border-radius: 7px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: #111827;
+        background: #F9FAFB;
+        outline: none;
+        transition: border 0.15s;
+    }
+
+    .fi-input:focus { border-color: #1D4ED8; background: #fff; }
+    .fi-input::placeholder { color: #9CA3AF; }
+
+    .fi-select {
+        border: 1px solid #D1D5DB;
+        border-radius: 7px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: #111827;
+        background: #F9FAFB;
+        outline: none;
+        cursor: pointer;
+    }
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #1D4ED8;
+        color: #fff;
+        border: none;
+        border-radius: 7px;
+        padding: 7px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+        white-space: nowrap;
+    }
+
+    .btn-primary:hover { background: #1e40af; }
+
+    .btn-outline {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #fff;
+        color: #374151;
+        border: 1px solid #D1D5DB;
+        border-radius: 7px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+    }
+
+    .btn-outline:hover { background: #F3F4F6; border-color: #9CA3AF; }
+
+    /* ── Tabla ── */
+    .table-wrapper {
+        background: #fff;
+        border: 1px solid #EAECF0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .table-scroll { overflow-x: auto; }
+
+    table.prod-tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+    }
+
+    table.prod-tbl thead { background: #F8FAFC; border-bottom: 1px solid #EAECF0; }
+
+    table.prod-tbl thead th {
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    table.prod-tbl tbody tr {
+        border-bottom: 1px solid #F3F4F6;
+        transition: background 0.1s;
+    }
+
+    table.prod-tbl tbody tr:last-child { border-bottom: none; }
+    table.prod-tbl tbody tr:hover { background: #F8FAFC; }
+    table.prod-tbl tbody tr.inactivo { opacity: 0.6; }
+
+    table.prod-tbl td { padding: 9px 12px; color: #374151; vertical-align: middle; }
+
+    .td-mono {
+        font-family: 'JetBrains Mono', 'Fira Mono', monospace;
+        font-size: 12px;
+        color: #1D4ED8;
+        font-weight: 600;
+    }
+
+    .td-money { font-weight: 600; color: #111827; }
+
+    /* ── Badges ── */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .badge-green { background: #ECFDF5; color: #065F46; }
+    .badge-red { background: #FEF2F2; color: #991B1B; }
+    .badge-gray { background: #F3F4F6; color: #374151; }
+    .badge-amber { background: #FFFBEB; color: #92400E; }
+
+    .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        display: inline-block;
+        background: currentColor;
+    }
+
+    /* ── Acciones ── */
+    .tbl-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+
+    .act-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+        background: transparent;
+        color: #6B7280;
+        position: relative;
+    }
+
+    .act-btn:hover { background: #F3F4F6; color: #111827; transform: scale(1.05); }
+    .act-btn.edit:hover { background: #ECFDF5; color: #059669; }
+    .act-btn.state:hover { background: #FFFBEB; color: #D97706; }
+    .act-btn.del:hover { background: #FEF2F2; color: #DC2626; }
+
+    .act-btn::after {
+        content: attr(title);
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1F2937;
+        color: #fff;
+        font-size: 11px;
+        padding: 3px 7px;
+        border-radius: 5px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s;
+        z-index: 50;
+    }
+
+    .act-btn:hover::after { opacity: 1; }
+
+    .spinner-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        color: #6B7280;
+        font-size: 13px;
+        gap: 10px;
+    }
+
+    /* ── Modal ── */
+    .modal-backdrop-prod {
+        background: rgba(17, 24, 39, 0.5);
+        backdrop-filter: blur(4px);
+    }
+
+    .modal-producto {
+        background: #fff;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 640px;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-head-prod {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #EAECF0;
+        flex-shrink: 0;
+    }
+
+    .modal-head-title { font-size: 15px; font-weight: 600; color: #111827; }
+    .modal-head-sub { font-size: 12px; color: #6B7280; margin-top: 2px; }
+    .modal-body-prod { flex: 1; overflow-y: auto; padding: 20px; }
+
+    .modal-foot-prod {
+        padding: 14px 20px;
+        border-top: 1px solid #EAECF0;
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+        flex-shrink: 0;
+    }
+
+    .prod-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    @media (max-width: 480px) { .prod-grid { grid-template-columns: 1fr; } }
+
+    .prod-field { display: flex; flex-direction: column; gap: 3px; }
+
+    .prod-field label {
+        font-size: 11px;
+        font-weight: 500;
+        color: #9CA3AF;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .prod-field input,
+    .prod-field select,
+    .prod-field textarea {
+        border: 1px solid #D1D5DB;
+        border-radius: 7px;
+        padding: 8px 10px;
+        font-size: 13px;
+        color: #111827;
+        outline: none;
+        background: #F9FAFB;
+        transition: border 0.15s;
+        font-family: inherit;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .prod-field input:focus,
+    .prod-field select:focus,
+    .prod-field textarea:focus { border-color: #1D4ED8; background: #fff; }
+
+    .spinner-inline {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,.5);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin-prod .7s linear infinite;
+        vertical-align: -2px;
+    }
+
+    @keyframes spin-prod { to { transform: rotate(360deg); } }
+
+    @media (max-width: 640px) {
+        .metrics-row { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+
+<div id="view-productos">
+
+    {{-- ── ENCABEZADO ── --}}
+    <div class="sec-header">
+        <div>
+            <p class="sec-title">📦 Catálogo de Productos</p>
+            <p class="sec-subtitle">Gestión de productos, precios e impuestos del punto de venta</p>
         </div>
-
-        <button onclick="openModalProducto()"
-            class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg shadow-sm flex items-center justify-center font-medium transition-colors">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Producto
+        <button class="btn-primary" onclick="switchProductoTab('info'); document.getElementById('formProducto').reset(); document.getElementById('producto_id').value=''; openModalProducto();">
+            ＋ Nuevo Producto
         </button>
     </div>
 
+    {{-- ── MÉTRICAS ── --}}
+    <div class="metrics-row">
+        <div class="metric-card" style="--accent:#1D4ED8">
+            <p class="metric-label">Total Productos</p>
+            <p class="metric-value">{{ $metricas['total'] }}</p>
+            <p class="metric-sub">En el catálogo</p>
+        </div>
+        <div class="metric-card" style="--accent:#059669">
+            <p class="metric-label">Activos</p>
+            <p class="metric-value">{{ $metricas['activos'] }}</p>
+            <p class="metric-sub">Disponibles para venta</p>
+        </div>
+        <div class="metric-card" style="--accent:#DC2626">
+            <p class="metric-label">Inactivos</p>
+            <p class="metric-value">{{ $metricas['inactivos'] }}</p>
+            <p class="metric-sub">{{ $metricas['total'] ? round($metricas['inactivos'] / $metricas['total'] * 100) : 0 }}% del total</p>
+        </div>
+        <div class="metric-card" style="--accent:#D97706">
+            <p class="metric-label">Sin Stock</p>
+            <p class="metric-value">{{ $metricas['sin_stock'] }}</p>
+            <p class="metric-sub">Afectan inventario</p>
+        </div>
+        <div class="metric-card" style="--accent:#7C3AED">
+            <p class="metric-label">Valor Inventario</p>
+            <p class="metric-value money">${{ number_format($metricas['valor_inventario'], 0, ',', '.') }}</p>
+            <p class="metric-sub">Costo a precio de venta</p>
+        </div>
+    </div>
+
+    {{-- ── FILTROS ── --}}
+    <div class="filter-bar">
+        <div class="fi-group" style="flex:2;min-width:220px;">
+            <span class="fi-label">🔍</span>
+            <input type="text" id="buscarTablaProducto" oninput="filtrarProducto()"
+                placeholder="Buscar producto por nombre o código…" class="fi-input">
+        </div>
+        <div class="fi-group">
+            <select class="fi-select" id="filtroEstadoProducto" onchange="filtrarProducto()">
+                <option value="">Todos los estados</option>
+                <option value="0">Activo</option>
+                <option value="1">Inactivo</option>
+            </select>
+        </div>
+        <button class="btn-outline" onclick="limpiarFiltrosProducto()">✕ Limpiar</button>
+    </div>
+
+    {{-- ── TABLA ── --}}
     <div id="tablaProductos">
         @include('productos.partials.tabla')
     </div>
+
 </div>
-<!-- MODAL -->
-<div id="modalProducto"
-    class="fixed inset-0 bg-gray-900/60 hidden backdrop-blur-sm items-center justify-center z-50 p-4">
-    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden transform transition-all">
-        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-800">Registrar Nuevo Producto</h2>
-            <button onclick="closeModalProducto()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
+
+{{-- ═══════════════════════════════════════════════
+     MODAL PRODUCTO (crear / editar)
+═══════════════════════════════════════════════ --}}
+<div id="modalProducto" class="fixed inset-0 hidden items-center justify-center z-50 p-4 modal-backdrop-prod">
+    <div class="modal-producto">
+
+        <div class="modal-head-prod">
+            <div>
+                <p class="modal-head-title" id="prod-modal-title">Registrar Nuevo Producto</p>
+                <p class="modal-head-sub">Complete la información, precio e impuestos</p>
+            </div>
+            <button onclick="closeModalProducto()"
+                style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;padding:4px;border-radius:6px;line-height:1;">✕</button>
         </div>
 
-        <!-- TABS -->
-        <div class="flex border-b border-gray-100 px-6 bg-gray-50">
+        {{-- TABS --}}
+        <div class="flex border-b border-gray-100 px-5" style="flex-shrink:0;">
             <button type="button" onclick="switchProductoTab('info')" data-tab="info"
                 class="producto-tab px-4 py-3 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition-colors">
                 Información
@@ -52,30 +474,28 @@
             </button>
         </div>
 
-        <form id="formProducto" class="p-6">
+        <form id="formProducto" class="modal-body-prod">
             <input type="hidden" id="producto_id">
 
-            <!-- HOJA 1: INFORMACIÓN -->
-            <div id="tab-info" class="producto-tab-panel grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Código del Producto</label>
-                    <input name="codigo" placeholder="Ej: PROD-001"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+            {{-- HOJA 1: INFORMACIÓN --}}
+            <div id="tab-info" class="producto-tab-panel">
+              <div class="prod-grid">
+                <div class="prod-field">
+                    <label>Código del Producto</label>
+                    <input name="codigo" placeholder="Ej: PROD-001">
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Categoría</label>
-                    <select name="categoria"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
-                        <option value="">Seleccione...</option>
+                <div class="prod-field">
+                    <label>Categoría</label>
+                    <select name="categoria">
+                        <option value="">Seleccione…</option>
                         <option value="General">General</option>
                     </select>
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Grupo / Destino de Impresión</label>
-                    <select name="grupo_menu_id" id="prod_grupo_menu_id"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all font-bold text-blue-600">
+                <div class="prod-field" style="grid-column:1/-1;">
+                    <label>Grupo / Destino de Impresión</label>
+                    <select name="grupo_menu_id" id="prod_grupo_menu_id" style="font-weight:600;color:#1D4ED8;">
                         <option value="">Sin impresión (No genera ticket)</option>
                         @foreach ($grupos as $grupo)
                             <option value="{{ $grupo->id }}">📂 {{ $grupo->nombre }}</option>
@@ -83,64 +503,63 @@
                     </select>
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Unidad de Medida</label>
-                    <input name="und_detal" placeholder="Ej: Unidad, Kg, Paquete"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+                <div class="prod-field">
+                    <label>Unidad de Medida</label>
+                    <input name="und_detal" placeholder="Ej: Unidad, Kg, Paquete">
                 </div>
 
-                <div class="space-y-1 md:col-span-2">
-                    <label class="text-sm font-semibold text-gray-700">Nombre / Descripción</label>
-                    <input name="descripcion" placeholder="Nombre completo del producto"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
-                </div>
-
-                <div class="space-y-1 md:col-span-2">
-                    <label class="text-sm font-semibold text-gray-700">Características Adicionales</label>
-                    <textarea name="caracteristicas" rows="3" placeholder="Detalles técnicos, colores, etc."
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all"></textarea>
-                </div>
-
-                <div class="space-y-1 md:col-span-2">
-                    <label class="text-sm font-semibold text-gray-700">Afecta Inventario</label>
-                    <select name="afecta_inventario"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50">
+                <div class="prod-field">
+                    <label>Afecta Inventario</label>
+                    <select name="afecta_inventario">
                         <option value="1">Sí</option>
                         <option value="0">No</option>
                     </select>
                 </div>
-            </div>
 
-            <!-- HOJA 2: IMPUESTOS Y PRECIOS -->
-            <div id="tab-impuestos" class="producto-tab-panel hidden grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">Precio de Venta</label>
-                    <input type="number" name="precio" placeholder="0.00"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+                <div class="prod-field" style="grid-column:1/-1;">
+                    <label>Nombre / Descripción</label>
+                    <input name="descripcion" placeholder="Nombre completo del producto">
                 </div>
 
-                <div class="space-y-1">
-                    <label class="text-sm font-semibold text-gray-700">IVA Venta (%)</label>
-                    <select name="iva_ventas"
-                        class="w-full border-gray-200 focus:ring-2 focus:ring-blue-500 rounded-lg p-2.5 bg-gray-50 transition-all">
+                <div class="prod-field" style="grid-column:1/-1;">
+                    <label>Características Adicionales</label>
+                    <textarea name="caracteristicas" rows="3" placeholder="Detalles técnicos, colores, etc." style="resize:vertical;"></textarea>
+                </div>
+              </div>
+            </div>
+
+            {{-- HOJA 2: IMPUESTOS Y PRECIOS --}}
+            <div id="tab-impuestos" class="producto-tab-panel hidden">
+              <div class="prod-grid">
+                <div class="prod-field">
+                    <label>Precio de Venta</label>
+                    <input type="number" name="precio" placeholder="0.00">
+                </div>
+
+                <div class="prod-field">
+                    <label>IVA Venta (%)</label>
+                    <select name="iva_ventas">
                         <option value="">Heredar del Grupo Contable</option>
                         <option value="0">0% (Excluido)</option>
                         <option value="5">5%</option>
                         <option value="19">19%</option>
                     </select>
                 </div>
-            </div>
-
-            <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-100">
-                <button type="button" onclick="closeModalProducto()"
-                    class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">
-                    Cancelar
-                </button>
-                <button type="button" onclick="guardarProducto()"
-                    class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-lg font-bold shadow-md transition-all">
-                    Guardar Producto
-                </button>
+              </div>
             </div>
         </form>
+
+        <div class="modal-foot-prod">
+            <button type="button" onclick="closeModalProducto()" class="btn-outline">Cancelar</button>
+            <button type="button" onclick="guardarProducto()" class="btn-primary">💾 Guardar Producto</button>
+        </div>
     </div>
 </div>
+
+<script>
+    function limpiarFiltrosProducto() {
+        document.getElementById('buscarTablaProducto').value = '';
+        document.getElementById('filtroEstadoProducto').value = '';
+        filtrarProducto();
+    }
+</script>

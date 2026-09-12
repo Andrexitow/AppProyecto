@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Cocina | AppSystem</title>
+    <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+    <title>Nexora | Cocina</title>
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root { --ink:#17211d; --muted:#718078; --paper:#f4f0e7; --card:#fffdf8; --line:#ded8ca; --olive:#2c5545; --lime:#c9e265; --hot:#db5c3d; }
@@ -12,7 +13,7 @@
         body { margin:0; min-height:100vh; color:var(--ink); background:radial-gradient(circle at top right,#dae7b5 0,transparent 28%),var(--paper); font-family:"Space Grotesk",sans-serif; }
         .top { min-height:94px; padding:20px clamp(20px,4vw,62px); display:flex; align-items:center; justify-content:space-between; gap:18px; border-bottom:1px solid rgba(44,85,69,.18); background:rgba(255,253,248,.74); backdrop-filter:blur(12px); position:sticky; top:0; z-index:5; }
         .brand { display:flex; align-items:center; gap:14px; }
-        .brand-mark { width:45px; height:45px; border-radius:14px; display:grid; place-items:center; background:var(--olive); color:var(--lime); font-size:23px; box-shadow:0 8px 18px rgba(44,85,69,.16); }
+        .brand-mark { width:45px; height:45px; overflow:hidden; border-radius:14px; box-shadow:0 8px 18px rgba(44,85,69,.16); } .brand-mark img { width:100%; height:100%; object-fit:contain; }
         h1 { font-size:22px; letter-spacing:-.8px; margin:0; } .eyebrow { margin:0 0 3px; font:11px "DM Mono",monospace; color:var(--olive); letter-spacing:.1em; text-transform:uppercase; }
         .status { display:flex; align-items:center; gap:9px; font:12px "DM Mono",monospace; color:var(--muted); } .pulse { width:9px; height:9px; border-radius:50%; background:#6fa23b; box-shadow:0 0 0 5px rgba(111,162,59,.15); }
         .workspace { max-width:1580px; padding:32px clamp(20px,4vw,62px) 60px; margin:auto; }
@@ -31,7 +32,7 @@
         .fallback { margin:17px; padding:12px; border-radius:9px; background:#faf4e8; color:#6f6558; font:11px "DM Mono",monospace; white-space:pre-wrap; max-height:180px; overflow:auto; }
         .finish { width:calc(100% - 34px); margin:10px 17px 17px; padding:13px 14px; border:0; border-radius:10px; cursor:pointer; background:var(--olive); color:#fff; font:600 13px "Space Grotesk",sans-serif; transition:transform .15s,background .15s; } .finish:hover { background:#1e4134; transform:translateY(-1px); } .finish:disabled { opacity:.65; cursor:wait; transform:none; }
         .empty { grid-column:1/-1; min-height:300px; border:1px dashed #c7c2b5; border-radius:18px; display:grid; place-items:center; text-align:center; color:var(--muted); background:rgba(255,253,248,.5); } .empty strong { display:block; font-size:19px; color:var(--ink); margin:9px 0 5px; }
-        .empty-icon { font-size:40px; } .logout { color:var(--olive); text-decoration:none; font:12px "DM Mono",monospace; border:1px solid #cdd5bd; border-radius:8px; padding:9px 11px; }
+        .empty-icon { font-size:40px; } .top-actions { display:flex; align-items:center; gap:8px; } .history-link, .logout { color:var(--olive); text-decoration:none; font:12px "DM Mono",monospace; border:1px solid #cdd5bd; border-radius:8px; padding:9px 11px; background:transparent; }
         @keyframes enter { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         @media(max-width:560px) { .top{min-height:78px;padding:14px 18px}.brand-mark{width:39px;height:39px}.brand h1{font-size:18px}.workspace{padding:25px 18px}.summary{align-items:flex-start;flex-direction:column}.summary h2{font-size:26px}.orders{grid-template-columns:1fr}.status{display:none} }
     </style>
@@ -39,11 +40,14 @@
 <body>
     <header class="top">
         <div class="brand">
-            <div class="brand-mark">+</div>
-            <div><p class="eyebrow">AppSystem / Produccion</p><h1>Chef Cocina</h1></div>
+            <div class="brand-mark"><img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora"></div>
+            <div><p class="eyebrow">Nexora / Produccion</p><h1>Chef Cocina</h1></div>
         </div>
         <div class="status"><span class="pulse"></span> Actualizacion automatica</div>
-        <form method="POST" action="/logout">@csrf <button class="logout" type="submit">Salir</button></form>
+        <div class="top-actions">
+            <a class="history-link" href="{{ route('cocina.historial') }}">Historial</a>
+            <form method="POST" action="/logout">@csrf <button class="logout" type="submit">Salir</button></form>
+        </div>
     </header>
     <main class="workspace">
         <section class="summary">

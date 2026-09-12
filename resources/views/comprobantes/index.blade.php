@@ -292,7 +292,7 @@
     }
 
     .td-money.credito {
-        color: #D97706;
+        color: #DC2626;
     }
 
     .td-obs {
@@ -494,7 +494,7 @@
         background: #fff;
         border-radius: 16px;
         width: 100%;
-        max-width: 760px;
+        max-width: 720px;
         max-height: 90vh;
         display: flex;
         flex-direction: column;
@@ -1613,212 +1613,64 @@
             });
     }
 
-    // function renderVerComprobante(c) {
-    //     var body = document.getElementById('cp-vf-body');
-    //     var anulTag = c.anulado ?
-    //         '<div class="alerta-anulada">🚫 Comprobante <strong>ANULADO</strong></div>' : '';
-    //     var descuadrado = Math.abs((c.debito || 0) - (c.credito || 0)) > 0.01;
-    //     var descTag = (!c.anulado && descuadrado) ?
-    //         '<div class="alerta-descuadre">⚠️ Este comprobante no está cuadrado</div>' : '';
-
-    //     var detalleItems = (c.items || []).map(function(it) {
-    //         return '<tr>' +
-    //             '<td>' + esc(it.cuenta) + '</td>' +
-    //             '<td>' + esc(it.tercero || '—') + '</td>' +
-    //             '<td>' + esc(it.detalle || '—') + '</td>' +
-    //             '<td style="text-align:right;">' + ((it.debito || 0) > 0 ? fmtMoneyCP(it.debito) : '—') +
-    //             '</td>' +
-    //             '<td style="text-align:right;">' + ((it.credito || 0) > 0 ? fmtMoneyCP(it.credito) : '—') +
-    //             '</td>' +
-    //             '</tr>';
-    //     }).join('') || '<tr><td colspan="5" style="text-align:center;color:#9CA3AF;">Sin movimientos</td></tr>';
-
-    //     body.innerHTML = anulTag + descTag +
-    //         '<div class="cp-grid" style="grid-template-columns:repeat(3,1fr);">' +
-    //         fldCP('Tipo', c.tipo) +
-    //         fldCP('Prefijo', c.prefijo) +
-    //         fldCP('Número', c.numero) +
-    //         fldCP('Fecha', fmtFechaCP(c.fecha)) +
-    //         fldCP('Usuario', c.usuario || '—') +
-    //         fldCP('Estado', c.anulado ? 'Anulado' : (descuadrado ? 'Sin cuadrar' : 'Activo')) +
-    //         '</div>' +
-    //         fldCP('Observaciones', c.observaciones || '—', true) +
-    //         '<p class="cp-section-title">Movimientos</p>' +
-    //         '<div class="items-tbl-wrap"><table class="items-tbl">' +
-    //         '<thead><tr><th>Cuenta</th><th>Tercero</th><th>Detalle</th>' +
-    //         '<th style="text-align:right;">Débito</th><th style="text-align:right;">Crédito</th></tr></thead>' +
-    //         '<tbody>' + detalleItems + '</tbody></table></div>' +
-    //         '<div class="totales-box" style="margin-top:14px;">' +
-    //         '<div class="totales-row"><span>Total Débito</span><span>' + fmtMoneyCP(c.debito) + '</span></div>' +
-    //         '<div class="totales-row"><span>Total Crédito</span><span>' + fmtMoneyCP(c.credito) + '</span></div>' +
-    //         '<div class="totales-row total-final"><span>Diferencia</span><span>' +
-    //         fmtMoneyCP(Math.abs((c.debito || 0) - (c.credito || 0))) + '</span></div>' +
-    //         '</div>';
-    // }
-
+    /* ════════════════════════════════════════════════
+       VISTA DE DETALLE (mismo estilo/clases que facturas:
+       cp-grid + fldCP + items-tbl + totales-box)
+    ════════════════════════════════════════════════ */
     function renderVerComprobante(c) {
-
         var body = document.getElementById('cp-vf-body');
 
         var totalDebito = 0;
         var totalCredito = 0;
 
-        var html = '';
+        var html = '<div class="cp-grid" style="grid-template-columns:repeat(4,1fr);">' +
+            fldCP('Factura', c.documento_origen || '—') +
+            fldCP('Fecha', fmtFechaCP(c.fecha)) +
+            fldCP('Estado', c.estado || '—') +
+            fldCP('Usuario', c.usuario || '—') +
+            '</div>';
 
-        html += `
-        <div class="cp-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-
-            ${fldCP('Factura', c.documento_origen || '')}
-
-            ${fldCP('Fecha', fmtFechaCP(c.fecha))}
-
-            ${fldCP('Estado', c.estado)}
-
-            ${fldCP('Usuario', c.usuario || '—')}
-
-        </div>
-    `;
-
-        if (!c.comprobantes || c.comprobantes.length == 0) {
-
-            html += `
-            <div style="padding:40px;text-align:center;color:#999;">
-                No existen movimientos.
-            </div>
-        `;
-
+        if (!c.comprobantes || c.comprobantes.length === 0) {
+            html += '<div class="spinner-cell" style="padding:40px 0;">' +
+                '📭 No existen movimientos para este comprobante.</div>';
             body.innerHTML = html;
             return;
         }
 
         c.comprobantes.forEach(function(comp) {
-
-            html += `
-            <div style="margin-top:20px;">
-
-                <div style="
-                    background:#f7f7f7;
-                    padding:12px 15px;
-                    border-radius:8px;
-                    font-weight:600;
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:center;
-                    margin-bottom:10px;
-                ">
-
-                    <span>${comp.grupo}</span>
-
-                    <span style="color:#777">
-                        ${comp.numero}
-                    </span>
-
-                </div>
-
-                <table class="items-tbl">
-
-                    <thead>
-
-                        <tr>
-
-                            <th>Cuenta</th>
-
-                            <th>Detalle</th>
-
-                            <th style="text-align:right">Débito</th>
-
-                            <th style="text-align:right">Crédito</th>
-
-                        </tr>
-
-                    </thead>
-
-                    <tbody>
-        `;
+            html += '<p class="cp-section-title" style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<span>' + esc(comp.grupo) + '</span>' +
+                '<span style="color:#9CA3AF;font-weight:500;text-transform:none;letter-spacing:0;">' +
+                esc(comp.numero) + '</span></p>' +
+                '<div class="items-tbl-wrap"><table class="items-tbl">' +
+                '<thead><tr><th>Cuenta</th><th>Detalle</th>' +
+                '<th style="text-align:right;">Débito</th><th style="text-align:right;">Crédito</th></tr></thead>' +
+                '<tbody>';
 
             comp.movimientos.forEach(function(m) {
+                totalDebito += Number(m.debito) || 0;
+                totalCredito += Number(m.credito) || 0;
 
-                totalDebito += Number(m.debito);
-                totalCredito += Number(m.credito);
-
-                html += `
-                <tr>
-
-                    <td>
-
-                        <strong>${m.cuenta_codigo}</strong>
-
-                        <br>
-
-                        <small>${m.cuenta_nombre}</small>
-
-                    </td>
-
-                    <td>${m.detalle}</td>
-
-                    <td style="text-align:right">
-
-                        ${Number(m.debito)>0 ? fmtMoneyCP(m.debito) : ''}
-
-                    </td>
-
-                    <td style="text-align:right">
-
-                        ${Number(m.credito)>0 ? fmtMoneyCP(m.credito) : ''}
-
-                    </td>
-
-                </tr>
-            `;
-
+                html += '<tr>' +
+                    '<td><span class="td-mono">' + esc(m.cuenta_codigo) + '</span><br>' +
+                    '<span style="font-size:11.5px;color:#6B7280;">' + esc(m.cuenta_nombre) + '</span></td>' +
+                    '<td>' + esc(m.detalle || '—') + '</td>' +
+                    '<td style="text-align:right;">' + (Number(m.debito) > 0 ? fmtMoneyCP(m.debito) : '—') + '</td>' +
+                    '<td style="text-align:right;">' + (Number(m.credito) > 0 ? fmtMoneyCP(m.credito) : '—') + '</td>' +
+                    '</tr>';
             });
 
-            html += `
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        `;
-
+            html += '</tbody></table></div>';
         });
 
-        html += `
-
-        <div class="totales-box" style="margin-top:20px;">
-
-            <div class="totales-row">
-
-                <span>Total Débito</span>
-
-                <span>${fmtMoneyCP(totalDebito)}</span>
-
-            </div>
-
-            <div class="totales-row">
-
-                <span>Total Crédito</span>
-
-                <span>${fmtMoneyCP(totalCredito)}</span>
-
-            </div>
-
-            <div class="totales-row total-final">
-
-                <span>Diferencia</span>
-
-                <span>${fmtMoneyCP(Math.abs(totalDebito-totalCredito))}</span>
-
-            </div>
-
-        </div>
-
-    `;
+        html += '<div class="totales-box" style="margin-top:16px;">' +
+            '<div class="totales-row"><span>Total Débito</span><span>' + fmtMoneyCP(totalDebito) + '</span></div>' +
+            '<div class="totales-row"><span>Total Crédito</span><span>' + fmtMoneyCP(totalCredito) + '</span></div>' +
+            '<div class="totales-row total-final"><span>Diferencia</span><span>' +
+            fmtMoneyCP(Math.abs(totalDebito - totalCredito)) + '</span></div>' +
+            '</div>';
 
         body.innerHTML = html;
-
     }
 
     function fldCP(label, val, full) {

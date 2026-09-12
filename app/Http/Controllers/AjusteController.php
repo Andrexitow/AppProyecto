@@ -7,9 +7,12 @@ use App\Models\AjusteDetalle;
 use App\Models\Bodega;
 use App\Models\Inventario;
 use App\Models\Producto;
+use App\Models\CuentaContable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Services\LegacyDocumentSyncService;
+use App\Services\AjusteContableService;
 
 class AjusteController extends Controller
 {
@@ -19,7 +22,8 @@ class AjusteController extends Controller
         $bodegas = Bodega::all();
         $ajustes = Ajuste::with('user')->latest()->get();
 
-        return view('ajustes.index', compact('ajustes', 'bodegas'));
+        $cuentasContables = CuentaContable::where('estado', true)->where('permite_movimientos', true)->orderBy('codigo')->get();
+        return view('ajustes.index', compact('ajustes', 'bodegas', 'cuentasContables'));
     }
 
     // PASO 1 — Solo guarda la cabecera
@@ -29,6 +33,7 @@ class AjusteController extends Controller
             'prefijo'   => 'required',
             'fecha'     => 'required|date',
             'bodega_id' => 'required|exists:bodegas,id',
+            'contraparte_cuenta_id' => 'nullable|exists:cuentas_contables,id',
         ]);
 
         $ultimo = Ajuste::where('prefijo', $request->prefijo)->max('numero');
@@ -41,6 +46,7 @@ class AjusteController extends Controller
             'tercero_id'    => $request->tercero_id,
             'bodega_id'     => $request->bodega_id,
             'contraparte'   => $request->contraparte,
+            'contraparte_cuenta_id' => $request->contraparte_cuenta_id,
             'observaciones' => $request->observaciones,
             'total'         => 0,
             'registrado'    => false,
@@ -64,6 +70,7 @@ class AjusteController extends Controller
             'tercero_id',
             'bodega_id',
             'contraparte',
+            'contraparte_cuenta_id',
             'observaciones',
         ]));
 
@@ -145,11 +152,15 @@ class AjusteController extends Controller
                 'total'      => $total,
                 'registrado' => true,
             ]);
+            app(LegacyDocumentSyncService::class)->operativo($ajuste->fresh('detalles.producto'), 'AJUSTE', $ajuste->prefijo . '-' . $ajuste->numero, $ajuste->bodega_id, $ajuste->detalles);
+            app(AjusteContableService::class)->contabilizar($ajuste->fresh('detalles'));
 
             DB::commit();
 
             return response()->json(['ok' => true]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // \Throwable (no solo \Exception) para que un TypeError u otro Error
+            // también dispare el rollback y no deje una transacción a medias.
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -229,6 +240,7 @@ class AjusteController extends Controller
 
         $ajuste->registrado = 0;
         $ajuste->save();
+        app(AjusteContableService::class)->anular($ajuste);
 
         return response()->json([
             'success' => true

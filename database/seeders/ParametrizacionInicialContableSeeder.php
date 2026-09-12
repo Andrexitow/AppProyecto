@@ -30,6 +30,8 @@ class ParametrizacionInicialContableSeeder extends Seeder
 
             'CUENTA_IVA_DESCONTABLE' => '240810',
 
+            'CUENTA_RETEFUENTE' => '236540',
+
         ];
 
         foreach ($configuraciones as $clave => $codigoCuenta) {

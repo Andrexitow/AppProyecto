@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { foreach(['facturas','compras','ajustes','traslados_bodega'] as $tabla) Schema::table($tabla,function(Blueprint $t){$t->foreignId('documento_id')->nullable()->constrained('documentos')->nullOnDelete();$t->index('documento_id');}); } public function down(): void { foreach(['facturas','compras','ajustes','traslados_bodega'] as $tabla) Schema::table($tabla,fn(Blueprint $t)=>$t->dropConstrainedForeignId('documento_id')); } };

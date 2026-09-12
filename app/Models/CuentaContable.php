@@ -17,12 +17,16 @@ class CuentaContable extends Model
         'naturaleza',
         'tipo',
         'permite_movimientos',
+        'requiere_tercero',
+        'requiere_centro_costo',
         'estado'
     ];
 
     protected $casts = [
         'permite_movimientos' => 'boolean',
-        'estado' => 'boolean'
+        'estado' => 'boolean',
+        'requiere_tercero' => 'boolean',
+        'requiere_centro_costo' => 'boolean'
     ];
 
     public function padre()
@@ -35,4 +39,6 @@ class CuentaContable extends Model
         return $this->hasMany(CuentaContable::class, 'cuenta_padre_id')
             ->orderBy('codigo');
     }
+    public function movimientos() { return $this->hasMany(MovimientoContable::class); }
+    public function configuraciones() { return $this->hasMany(ConfiguracionContable::class); }
 }

@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(TipoDocumentoSeeder::class);
         // 1. Permisos y roles
         $this->call(PermisoSeeder::class);
         $this->call(RolSeeder::class);
@@ -40,6 +41,7 @@ class DatabaseSeeder extends Seeder
         $this->call(PlantillaContableSeeder::class);
         $this->call(PucSeeder::class);
         $this->call(ParametrizacionInicialContableSeeder::class);
+        $this->call(CuentaTesoreriaSeeder::class);
 
         // 6. Integraciones contables (requiere que ya existan los procesos contables)
         $this->call(IntegracionContableSeeder::class);

@@ -168,6 +168,8 @@ window.openModalNuevoTercero = function () {
     window.terceroEditandoId = null;
     document.getElementById('formTercero').reset();
     document.getElementById('tituloModalTercero').textContent = 'Nuevo Tercero';
+    var chkActivo = document.getElementById('tc-activo');
+    if (chkActivo) chkActivo.checked = true;
     toggleTipoTercero('persona');
     document.getElementById('modalNuevoTercero').classList.remove('hidden');
     document.getElementById('modalNuevoTercero').classList.add('flex');
@@ -186,11 +188,16 @@ window.guardarTercero = function () {
     const form = document.getElementById('formTercero');
     if (!form) return;
 
-    const btn = form.querySelector('[onclick="guardarTercero()"]');
+    // Se busca en todo el documento (no solo dentro de <form>) porque algunas
+    // vistas colocan el botón de guardar fuera del form, junto a "Cancelar".
+    const btn = document.querySelector('[onclick="guardarTercero()"]');
     const formData = new FormData(form);
 
+    const chkActivo = document.getElementById('tc-activo');
+    if (chkActivo) formData.set('estado', chkActivo.checked ? '1' : '0');
+
     // 🔥 evitar doble click
-    btn.disabled = true;
+    if (btn) btn.disabled = true;
 
     const editando = window.terceroEditandoId;
     fetch(editando ? `/terceros/${editando}` : '/terceros', {
@@ -254,7 +261,7 @@ window.guardarTercero = function () {
         })
         .finally(() => {
         // 🔥 volver a habilitar botón SIEMPRE
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
     });
 };
 
@@ -283,6 +290,8 @@ window.editarTercero = function (id) {
             ['nombre', 'apellido', 'cedula', 'razon_social', 'nit', 'email', 'celular', 'direccion'].forEach(campo => {
                 form.elements[campo].value = data[campo] || '';
             });
+            const chkActivo = document.getElementById('tc-activo');
+            if (chkActivo) chkActivo.checked = !!data.estado;
             toggleTipoTercero(data.tipo);
             document.getElementById('tituloModalTercero').textContent = 'Editar Tercero';
             document.getElementById('modalNuevoTercero').classList.remove('hidden');

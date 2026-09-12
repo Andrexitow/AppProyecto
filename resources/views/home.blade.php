@@ -22,6 +22,16 @@
         .metric-value { margin-top: 14px; color: #1f2f29; font-size: 23px; font-weight: 700; letter-spacing: -1px; }
         .metric-value.is-updating, .sale-row.is-updating { animation: dataPulse .7s ease; }
         .metric-note { margin-top: 5px; color: #96a29c; font-size: 11px; }
+        .cutoff-control { display: flex; align-items: center; gap: 7px; margin-top: 12px; padding-top: 11px; border-top: 1px solid #edf0ea; }
+        .cutoff-control label { color: #718078; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+        .cutoff-control input { width: 76px; border: 1px solid #dce5da; border-radius: 7px; padding: 5px 6px; color: #244335; font: inherit; font-size: 11px; }
+        .cutoff-control button { border: 0; border-radius: 7px; padding: 6px 8px; background: #2d624b; color: #fff; font-size: 10px; font-weight: 700; cursor: pointer; }
+        .cutoff-control button:disabled { cursor: wait; opacity: .62; }
+        .cutoff-display { margin-top: 12px; padding-top: 11px; border-top: 1px solid #edf0ea; color: #76847d; font-size: 10px; }
+        .cutoff-status { min-height: 13px; margin-top: 5px; color: #4b805d; font-size: 10px; }
+        .station-counts { display: flex; gap: 7px; margin-top: 9px; }
+        .station-count { flex: 1; border-radius: 8px; padding: 7px 8px; background: #f4f7f2; color: #66766e; font-size: 10px; }
+        .station-count strong { display: block; margin-bottom: 2px; color: #2a4d3d; font-size: 14px; }
         .dash-grid { display: grid; grid-template-columns: 1.45fr .8fr; gap: 18px; }
         .dash-panel { border: 1px solid #e5e8e3; border-radius: 17px; background: #fff; overflow: hidden; }
         .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 18px 19px; border-bottom: 1px solid #eff0ed; }
@@ -49,10 +59,31 @@
         </section>
 
         <section class="metric-grid">
-            <article class="metric"><div class="metric-label"><span>Ventas de hoy</span><span class="metric-icon">$$</span></div><div class="metric-value" id="dash-ventas-hoy">$ {{ number_format($estadisticas['ventas_hoy'], 0, ',', '.') }}</div><div class="metric-note" id="dash-facturas-hoy">{{ $estadisticas['facturas_hoy'] }} facturas pagadas hoy</div></article>
+            <article class="metric">
+                <div class="metric-label"><span id="dash-ventas-label">Ventas del día operativo</span><span class="metric-icon">$$</span></div>
+                <div class="metric-value" id="dash-ventas-hoy">$ {{ number_format($estadisticas['ventas_hoy'], 0, ',', '.') }}</div>
+                <div class="metric-note" id="dash-facturas-hoy">{{ $estadisticas['facturas_hoy'] }} facturas desde las {{ $horaCorteOperativo }}</div>
+                @if($esAdministrador)
+                    <div class="cutoff-control">
+                        <label for="hora-corte-operativo">Corte 24 h</label>
+                        <input id="hora-corte-operativo" type="time" value="{{ $horaCorteOperativo }}" aria-label="Hora de inicio del día operativo">
+                        <button id="guardar-hora-corte" type="button">Guardar</button>
+                    </div>
+                    <div class="cutoff-status" id="cutoff-status">El día operativo inicia a las {{ $horaCorteOperativo }}.</div>
+                @else
+                    <div class="cutoff-display" id="cutoff-status">Día operativo desde las {{ $horaCorteOperativo }}.</div>
+                @endif
+            </article>
             <article class="metric"><div class="metric-label"><span>Ventas del mes</span><span class="metric-icon">↑</span></div><div class="metric-value" id="dash-ventas-mes">$ {{ number_format($estadisticas['ventas_mes'], 0, ',', '.') }}</div><div class="metric-note">Acumulado del mes actual</div></article>
             <article class="metric"><div class="metric-label"><span>Pedidos activos</span><span class="metric-icon">#</span></div><div class="metric-value" id="dash-pedidos-activos">{{ $estadisticas['pedidos_activos'] }}</div><div class="metric-note" id="dash-mesas-ocupadas">{{ $estadisticas['mesas_ocupadas'] }} mesas en servicio</div></article>
-            <article class="metric"><div class="metric-label"><span>En cocina</span><span class="metric-icon">+</span></div><div class="metric-value" id="dash-comandas-pendientes">{{ $estadisticas['comandas_pendientes'] }}</div><div class="metric-note">Comandas pendientes por finalizar</div></article>
+            <article class="metric">
+                <div class="metric-label"><span>Pedidos por preparar</span><span class="metric-icon">+</span></div>
+                <div class="metric-note" style="margin-top: 14px;">Comandas pendientes por estación</div>
+                <div class="station-counts">
+                    <div class="station-count"><strong id="dash-cocina-total">{{ $estadisticas['comandas_pendientes'] }}</strong>Cocina</div>
+                    <div class="station-count"><strong id="dash-comandas-barra">{{ $estadisticas['comandas_barra'] }}</strong>Barra</div>
+                </div>
+            </article>
         </section>
 
         <section class="dash-grid">
@@ -141,12 +172,16 @@
                     .then(function (datos) {
                         var e = datos.estadisticas || {};
                         actualizarTexto('dash-ventas-hoy', dinero(e.ventas_hoy));
-                        actualizarTexto('dash-facturas-hoy', (e.facturas_hoy || 0) + ' facturas pagadas hoy');
+                        actualizarTexto('dash-facturas-hoy', (e.facturas_hoy || 0) + ' facturas desde las ' + (datos.hora_corte_operativo || '00:00'));
                         actualizarTexto('dash-ventas-mes', dinero(e.ventas_mes));
                         actualizarTexto('dash-pedidos-activos', String(e.pedidos_activos || 0));
                         actualizarTexto('dash-mesas-ocupadas', (e.mesas_ocupadas || 0) + ' mesas en servicio');
-                        actualizarTexto('dash-comandas-pendientes', String(e.comandas_pendientes || 0));
+                        actualizarTexto('dash-cocina-total', String(e.comandas_pendientes || 0));
+                        actualizarTexto('dash-comandas-barra', String(e.comandas_barra || 0));
                         renderFacturas(datos.ultimas_facturas || []);
+                        actualizarTexto('cutoff-status', 'El día operativo inicia a las ' + (datos.hora_corte_operativo || '00:00') + '.');
+                        var horaCorte = document.getElementById('hora-corte-operativo');
+                        if (horaCorte) horaCorte.value = datos.hora_corte_operativo || '00:00';
                         var estado = document.getElementById('dashboard-live');
                         if (estado) estado.textContent = 'Actualizado ahora';
                     })
@@ -157,6 +192,42 @@
                     .finally(function () {
                         actualizando = false;
                     });
+            }
+
+            var botonHoraCorte = document.getElementById('guardar-hora-corte');
+            if (botonHoraCorte) {
+                botonHoraCorte.addEventListener('click', function () {
+                    var campoHora = document.getElementById('hora-corte-operativo');
+                    var estado = document.getElementById('cutoff-status');
+                    if (!campoHora || !campoHora.value) return;
+
+                    botonHoraCorte.disabled = true;
+                    if (estado) estado.textContent = 'Guardando hora de corte...';
+
+                    fetch('/dashboard/hora-corte', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf
+                        },
+                        body: JSON.stringify({ hora_corte_operativo: campoHora.value })
+                    })
+                        .then(function (respuesta) {
+                            if (!respuesta.ok) throw new Error('No se pudo guardar');
+                            return respuesta.json();
+                        })
+                        .then(function (datos) {
+                            if (estado) estado.textContent = 'Guardado. El día operativo inicia a las ' + datos.hora_corte_operativo + '.';
+                            actualizarDashboard();
+                        })
+                        .catch(function () {
+                            if (estado) estado.textContent = 'No fue posible guardar la hora. Inténtalo nuevamente.';
+                        })
+                        .finally(function () {
+                            botonHoraCorte.disabled = false;
+                        });
+                });
             }
 
             window.setInterval(actualizarDashboard, 15000);

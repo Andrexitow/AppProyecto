@@ -13,8 +13,18 @@ class BodegaController extends Controller
      */
     public function index()
     {
-        $bodegas = Bodega::all();
-        return view('bodegas.index', compact('bodegas'));
+        $bodegas = Bodega::with('inventarios.producto')->orderBy('descripcion')->get();
+
+        $metricas = [
+            'total' => $bodegas->count(),
+            'con_existencias' => $bodegas->filter(fn ($b) => $b->inventarios->sum('stock') > 0)->count(),
+            'unidades' => $bodegas->sum(fn ($b) => $b->inventarios->sum('stock')),
+            'valor_inventario' => $bodegas->sum(fn ($b) => $b->inventarios->sum(
+                fn ($i) => $i->stock * ($i->producto->precio ?? 0)
+            )),
+        ];
+
+        return view('bodegas.index', compact('bodegas', 'metricas'));
     }
 
     /**

@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>AppSystem</title>
+    <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+    <title>Nexora | Panel administrativo</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     {{-- <link href="{{ asset('css/app.css') }}" rel="stylesheet"> --}}
@@ -94,7 +95,7 @@
         .brand-icon {
             width: 28px;
             height: 28px;
-            background: #1D4ED8;
+            overflow: hidden;
             border-radius: 7px;
             display: flex;
             align-items: center;
@@ -102,10 +103,10 @@
             flex-shrink: 0;
         }
 
-        .brand-icon svg {
-            width: 13px;
-            height: 13px;
-            fill: white;
+        .brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
 
         .brand-name {
@@ -384,14 +385,9 @@
 
         <a class="sidebar-brand" href="#">
             <div class="brand-icon">
-                <svg viewBox="0 0 16 16">
-                    <rect x="2" y="2" width="5" height="5" rx="1" />
-                    <rect x="9" y="2" width="5" height="5" rx="1" />
-                    <rect x="2" y="9" width="5" height="5" rx="1" />
-                    <rect x="9" y="9" width="5" height="5" rx="1" />
-                </svg>
+                <img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora">
             </div>
-            <span class="brand-name">AppSystem</span>
+            <span class="brand-name">Nexora</span>
         </a>
 
         <nav class="sidebar-nav">
@@ -400,6 +396,15 @@
                 $esAdministrador = $rolActual === 'Administrador';
                 $esContabilidad = $rolActual === 'Contabilidad';
             @endphp
+
+            @if ($esAdministrador || $esContabilidad)
+                <div class="nav-section-label">General</div>
+                <button class="nav-item" onclick="window.location.href='{{ route('home') }}'">
+                    <span class="nav-item-icon">⌂</span>
+                    <span class="nav-item-label">Inicio</span>
+                </button>
+                <div class="nav-sep"></div>
+            @endif
 
             @if ($esAdministrador)
                 <div class="nav-section-label">Administración</div>
@@ -414,7 +419,9 @@
                 <button class="nav-item" onclick="loadViewAndClose('categorias_pos')"><span class="nav-item-icon">🗂️</span><span class="nav-item-label">Categorías POS</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('bodegas')"><span class="nav-item-icon">🏭</span><span class="nav-item-label">Bodegas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('existencias')"><span class="nav-item-icon">📋</span><span class="nav-item-label">Existencias</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('traslados-bodega')"><span class="nav-item-icon">↔</span><span class="nav-item-label">Traslados entre bodegas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('ajustes')"><span class="nav-item-icon">⚙️</span><span class="nav-item-label">Ajustes de inventario</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('logs')"><span class="nav-item-icon">◷</span><span class="nav-item-label">Logs del sistema</span></button>
             @endif
 
             @if ($esAdministrador || $esContabilidad)
@@ -422,8 +429,15 @@
                 <div class="nav-section-label">Contabilidad</div>
                 <button class="nav-item" onclick="loadViewAndClose('facturas')"><span class="nav-item-icon">📄</span><span class="nav-item-label">Facturas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('compras')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Compras</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('documentos')"><span class="nav-item-icon">▤</span><span class="nav-item-label">Documentos</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('comprobantes')"><span class="nav-item-icon">📊</span><span class="nav-item-label">Comprobantes</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('informes-contables')"><span class="nav-item-icon">📈</span><span class="nav-item-label">Informes contables</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('kardex')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Kardex y costos</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('cuentas-por-cobrar')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cuentas por cobrar</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('tesoreria')"><span class="nav-item-icon">🏦</span><span class="nav-item-label">Tesorería</span></button>
+                  <button class="nav-item" onclick="loadViewAndClose('periodos-contables')"><span class="nav-item-icon">🔒</span><span class="nav-item-label">Períodos contables</span></button>
+                  @if ($esAdministrador)<button class="nav-item" onclick="loadViewAndClose('metodos-pago-contables')"><span class="nav-item-icon">⇄</span><span class="nav-item-label">Medios de pago</span></button>@endif
                 <button class="nav-item" onclick="loadViewAndClose('cierres-caja')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cierres de caja</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('terceros')"><span class="nav-item-icon">👥</span><span class="nav-item-label">Terceros</span></button>
             @endif
@@ -600,6 +614,7 @@
             categorias_pos: 'Categorías POS',
             facturas: 'Facturas',
             compras: 'Compras',
+            documentos: 'Documentos',
             existencias: 'Stock',
             ajustes: 'Ajustes'
         };
@@ -610,7 +625,6 @@
                 var oc = b.getAttribute('onclick') || '';
                 if (oc.includes("'" + view + "'")) b.classList.add('active');
             });
-
             var section = sectionMap[view] || '';
             var label = labelMap[view] || view;
             var bc = document.getElementById('topbar-breadcrumb');

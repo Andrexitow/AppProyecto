@@ -925,7 +925,7 @@
                         <th>Naturaleza</th>
                         <th>Tipo</th>
                         <th>Padre</th>
-                        <th style="text-align:center;">Mov.</th>
+                        <th style="text-align:center;">Reglas</th>
                         <th>Estado</th>
                         <th style="text-align:center;">Acciones</th>
                     </tr>
@@ -1021,6 +1021,14 @@
                 <div class="cp-field checkbox-field">
                     <input type="checkbox" id="ct-mf-movimientos">
                     <label for="ct-mf-movimientos">Permite movimientos</label>
+                </div>
+                <div class="cp-field checkbox-field">
+                    <input type="checkbox" id="ct-mf-requiere-tercero">
+                    <label for="ct-mf-requiere-tercero">Requiere tercero</label>
+                </div>
+                <div class="cp-field checkbox-field">
+                    <input type="checkbox" id="ct-mf-requiere-centro">
+                    <label for="ct-mf-requiere-centro">Requiere centro de costo</label>
                 </div>
                 <div class="cp-field checkbox-field">
                     <input type="checkbox" id="ct-mf-estado" checked>
@@ -1253,6 +1261,8 @@
             '<span class="badge badge-red"><span class="dot"></span>Inactiva</span>';
         var badgeMov = (!esAgrupadora && nodo.movimientos) ?
             '<span class="badge badge-teal">Mov.</span>' : '';
+        var badgeTercero = nodo.requiere_tercero ? '<span class="badge badge-yellow">Tercero</span>' : '';
+        var badgeCentro = nodo.requiere_centro_costo ? '<span class="badge badge-purple">C. costo</span>' : '';
 
         var acciones = '<div class="tbl-actions">' +
             (esAgrupadora ?
@@ -1270,7 +1280,7 @@
             '<span class="tree-icon">' + icono + '</span>' +
             '<span class="tree-codigo">' + esc(nodo.codigo) + '</span>' +
             '<span class="tree-nombre' + (esAgrupadora ? ' agrupadora' : '') + '">' + esc(nodo.nombre) + '</span>' +
-            '<span class="tree-meta">' + badgeClas + badgeMov + badgeEstado + acciones + '</span>' +
+            '<span class="tree-meta">' + badgeClas + badgeMov + badgeTercero + badgeCentro + badgeEstado + acciones + '</span>' +
             '</div>';
 
         if (tieneHijos) {
@@ -1420,6 +1430,9 @@
             var badgeMov = c.movimientos ?
                 '<span class="badge badge-teal">Sí</span>' :
                 '<span class="badge badge-gray">No</span>';
+            var reglas = badgeMov +
+                (c.requiere_tercero ? ' <span class="badge badge-yellow">Tercero</span>' : '') +
+                (c.requiere_centro_costo ? ' <span class="badge badge-purple">C. costo</span>' : '');
 
             var acciones = '<div class="tbl-actions">' +
                 '<button class="act-btn edit" data-tip="Editar" onclick="editarCuenta(' + c.id +
@@ -1435,7 +1448,7 @@
                 '<td style="color:#6B7280;font-size:12px;">' + esc(c.naturaleza) + '</td>' +
                 '<td>' + badgeTipo + '</td>' +
                 '<td style="color:#6B7280;font-size:12px;">' + (padre ? esc(padre.codigo) : '—') + '</td>' +
-                '<td style="text-align:center;">' + badgeMov + '</td>' +
+                '<td style="text-align:center;">' + reglas + '</td>' +
                 '<td>' + badgeEstado + '</td>' +
                 '<td>' + acciones + '</td>' +
                 '</tr>';
@@ -1540,6 +1553,8 @@
         document.getElementById('ct-mf-tipo').value = 'DETALLE';
         document.getElementById('ct-mf-nivel').value = '(automático)';
         document.getElementById('ct-mf-movimientos').checked = true;
+        document.getElementById('ct-mf-requiere-tercero').checked = false;
+        document.getElementById('ct-mf-requiere-centro').checked = false;
         document.getElementById('ct-mf-estado').checked = true;
         document.getElementById('ct-mf-alerta-mov').style.display = 'none';
         document.getElementById('ct-mf-codigo').removeAttribute('readonly');
@@ -1566,6 +1581,8 @@
                 document.getElementById('ct-mf-tipo').value = c.tipo;
                 document.getElementById('ct-mf-nivel').value = c.nivel;
                 document.getElementById('ct-mf-movimientos').checked = !!c.movimientos;
+                document.getElementById('ct-mf-requiere-tercero').checked = !!c.requiere_tercero;
+                document.getElementById('ct-mf-requiere-centro').checked = !!c.requiere_centro_costo;
                 document.getElementById('ct-mf-estado').checked = !!c.activa;
 
                 if (c.movimientos) {
@@ -1643,6 +1660,8 @@
             naturaleza: document.getElementById('ct-mf-naturaleza').value,
             tipo: document.getElementById('ct-mf-tipo').value,
             movimientos: document.getElementById('ct-mf-movimientos').checked,
+            requiere_tercero: document.getElementById('ct-mf-requiere-tercero').checked,
+            requiere_centro_costo: document.getElementById('ct-mf-requiere-centro').checked,
             activa: document.getElementById('ct-mf-estado').checked,
         };
 

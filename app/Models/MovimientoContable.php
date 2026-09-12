@@ -14,6 +14,7 @@ class MovimientoContable extends Model
         'tercero_id',
         'centro_costo_id',
         'referencia',
+        'documento_referencia',
         'detalle',
         'debito',
         'credito'
@@ -26,11 +27,16 @@ class MovimientoContable extends Model
 
     public function comprobante()
     {
-        return $this->belongsTo(ComprobanteContable::class);
+        // Sin la FK explícita, Eloquent infiere "comprobante_id" del nombre del
+        // método — pero la columna real es "comprobante_contable_id". Esta
+        // relación nunca había funcionado (nada en el código la usaba todavía).
+        return $this->belongsTo(ComprobanteContable::class, 'comprobante_contable_id');
     }
 
     public function cuenta()
     {
         return $this->belongsTo(CuentaContable::class, 'cuenta_contable_id');
     }
+    public function tercero() { return $this->belongsTo(Tercero::class, 'tercero_id'); }
+    public function centroCosto() { return $this->belongsTo(CentroCosto::class, 'centro_costo_id'); }
 }

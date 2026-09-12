@@ -189,10 +189,14 @@ class PrintService
                 continue;
             }
 
-            // Each group can target one or more printers within the user's venue.
-            foreach ($grupo->impresoras->where('activa', true)->filter(function ($impresora) use ($puntoActual) {
+            $impresorasActivas = $grupo->impresoras->where('activa', true);
+            $destinosDelPunto = $impresorasActivas->filter(function ($impresora) use ($puntoActual) {
                 return strtoupper((string) $impresora->pivot->punto) === $puntoActual;
-            }) as $impresora) {
+            });
+
+            // No se pierde una comanda si el grupo tiene impresora activa,
+            // pero aún no se parametrizó el punto específico del cajero.
+            foreach (($destinosDelPunto->isNotEmpty() ? $destinosDelPunto : $impresorasActivas) as $impresora) {
                 $itemsPorImpresora[$impresora->id]['impresora'] = $impresora;
                 $itemsPorImpresora[$impresora->id]['items'][] = $detalle;
             }

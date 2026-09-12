@@ -1,0 +1,5 @@
+<?php
+namespace Database\Seeders;
+use App\Models\TipoDocumento;
+use Illuminate\Database\Seeder;
+class TipoDocumentoSeeder extends Seeder { public function run(): void { foreach ([['VENTA','Factura de venta','FV',1,1,1,'ingreso'],['COMPRA','Compra','FC',1,0,1,'egreso'],['RECIBO_CAJA','Recibo de caja','RC',0,1,1,'ingreso'],['EGRESO','Comprobante de egreso','CE',0,1,1,'egreso'],['NOTA_CREDITO','Nota credito','NC',1,0,1,'egreso'],['NOTA_DEBITO','Nota debito','ND',1,0,1,'ingreso'],['AJUSTE','Ajuste de inventario','AJ',1,0,1,'neutro'],['TRASLADO','Traslado entre bodegas','TR',1,0,0,'neutro'],['DEVOLUCION_VENTA','Devolucion de venta','DV',1,0,1,'egreso'],['DEVOLUCION_COMPRA','Devolucion de compra','DC',1,0,1,'ingreso']] as [$codigo,$nombre,$prefijo,$inventario,$caja,$contabilidad,$naturaleza]) TipoDocumento::updateOrCreate(['codigo'=>$codigo],['nombre'=>$nombre,'prefijo_default'=>$prefijo,'afecta_inventario'=>$inventario,'afecta_caja'=>$caja,'afecta_contabilidad'=>$contabilidad,'naturaleza'=>$naturaleza,'activo'=>true]); } }

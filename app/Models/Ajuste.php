@@ -12,6 +12,7 @@ class Ajuste extends Model
         'fecha',
         'tercero_id',
         'contraparte',
+        'contraparte_cuenta_id',
         'observaciones',
         'total',
         'registrado',
@@ -42,5 +43,10 @@ class Ajuste extends Model
     public function bodega()
     {
         return $this->belongsTo(Bodega::class);
+    }
+
+    public function cuentaContraparte()
+    {
+        return $this->belongsTo(CuentaContable::class, 'contraparte_cuenta_id');
     }
 }

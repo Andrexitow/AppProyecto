@@ -15,11 +15,19 @@ class ProductoController extends Controller
      */
     public function index()
     {
-        $productos = Producto::all();
+        $productos = Producto::with('inventarios')->orderBy('descripcion')->get();
 
         $grupos = GrupoMenu::all();
 
-        return view('productos.index', compact('productos', 'grupos'));
+        $metricas = [
+            'total' => $productos->count(),
+            'activos' => $productos->where('inactivo', 0)->count(),
+            'inactivos' => $productos->where('inactivo', 1)->count(),
+            'sin_stock' => $productos->filter(fn ($p) => $p->afecta_inventario && $p->inventarios->sum('stock') <= 0)->count(),
+            'valor_inventario' => $productos->sum(fn ($p) => $p->inventarios->sum('stock') * $p->precio),
+        ];
+
+        return view('productos.index', compact('productos', 'grupos', 'metricas'));
     }
 
     /**
@@ -189,10 +197,15 @@ class ProductoController extends Controller
     public function buscarAdmin(Request $request)
     {
         $texto = $request->texto;
+        $estado = $request->estado; // '1' inactivo, '0' activo, '' todos
 
         $productos = Producto::with('inventarios')
-            ->where('codigo', 'like', "%{$texto}%")
-            ->orWhere('descripcion', 'like', "%{$texto}%")
+            ->when($texto, fn ($q) => $q->where(function ($q2) use ($texto) {
+                $q2->where('codigo', 'like', "%{$texto}%")
+                    ->orWhere('descripcion', 'like', "%{$texto}%");
+            }))
+            ->when($estado !== null && $estado !== '', fn ($q) => $q->where('inactivo', $estado))
+            ->orderBy('descripcion')
             ->get();
 
         return view('Productos.partials.tabla', compact('productos'));

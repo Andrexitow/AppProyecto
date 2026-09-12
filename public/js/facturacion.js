@@ -725,6 +725,18 @@ window.metodoSeleccionado = 'efectivo';
 window._subtotalVenta = 0;
 window._propinaValor = 0;
 
+function limpiarCamposPagoAdicionales() {
+    var referenciaTarjeta = document.getElementById('ref_tarjeta');
+    var referenciaTransferencia = document.getElementById('ref_transferencia');
+    var tipoTarjeta = document.getElementById('tipo_tarjeta');
+    var bancoDestino = document.getElementById('banco_destino');
+
+    if (referenciaTarjeta) referenciaTarjeta.value = '';
+    if (referenciaTransferencia) referenciaTransferencia.value = '';
+    if (tipoTarjeta) tipoTarjeta.selectedIndex = 0;
+    if (bancoDestino) bancoDestino.selectedIndex = 0;
+}
+
 window.abrirModalPago = function () {
 
     // Validación 1: debe haber mesa seleccionada
@@ -797,6 +809,7 @@ window.abrirModalPago = function () {
     if (inputRecibido) inputRecibido.value = '';
     var cambioEl = document.getElementById('pago-cambio-val');
     if (cambioEl) cambioEl.innerText = '$0';
+    limpiarCamposPagoAdicionales();
 
     // ── Método por defecto ─────────────────────────────────────
     window.seleccionarMetodo('efectivo');
@@ -815,6 +828,7 @@ window.cerrarModalPago = function () {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
+    limpiarCamposPagoAdicionales();
 };
 
 window.seleccionarMetodo = function (metodo) {
@@ -848,10 +862,12 @@ window.seleccionarMetodo = function (metodo) {
     const panelTarjeta = document.getElementById('campos-tarjeta');
     const panelTransfer = document.getElementById('campos-transferencia');
     const wrapperRecibido = document.getElementById('wrapper-recibido');
+    const avisoCredito = document.getElementById('aviso-credito-cliente');
 
     // Resetear vistas
     panelTarjeta.classList.add('hidden');
     panelTransfer.classList.add('hidden');
+    if (avisoCredito) avisoCredito.classList.add('hidden');
 
     if (metodo === 'tarjeta') {
         panelTarjeta.classList.remove('hidden');
@@ -859,6 +875,11 @@ window.seleccionarMetodo = function (metodo) {
     } else if (metodo === 'transferencia') {
         panelTransfer.classList.remove('hidden');
         wrapperRecibido.style.opacity = '0.3';
+    } else if (metodo === 'credito') {
+        wrapperRecibido.style.opacity = '0.3';
+        // Una venta a crédito no puede quedar a nombre del "Consumidor Final" (id 1).
+        var esClienteReal = window.clienteSeleccionado && Number(window.clienteSeleccionado.id) > 1;
+        if (avisoCredito) avisoCredito.classList.toggle('hidden', !!esClienteReal);
     } else {
         wrapperRecibido.style.opacity = '1';
     }
@@ -913,6 +934,10 @@ window.procesarPagoFinal = async function () {
             return;
         }
     }
+    // Nota: no se bloquea aquí si no hay window.clienteSeleccionado, porque ese
+    // estado se resetea al "Enviar pedido" — el servidor valida contra el
+    // cliente real que quedó guardado en el pedido y devuelve un error claro
+    // si de verdad falta.
 
     // 3. Envío de datos al servidor
     try {
@@ -953,7 +978,7 @@ window.procesarPagoFinal = async function () {
 
             var lA = document.getElementById('mesa-activa-label');
             var lM = document.getElementById('mesa-label');
-            if (lA) lA.textContent = 'SELECCIONAR MESA';
+            if (lA) lA.textContent = 'MESA';
             if (lM) lM.textContent = 'Mesa: --';
             var elCliente = document.getElementById('cliente-nombre-ticket');
             if (elCliente) elCliente.textContent = 'Consumidor final';
@@ -1298,6 +1323,12 @@ function actualizarDisplayPropina() {
         granEl.innerText =
             '$' + granTotal.toLocaleString('es-CO');
     }
+
+    var propinaTexto = '$' + (window._propinaValor || 0).toLocaleString('es-CO');
+    var propinaResumen = document.getElementById('pago-propina-label');
+    var propinaDetalle = document.getElementById('propina-val');
+    if (propinaResumen) propinaResumen.innerText = propinaTexto;
+    if (propinaDetalle) propinaDetalle.innerText = propinaTexto;
 
     window.calcularCambio();
 }

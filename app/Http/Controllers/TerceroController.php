@@ -13,7 +13,7 @@ class TerceroController extends Controller
         $query = Tercero::query();
 
         // Filtro de búsqueda (Buscador general)
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('nombre', 'like', "%$search%")
@@ -25,6 +25,14 @@ class TerceroController extends Controller
             });
         }
 
+        if ($request->filled('tipo')) {
+            $query->where('tipo', $request->tipo);
+        }
+
+        if ($request->filled('estado')) {
+            $query->where('estado', $request->estado);
+        }
+
         // Ordenamos por los más recientes
         $terceros = $query->orderBy('id', 'desc')->get();
 
@@ -33,7 +41,14 @@ class TerceroController extends Controller
             return view('terceros.partials.tabla', compact('terceros'));
         }
 
-        return view('terceros.index', compact('terceros'));
+        $metricas = [
+            'total' => Tercero::count(),
+            'personas' => Tercero::where('tipo', 'persona')->count(),
+            'empresas' => Tercero::where('tipo', 'empresa')->count(),
+            'inactivos' => Tercero::where('estado', false)->count(),
+        ];
+
+        return view('terceros.index', compact('terceros', 'metricas'));
     }
 
     public function store(Request $request)
@@ -77,6 +92,19 @@ class TerceroController extends Controller
         return response()->json(['message' => 'Tercero eliminado correctamente.']);
     }
 
+    public function cambiarEstado(Tercero $tercero)
+    {
+        $tercero->estado = !$tercero->estado;
+        $tercero->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => $tercero->estado
+                ? 'Tercero activado correctamente'
+                : 'Tercero desactivado correctamente',
+        ]);
+    }
+
     private function validar(Request $request, ?Tercero $tercero = null): array
     {
         $rules = [
@@ -84,15 +112,16 @@ class TerceroController extends Controller
             'email' => 'nullable|email',
             'celular' => 'required',
             'direccion' => 'nullable|string',
+            'estado' => 'nullable|boolean',
 
             // persona
             'nombre' => 'required_if:tipo,persona',
             'apellido' => 'required_if:tipo,persona',
-            'cedula' => ['required_if:tipo,persona', Rule::unique('terceros', 'cedula')->ignore($tercero?->id)],
+            'cedula' => ['nullable', 'required_if:tipo,persona', Rule::unique('terceros', 'cedula')->ignore($tercero?->id)],
 
             // empresa
             'razon_social' => 'required_if:tipo,empresa',
-            'nit' => ['required_if:tipo,empresa', Rule::unique('terceros', 'nit')->ignore($tercero?->id)],
+            'nit' => ['nullable', 'required_if:tipo,empresa', Rule::unique('terceros', 'nit')->ignore($tercero?->id)],
         ];
 
         $messages = [

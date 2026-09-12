@@ -1,0 +1,1 @@
+<?php namespace App\Models; use Illuminate\Database\Eloquent\Model; class DocumentoDetalle extends Model { protected $guarded=[]; public function documento(){return $this->belongsTo(Documento::class);} public function producto(){return $this->belongsTo(Producto::class);} }

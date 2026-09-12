@@ -17,4 +17,9 @@ class MetodoPagoContable extends Model
     protected $casts = [
         'estado' => 'boolean',
     ];
+
+    public function configuracion()
+    {
+        return $this->belongsTo(ConfiguracionContable::class, 'configuracion_clave', 'clave');
+    }
 }

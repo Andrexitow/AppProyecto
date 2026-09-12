@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CuentaContable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Services\PlanCuentasService;
 
 class CuentaContableController extends Controller
 {
@@ -45,9 +46,9 @@ class CuentaContableController extends Controller
     /**
      * Crea una nueva cuenta contable.
      */
-    public function store(Request $request)
+    public function store(Request $request, PlanCuentasService $plan)
     {
-        $datos = $this->validarYMapear($request);
+        $datos = $this->validarYMapear($request, null, $plan);
 
         $cuenta = CuentaContable::create($datos);
 
@@ -57,9 +58,9 @@ class CuentaContableController extends Controller
     /**
      * Actualiza una cuenta contable existente.
      */
-    public function update(Request $request, CuentaContable $cuentaContable)
+    public function update(Request $request, CuentaContable $cuentaContable, PlanCuentasService $plan)
     {
-        $datos = $this->validarYMapear($request, $cuentaContable->id);
+        $datos = $this->validarYMapear($request, $cuentaContable->id, $plan);
 
         $cuentaContable->update($datos);
 
@@ -77,6 +78,10 @@ class CuentaContableController extends Controller
             ], 422);
         }
 
+        if ($cuentaContable->movimientos()->exists() || $cuentaContable->configuraciones()->exists()) {
+            $cuentaContable->update(['estado' => false]);
+            return response()->json(['message' => 'La cuenta tiene historial; fue inactivada para conservar la trazabilidad.']);
+        }
         $cuentaContable->delete();
 
         return response()->json([
@@ -89,7 +94,7 @@ class CuentaContableController extends Controller
      * y devuelve el array ya mapeado a las columnas reales de la BD
      * ('permite_movimientos', 'estado'). Calcula además el nivel según el padre.
      */
-    private function validarYMapear(Request $request, $idActual = null): array
+    private function validarYMapear(Request $request, $idActual = null, ?PlanCuentasService $plan = null): array
     {
         $validado = $request->validate([
             'codigo' => [
@@ -102,17 +107,12 @@ class CuentaContableController extends Controller
             'naturaleza' => ['required', Rule::in(['DEBITO', 'CREDITO'])],
             'tipo' => ['required', Rule::in(['AGRUPADORA', 'DETALLE'])],
             'movimientos' => ['boolean'],
+            'requiere_tercero' => ['boolean'],
+            'requiere_centro_costo' => ['boolean'],
             'activa' => ['boolean'],
         ]);
 
-        $padre = !empty($validado['cuenta_padre_id'])
-            ? CuentaContable::find($validado['cuenta_padre_id'])
-            : null;
-
-        // Evitar que una cuenta se convierta en su propio padre (al editar)
-        if ($idActual && $padre && $padre->id === (int) $idActual) {
-            abort(422, 'Una cuenta no puede ser su propia cuenta padre.');
-        }
+        $validado = $plan->validar($validado, $idActual ? CuentaContable::find($idActual) : null);
 
         return [
             'codigo' => $validado['codigo'],
@@ -122,8 +122,10 @@ class CuentaContableController extends Controller
             'naturaleza' => $validado['naturaleza'],
             'tipo' => $validado['tipo'],
             'permite_movimientos' => $validado['movimientos'] ?? false,
+            'requiere_tercero' => $validado['requiere_tercero'] ?? false,
+            'requiere_centro_costo' => $validado['requiere_centro_costo'] ?? false,
             'estado' => $validado['activa'] ?? true,
-            'nivel' => $padre ? $padre->nivel + 1 : 1,
+            'nivel' => $validado['nivel'],
         ];
     }
 
@@ -142,6 +144,8 @@ class CuentaContableController extends Controller
             'cuenta_padre_id' => $c->cuenta_padre_id,
             'nivel' => $c->nivel,
             'movimientos' => (bool) $c->permite_movimientos,
+            'requiere_tercero' => (bool) $c->requiere_tercero,
+            'requiere_centro_costo' => (bool) $c->requiere_centro_costo,
             'activa' => (bool) $c->estado,
         ];
     }

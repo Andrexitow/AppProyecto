@@ -30,6 +30,10 @@ class Factura extends Model
         'banco_destino',
         'referencia_pago',
         'estado'
+        ,'documento_id'
+        ,'estado_pago'
+        ,'total_pagado'
+        ,'saldo_pendiente'
     ];
 
     /**
@@ -72,5 +76,10 @@ class Factura extends Model
     public function mesa(): BelongsTo
     {
         return $this->belongsTo(Mesa::class, 'mesa_id');
+    }
+
+    public function pagosCliente()
+    {
+        return $this->hasMany(PagoClienteAplicacion::class);
     }
 }

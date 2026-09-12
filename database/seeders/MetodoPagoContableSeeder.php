@@ -15,6 +15,7 @@ class MetodoPagoContableSeeder extends Seeder
             ['metodo_pago' => 'transferencia', 'configuracion_clave' => 'CUENTA_BANCO'],
             ['metodo_pago' => 'nequi',         'configuracion_clave' => 'CUENTA_BANCO'],
             ['metodo_pago' => 'daviplata',     'configuracion_clave' => 'CUENTA_BANCO'],
+            ['metodo_pago' => 'credito',       'configuracion_clave' => 'CUENTA_CLIENTES'],
         ];
 
         foreach ($mapeos as $mapeo) {
