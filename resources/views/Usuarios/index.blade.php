@@ -823,11 +823,27 @@
     }
 
     function editarUsuario(id) {
+        var form = document.getElementById('formUsuario');
+        form.reset();
         document.getElementById('mu-title').textContent = 'Editar usuario';
         document.getElementById('mu-btn-save').textContent = '💾 Guardar cambios';
-        document.getElementById('formUsuario').dataset.editId = id;
+        form.dataset.editId = id;
         document.getElementById('modalUsuario').style.display = 'flex';
-        // TODO: precargar datos del usuario vía fetch('/usuarios/' + id) si aplica
+
+        fetch('/usuarios/' + id + '/edit', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) {
+                if (!r.ok) throw new Error('No se pudo cargar el usuario');
+                return r.json();
+            })
+            .then(function (u) {
+                form.querySelector('[name="name"]').value = u.name || '';
+                form.querySelector('[name="username"]').value = u.username || '';
+                form.querySelector('[name="rol_id"]').value = u.rol_id || '';
+                form.querySelector('[name="caja_id"]').value = u.caja_id || '';
+                // password y clave_anulacion quedan vacías a propósito: solo se
+                // actualizan si el admin escribe una nueva.
+            })
+            .catch(function (e) { alert(e.message); closeModalUsuario(); });
     }
 
     function guardarUsuario() {
@@ -837,8 +853,8 @@
         var fd = new FormData(form);
         var body = Object.fromEntries(fd.entries());
 
-        var url = editId ? '/usuarios/' + editId : '/usuarios';
-        var method = editId ? 'PUT' : 'POST';
+        var url = editId ? '/usuarios/update/' + editId : '/usuarios/store';
+        var method = 'POST';
 
         fetch(url, {
                 method: method,
@@ -849,7 +865,7 @@
             .then(function(res) {
                 if (!res.ok) throw new Error(res.data.message || 'No se pudo guardar el usuario');
                 closeModalUsuario();
-                location.reload();
+                recargarVistaUsuarios();
             })
             .catch(function(e) { alert(e.message); });
     }
@@ -864,9 +880,20 @@
             .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
             .then(function(res) {
                 if (!res.ok) throw new Error(res.data.message || 'No se pudo eliminar el usuario');
-                location.reload();
+                recargarVistaUsuarios();
             })
             .catch(function(e) { alert(e.message); });
+    }
+
+    // Refresca solo esta vista dentro del SPA. La app no cambia la URL del
+    // navegador al navegar entre secciones, así que location.reload() aquí
+    // terminaba recargando "/" (Inicio) en vez de quedarse en Usuarios.
+    function recargarVistaUsuarios() {
+        if (typeof window.loadView === 'function') {
+            window.loadView('usuarios');
+        } else {
+            location.reload();
+        }
     }
 
     /* ════════════════════════════════════════════════

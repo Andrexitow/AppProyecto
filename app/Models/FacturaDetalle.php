@@ -33,4 +33,10 @@ class FacturaDetalle extends Model
             'producto_id'
         );
     }
+
+    /** Líneas de notas crédito/débito que ya corrigieron esta línea. */
+    public function notaDetalles()
+    {
+        return $this->hasMany(NotaFacturaDetalle::class);
+    }
 }

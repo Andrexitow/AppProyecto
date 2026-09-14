@@ -48,12 +48,14 @@ class KardexController extends Controller
     {
         $datos = $request->validate([
             'producto_id' => 'required|exists:productos,id',
-            'bodega_id' => 'required|exists:bodegas,id',
+            'bodega_id' => 'nullable|exists:bodegas,id',
             'desde' => 'required|date',
             'hasta' => 'required|date|after_or_equal:desde',
         ]);
 
-        return response()->json($this->reportes->movimientos((int) $datos['producto_id'], (int) $datos['bodega_id'], $datos['desde'], $datos['hasta']));
+        $bodegaId = $request->filled('bodega_id') ? (int) $datos['bodega_id'] : null;
+
+        return response()->json($this->reportes->movimientos((int) $datos['producto_id'], $bodegaId, $datos['desde'], $datos['hasta']));
     }
 
     public function valorizacion(Request $request)

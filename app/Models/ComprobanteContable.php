@@ -69,7 +69,11 @@ class ComprobanteContable extends Model
 
     public function tipoDocumento()
     {
-        return $this->belongsTo(TipoDocumentoContable::class);
+        // FK explícita: la columna real es 'tipo_documento_contable_id', no la
+        // 'tipo_documento_id' que Eloquent adivinaría por convención a partir
+        // del nombre del método — sin esto, cualquier consulta que use esta
+        // relación (whereHas, eager load, etc.) fallaba con "columna no existe".
+        return $this->belongsTo(TipoDocumentoContable::class, 'tipo_documento_contable_id');
     }
 
     public function usuario()

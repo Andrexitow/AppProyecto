@@ -107,11 +107,22 @@ class TerceroController extends Controller
 
     private function validar(Request $request, ?Tercero $tercero = null): array
     {
+        // El NIT se guardaba tal cual lo escribiera el usuario (con guion,
+        // puntos, DV pegado...) y solo se limpiaba al facturar por Factus.
+        // Se normaliza aquí para que el dato en BD sea siempre solo dígitos
+        // — consistente para cualquier reporte/integración que lo use.
+        if ($request->filled('nit')) {
+            $request->merge(['nit' => Tercero::soloDigitos((string) $request->nit)]);
+        }
+
         $rules = [
             'tipo' => 'required|in:persona,empresa',
             'email' => 'nullable|email',
             'celular' => 'required',
             'direccion' => 'nullable|string',
+            'ciudad' => 'nullable|string|max:120',
+            'regimen_tributario' => ['nullable', Rule::in(array_keys(Tercero::REGIMENES_TRIBUTARIOS))],
+            'codigo_ciiu' => 'nullable|string|max:10',
             'estado' => 'nullable|boolean',
 
             // persona
@@ -121,7 +132,7 @@ class TerceroController extends Controller
 
             // empresa
             'razon_social' => 'required_if:tipo,empresa',
-            'nit' => ['nullable', 'required_if:tipo,empresa', Rule::unique('terceros', 'nit')->ignore($tercero?->id)],
+            'nit' => ['nullable', 'required_if:tipo,empresa', 'digits_between:5,15', Rule::unique('terceros', 'nit')->ignore($tercero?->id)],
         ];
 
         $messages = [
@@ -129,6 +140,7 @@ class TerceroController extends Controller
             'celular.required' => 'El celular es obligatorio',
             'cedula.unique' => 'La cédula ya está registrada',
             'nit.unique' => 'El NIT ya está registrado',
+            'nit.digits_between' => 'El NIT debe tener solo números (sin puntos ni guion, el DV se calcula solo).',
             'nombre.required_if' => 'El nombre es obligatorio',
             'razon_social.required_if' => 'La razón social es obligatoria',
         ];

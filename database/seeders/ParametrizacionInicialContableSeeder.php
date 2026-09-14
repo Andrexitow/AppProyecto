@@ -32,6 +32,16 @@ class ParametrizacionInicialContableSeeder extends Seeder
 
             'CUENTA_RETEFUENTE' => '236540',
 
+            'CUENTA_RETEIVA' => '236705',
+
+            'CUENTA_RETEICA' => '236805',
+
+            'CUENTA_PERDIDA_BAJA_ACTIVOS' => '539540',
+
+            'CUENTA_PROVISION_CARTERA' => '139905',
+
+            'CUENTA_GASTO_PROVISION_CARTERA' => '519505',
+
         ];
 
         foreach ($configuraciones as $clave => $codigoCuenta) {

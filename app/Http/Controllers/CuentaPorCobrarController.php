@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Factura;
 use App\Services\ClienteContableService;
+use App\Services\ProvisionCarteraService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class CuentaPorCobrarController extends Controller
 {
-    public function __construct(private ClienteContableService $contable)
+    public function __construct(private ClienteContableService $contable, private ProvisionCarteraService $provision)
     {
     }
 
@@ -78,5 +79,30 @@ class CuentaPorCobrarController extends Controller
 
             return response()->json(['success' => true, 'data' => $pago]);
         });
+    }
+
+    /** Simulación de la provisión de cartera a una fecha de corte, sin contabilizar. */
+    public function provisionCalculo(Request $request)
+    {
+        $fecha = $request->query('fecha', now()->toDateString());
+
+        return response()->json($this->provision->calcular($fecha) + [
+            'provision_actual' => $this->provision->saldoProvisionActual($fecha),
+        ]);
+    }
+
+    /** Contabiliza el ajuste (aumento o disminución) de la provisión a la fecha dada. */
+    public function provisionContabilizar(Request $request)
+    {
+        $fecha = $request->validate(['fecha' => ['required', 'date']])['fecha'];
+        $resultado = $this->provision->contabilizarAjuste($fecha, $request->user()->id);
+
+        $mensaje = $resultado['ajuste'] == 0
+            ? 'La provisión de cartera ya está al día; no hay ajuste que contabilizar.'
+            : ($resultado['ajuste'] > 0
+                ? 'Provisión de cartera aumentada en ' . number_format($resultado['ajuste'], 2) . '.'
+                : 'Provisión de cartera reducida en ' . number_format(abs($resultado['ajuste']), 2) . '.');
+
+        return response()->json(['success' => true] + $resultado + ['message' => $mensaje]);
     }
 }

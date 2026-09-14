@@ -256,7 +256,8 @@
         justify-content: flex-end;
     }
 
-    .bod-field { display: flex; flex-direction: column; gap: 3px; }
+    .bod-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 14px; }
+    .bod-field:last-child { margin-bottom: 0; }
 
     .bod-field label {
         font-size: 11px;
@@ -266,7 +267,8 @@
         letter-spacing: 0.5px;
     }
 
-    .bod-field input {
+    .bod-field input,
+    .bod-field select {
         border: 1px solid #D1D5DB;
         border-radius: 7px;
         padding: 8px 10px;
@@ -280,7 +282,8 @@
         box-sizing: border-box;
     }
 
-    .bod-field input:focus { border-color: #1D4ED8; background: #fff; }
+    .bod-field input:focus,
+    .bod-field select:focus { border-color: #1D4ED8; background: #fff; }
 
     @media (max-width: 640px) {
         .metrics-row { grid-template-columns: 1fr 1fr; }
@@ -410,6 +413,16 @@
                 <div class="bod-field">
                     <label>Descripción de la Bodega</label>
                     <input name="descripcion" placeholder="Ej: Bodega Central, Depósito Norte…" required>
+                </div>
+                <div class="bod-field">
+                    <label>Punto de impresión</label>
+                    <select name="punto_impresion" required>
+                        <option value="RESTAURANTE">Restaurante</option>
+                        <option value="DISCOTECA">Discoteca</option>
+                    </select>
+                    <p style="font-size:11px;color:#6B7280;margin-top:4px;">
+                        Decide a qué impresoras de cocina/barra llegan las comandas de esta bodega.
+                    </p>
                 </div>
             </div>
 

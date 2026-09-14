@@ -59,6 +59,24 @@ class TipoDocumentoContableSeeder extends Seeder
                 'prefijo' => 'CD'
             ],
 
+            [
+                'codigo' => 'AF',
+                'nombre' => 'Comprobante de Activos Fijos',
+                'prefijo' => 'AF'
+            ],
+
+            [
+                'codigo' => 'NO',
+                'nombre' => 'Comprobante de Nómina',
+                'prefijo' => 'NO'
+            ],
+
+            [
+                'codigo' => 'SI',
+                'nombre' => 'Comprobante de Saldos Iniciales',
+                'prefijo' => 'SI'
+            ],
+
         ];
 
         foreach ($documentos as $documento) {

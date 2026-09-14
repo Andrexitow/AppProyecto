@@ -853,8 +853,9 @@
                 </div>
                 <div class="fac-field">
                     <label>Prefijo *</label>
-                    <input type="text" id="mc-prefijo" placeholder="Ej: FAC" maxlength="10"
-                        oninput="this.value=this.value.toUpperCase()">
+                    <select id="mc-prefijo">
+                        <option value="">— Seleccione —</option>
+                    </select>
                 </div>
                 <div class="fac-field">
                     <label>Próximo número *</label>
@@ -933,6 +934,7 @@
         sortAsc: true,
         seleccionadas: new Set(),
         editandoId: null,
+        prefijos: [],
     };
 
     /* ════════════════════════════════════════════════
@@ -940,7 +942,23 @@
     ════════════════════════════════════════════════ */
     (function init() {
         cargarCajas();
+        cargarPrefijosCajas();
     })();
+
+    /** Selector de prefijo: se toma del catálogo de Prefijos, no se escribe libre. */
+    function cargarPrefijosCajas() {
+        var token = document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch('/prefijos/opciones', { headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' } })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                CAJ.prefijos = res.data || [];
+                var sel = document.getElementById('mc-prefijo');
+                sel.innerHTML = '<option value="">— Seleccione —</option>' + CAJ.prefijos.map(function (p) {
+                    return '<option value="' + p.codigo + '">' + p.codigo + ' - ' + p.nombre + '</option>';
+                }).join('');
+            })
+            .catch(function () {});
+    }
 
     /* ════════════════════════════════════════════════
        CARGA DE DATOS (fetch API Laravel)

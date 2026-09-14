@@ -35,4 +35,23 @@ return [
         ],
     ],
 
+    // Facturación electrónica DIAN (ver App\Contracts\FacturaElectronicaProvider).
+    // Mientras 'habilitada' sea false, ninguna factura/nota se encola para
+    // transmisión — el sistema se comporta exactamente igual que hoy.
+    'factura_electronica' => [
+        'habilitada' => env('FACTURA_ELECTRONICA_HABILITADA', false),
+        'url' => env('FACTURA_ELECTRONICA_API_URL'),
+        'key' => env('FACTURA_ELECTRONICA_API_KEY'),
+    ],
+
+    // Factus (https://developers.factus.com.co) — OAuth2 password grant.
+    // Sandbox: https://api-sandbox.factus.com.co · Producción: https://api.factus.com.co
+    'factus' => [
+        'url' => env('FACTUS_API_URL', 'https://api-sandbox.factus.com.co'),
+        'client_id' => env('FACTUS_CLIENT_ID'),
+        'client_secret' => env('FACTUS_CLIENT_SECRET'),
+        'username' => env('FACTUS_USERNAME'),
+        'password' => env('FACTUS_PASSWORD'),
+    ],
+
 ];

@@ -101,6 +101,36 @@ class InformeContableController extends Controller
         ]);
     }
 
+    public function ivaPeriodo(Request $request)
+    {
+        [$desde, $hasta] = $this->rango($request);
+
+        return response()->json($this->reportes->ivaPeriodo($desde, $hasta) + [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ]);
+    }
+
+    public function retenciones(Request $request)
+    {
+        [$desde, $hasta] = $this->rango($request);
+
+        return response()->json($this->reportes->retencionesPracticadas($desde, $hasta) + [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ]);
+    }
+
+    public function indicadores(Request $request)
+    {
+        [$desde, $hasta] = $this->rango($request);
+
+        return response()->json($this->reportes->indicadoresFinancieros($desde, $hasta) + [
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ]);
+    }
+
     /** Catálogo liviano de cuentas para los selectores de Mayor/Auxiliar. */
     public function catalogoCuentas()
     {

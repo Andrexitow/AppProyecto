@@ -9,7 +9,7 @@ class Zona extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nombre'];
+    protected $fillable = ['nombre', 'bodega_id'];
 
     // Una zona tiene muchas mesas
     public function mesas()

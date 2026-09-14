@@ -490,7 +490,7 @@
                 </div>
 
                 {{-- Métodos --}}
-                <div class="grid grid-cols-4 gap-2 mb-5">
+                <div class="grid grid-cols-5 gap-2 mb-5">
                     <button onclick="seleccionarMetodo('efectivo')" id="btn-pago-efectivo"
                         class="metodo-pago p-3 rounded-xl text-center transition-all"
                         style="border:0.5px solid #2d4a7a; background:#1a2d50;">
@@ -515,6 +515,23 @@
                         <span class="block text-xl mb-1">🧾</span>
                         <span class="text-[9px] font-bold text-slate-400 uppercase">Crédito</span>
                     </button>
+                    <button onclick="seleccionarMetodo('mixto')" id="btn-pago-mixto"
+                        class="metodo-pago p-3 rounded-xl text-center transition-all"
+                        style="border:0.5px solid #283347; background:#1a2235;">
+                        <span class="block text-xl mb-1">🧩</span>
+                        <span class="text-[9px] font-bold text-slate-400 uppercase">Mixto</span>
+                    </button>
+                </div>
+
+                {{-- Desglose de pago mixto: se llena dinámicamente vía JS (renderPagosMixtos) --}}
+                <div id="campos-mixto" class="hidden mb-5 space-y-2 animate-fade">
+                    <div id="filas-pago-mixto" class="space-y-2"></div>
+                    <button type="button" onclick="agregarPagoMixto()"
+                        class="w-full py-2 rounded-xl text-[10px] font-bold uppercase transition-all"
+                        style="border:0.5px dashed #2d4faa; color:#93c5fd; background:transparent;">
+                        + Agregar forma de pago
+                    </button>
+                    <p id="mixto-resumen" class="text-[10px] font-bold text-center"></p>
                 </div>
 
                 <div id="aviso-credito-cliente" class="hidden mb-5 rounded-xl px-3 py-2"
@@ -908,10 +925,40 @@
 
                 <div>
                     <label class="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">
-                        Concepto / Motivo
+                        Concepto
                     </label>
-                    <textarea id="mov_concepto" rows="3" class="modal-input-dark" style="resize:none;"
-                        placeholder="Ej: Pago de hielo, transporte, etc..."></textarea>
+                    <select id="mov_concepto_id" class="modal-input-dark">
+                        <option value="">Cargando conceptos...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">
+                        Nota adicional (opcional)
+                    </label>
+                    <textarea id="mov_nota" rows="2" class="modal-input-dark" style="resize:none;"
+                        placeholder="Detalle adicional..."></textarea>
+                </div>
+
+                {{-- TERCERO: solo aplica a egresos, quien recibe el dinero --}}
+                <div id="mov-tercero-wrap" class="hidden">
+                    <label class="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">
+                        ¿Quién recibe el dinero?
+                    </label>
+                    <div id="mov-tercero-seleccionado" class="hidden items-center justify-between gap-2 p-2.5 rounded-lg mb-2"
+                        style="background:#1a2235; border:0.5px solid #283347;">
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-bold text-white truncate" id="mov-tercero-nombre">—</p>
+                            <p class="text-[9px] text-slate-500" id="mov-tercero-doc">—</p>
+                        </div>
+                        <button onclick="quitarTerceroMovimiento()"
+                            class="text-[9px] font-bold text-red-400 hover:text-red-300 uppercase flex-shrink-0">Cambiar</button>
+                    </div>
+                    <button id="mov-btn-buscar-tercero" onclick="abrirBuscadorTerceroMovimiento()"
+                        class="w-full py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+                        style="background:#1a2235; border:0.5px solid #283347; color:#93c5fd;">
+                        🔍 Buscar / crear tercero
+                    </button>
                 </div>
 
                 <button onclick="guardarMovimiento()" class="btn-send w-full"
@@ -921,6 +968,120 @@
                 <button onclick="cerrarModalMovimiento()"
                     class="w-full py-2 text-[10px] font-bold text-slate-600 hover:text-slate-400 uppercase tracking-widest transition-colors">
                     Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== MODAL TERCERO DEL MOVIMIENTO ===================== --}}
+    <div id="modalTerceroMovimiento" class="modal-overlay" style="z-index:10003;">
+        <div class="modal-box-dark" style="max-width:420px;">
+            <div class="modal-header-dark">
+                <span class="modal-title-dark">Buscar tercero</span>
+                <button onclick="cerrarBuscadorTerceroMovimiento()" class="modal-close">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5">
+                <div class="relative mb-3">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input type="text" id="mov-buscar-tercero-input" placeholder="Cédula, NIT o nombre..."
+                        class="modal-input-dark" style="padding-left:38px;">
+                </div>
+
+                <div id="mov-lista-terceros" class="custom-scroll space-y-1 mb-3" style="max-height:220px; overflow-y:auto;">
+                    <p class="text-[10px] text-slate-600 text-center py-6 font-bold uppercase tracking-widest">Escribe
+                        al menos 2 caracteres...</p>
+                </div>
+
+                <button onclick="abrirCrearTerceroInline()"
+                    class="w-full py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+                    style="background:#0d2210; border:0.5px solid #14532d; color:#4ade80;">
+                    ＋ No existe, crear tercero nuevo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== MODAL CREAR TERCERO INLINE ===================== --}}
+    <div id="modalCrearTerceroMovimiento" class="modal-overlay" style="z-index:10004;">
+        <div class="modal-box-dark" style="max-width:420px;">
+            <div class="modal-header-dark">
+                <span class="modal-title-dark">Nuevo tercero</span>
+                <button onclick="cerrarCrearTerceroInline()" class="modal-close">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5 space-y-3 custom-scroll" style="max-height:70vh; overflow-y:auto;">
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="ct-btn-persona" onclick="seleccionarTipoTerceroInline('persona')"
+                        class="py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+                        style="background:#1a2d50; border:0.5px solid #2d4a7a; color:#93c5fd;">Persona</button>
+                    <button id="ct-btn-empresa" onclick="seleccionarTipoTerceroInline('empresa')"
+                        class="py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all"
+                        style="background:#1a2235; border:0.5px solid #283347; color:#475569;">Empresa</button>
+                </div>
+
+                <div id="ct-campos-persona" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Nombres</label>
+                            <input type="text" id="ct_nombre" class="modal-input-dark" placeholder="Nombres">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Apellidos</label>
+                            <input type="text" id="ct_apellido" class="modal-input-dark" placeholder="Apellidos">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Cédula</label>
+                        <input type="text" id="ct_cedula" class="modal-input-dark" placeholder="Cédula">
+                    </div>
+                </div>
+
+                <div id="ct-campos-empresa" class="hidden space-y-3">
+                    <div>
+                        <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Razón social</label>
+                        <input type="text" id="ct_razon_social" class="modal-input-dark" placeholder="Razón social">
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">NIT</label>
+                        <input type="text" id="ct_nit" class="modal-input-dark" placeholder="NIT">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Celular</label>
+                        <input type="text" id="ct_celular" class="modal-input-dark" placeholder="Celular">
+                    </div>
+                    <div>
+                        <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Correo (opcional)</label>
+                        <input type="email" id="ct_email" class="modal-input-dark" placeholder="correo@ejemplo.com">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Dirección (opcional)</label>
+                    <input type="text" id="ct_direccion" class="modal-input-dark" placeholder="Dirección">
+                </div>
+                <div>
+                    <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Ciudad (opcional)</label>
+                    <input type="text" id="ct_ciudad" class="modal-input-dark" placeholder="Ciudad">
+                </div>
+
+                <button onclick="guardarTerceroInlineMovimiento()" class="btn-send w-full"
+                    style="padding:14px; border-radius:12px;">
+                    Guardar tercero
                 </button>
             </div>
         </div>
@@ -981,31 +1142,9 @@
             document.getElementById('modalCliente').classList.remove('show');
         }
 
-        function abrirModalMovimiento(tipo) {
-            const titulo = document.getElementById('movimientoTitulo');
-            titulo.textContent = tipo === 'egreso' ? 'Egreso de caja' : 'Ingreso de caja';
-            titulo.dataset.tipo = tipo;
-            document.getElementById('modalMovimientoCaja').classList.add('show');
-        }
-
-        function cerrarModalMovimiento() {
-            document.getElementById('modalMovimientoCaja').classList.remove('show');
-            document.getElementById('mov_monto').value = '';
-            document.getElementById('mov_concepto').value = '';
-        }
-
-        function guardarMovimiento() {
-            const tipo = document.getElementById('movimientoTitulo').dataset.tipo;
-            const monto = document.getElementById('mov_monto').value;
-            const concepto = document.getElementById('mov_concepto').value;
-            if (!monto || !concepto) return;
-            console.log('Movimiento:', {
-                tipo,
-                monto,
-                concepto
-            });
-            cerrarModalMovimiento();
-        }
+        // abrirModalMovimiento / cerrarModalMovimiento / guardarMovimiento:
+        // implementados en public/js/facturacion.js (incluye concepto, tercero
+        // y comprobante imprimible para las salidas de caja).
 
         function cerrarConfirm() {
             document.getElementById('modalConfirm').classList.remove('show');

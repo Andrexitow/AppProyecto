@@ -215,7 +215,6 @@
             var productoId = document.getElementById('kx-producto-id').value;
             var desde = document.getElementById('kx-desde').value;
             var hasta = document.getElementById('kx-hasta').value;
-            if (!bodegaId) { notifKx('Seleccione una bodega.', 'error'); return; }
             if (!productoId) { notifKx('Busque y seleccione un producto.', 'error'); return; }
             if (!desde || !hasta) { notifKx('Seleccione el rango de fechas.', 'error'); return; }
 
@@ -260,11 +259,18 @@
             { label: 'Saldo final', value: fmtCantKx(data.saldo_final.cantidad), sub: fmtMoneyKx(data.saldo_final.valor), accent: '#059669' },
         ]);
 
+        var todasBodegas = !data.bodega;
+        var colBodega = todasBodegas ? '<th>Bodega</th>' : '';
+        var colspanTotal = todasBodegas ? 9 : 8;
+
         var filas = data.movimientos.map(function (m) {
             var tipoBadge = m.tipo === 'ENTRADA' ? '<span class="badge badge-green">▲ Entrada</span>' : '<span class="badge badge-red">▼ Salida</span>';
+            // m.numero ya trae el prefijo incluido (ej. "FR-00003") — concatenar
+            // m.prefijo aparte lo duplicaría (quedaría "FRFR-00003").
             return '<tr>' +
                 '<td>' + fmtFechaKx(m.fecha) + '</td>' +
-                '<td><span class="td-mono">' + escKx(m.documento_tipo || '—') + (m.prefijo ? (' ' + escKx(m.prefijo) + escKx(m.numero)) : '') + '</span></td>' +
+                (todasBodegas ? '<td>' + escKx(m.bodega_nombre || '—') + '</td>' : '') +
+                '<td><span class="td-mono">' + escKx(m.documento_tipo || '—') + (m.numero ? (' ' + escKx(m.numero)) : '') + '</span></td>' +
                 '<td>' + tipoBadge + '</td>' +
                 '<td class="td-money">' + fmtCantKx(m.cantidad) + '</td>' +
                 '<td class="td-money">' + fmtCantKx(m.stock_anterior) + ' → ' + fmtCantKx(m.stock_nuevo) + '</td>' +
@@ -272,13 +278,13 @@
                 '<td class="td-money">' + fmtMoneyKx(m.costo_promedio_nuevo) + '</td>' +
                 '<td class="td-money">' + fmtMoneyKx(m.valor_movimiento) + '</td>' +
                 '</tr>';
-        }).join('') || '<tr><td colspan="8"><div class="spinner-cell">📭 Sin movimientos en el período</div></td></tr>';
+        }).join('') || '<tr><td colspan="' + colspanTotal + '"><div class="spinner-cell">📭 Sin movimientos en el período</div></td></tr>';
 
         document.getElementById('kx-resultado').innerHTML =
-            '<table class="kx-tbl"><thead><tr><th>Fecha</th><th>Documento</th><th>Tipo</th><th style="text-align:right;">Cantidad</th>' +
+            '<table class="kx-tbl"><thead><tr><th>Fecha</th>' + colBodega + '<th>Documento</th><th>Tipo</th><th style="text-align:right;">Cantidad</th>' +
             '<th style="text-align:right;">Stock</th><th style="text-align:right;">Costo Unit.</th><th style="text-align:right;">Costo Prom.</th><th style="text-align:right;">Valor</th></tr></thead>' +
-            '<tbody><tr><td colspan="8" style="font-style:italic;color:#6B7280;">Saldo inicial: ' + fmtCantKx(data.saldo_inicial.cantidad) + ' unid. — ' + fmtMoneyKx(data.saldo_inicial.valor) + '</td></tr>' + filas + '</tbody>' +
-            '<tfoot><tr class="kx-total"><td colspan="4">SALDO FINAL</td><td class="td-money">' + fmtCantKx(data.saldo_final.cantidad) + '</td><td></td><td class="td-money">' + fmtMoneyKx(data.saldo_final.costo_promedio) + '</td><td class="td-money">' + fmtMoneyKx(data.saldo_final.valor) + '</td></tr></tfoot></table>';
+            '<tbody><tr><td colspan="' + colspanTotal + '" style="font-style:italic;color:#6B7280;">Saldo inicial' + (todasBodegas ? ' (todas las bodegas)' : '') + ': ' + fmtCantKx(data.saldo_inicial.cantidad) + ' unid. — ' + fmtMoneyKx(data.saldo_inicial.valor) + '</td></tr>' + filas + '</tbody>' +
+            '<tfoot><tr class="kx-total"><td colspan="' + (todasBodegas ? 5 : 4) + '">SALDO FINAL</td><td class="td-money">' + fmtCantKx(data.saldo_final.cantidad) + '</td><td></td><td class="td-money">' + fmtMoneyKx(data.saldo_final.costo_promedio) + '</td><td class="td-money">' + fmtMoneyKx(data.saldo_final.valor) + '</td></tr></tfoot></table>';
     }
 
     /* ════════════════════════════════════════════════

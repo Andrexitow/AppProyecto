@@ -1020,7 +1020,7 @@
 
         CP.filtradas = CP.datos.filter(function(c) {
             if (buscar) {
-                var hay = (String(c.tipo || '') + (c.prefijo || '') + (c.numero || '') + (c.descripcion || '') +
+                var hay = (String(c.tipo || '') + (c.numero || '') + (c.descripcion || '') +
                     (c.tercero || '') + (c.usuario || '')).toLowerCase().includes(buscar);
                 if (!hay) return false;
             }
@@ -1091,14 +1091,14 @@
 
             var btnVer = '<button class="act-btn view" data-tip="Ver detalle" onclick="verComprobanteCP(' + c.id + ')">👁️</button>';
             var btnEdit = borrador ? '<button class="act-btn edit" data-tip="Editar / Registrar" onclick="editarComprobanteCP(' + c.id + ')">✏️</button>' : '';
-            var btnAnular = activo ? '<button class="act-btn rev" data-tip="Anular" onclick="anularComprobanteCP(' + c.id + ',\'' + esc(c.prefijo) + c.numero + '\')">🚫</button>' : '';
-            var btnRevertir = anulado ? '<button class="act-btn edit" data-tip="Revertir anulación" onclick="revertirComprobanteCP(' + c.id + ',\'' + esc(c.prefijo) + c.numero + '\')">↩️</button>' : '';
-            var btnDel = borrador ? '<button class="act-btn del" data-tip="Eliminar borrador" onclick="eliminarComprobanteCP(' + c.id + ',\'' + esc(c.prefijo) + c.numero + '\')">🗑️</button>' : '';
+            var btnAnular = activo ? '<button class="act-btn rev" data-tip="Anular" onclick="anularComprobanteCP(' + c.id + ',\'' + esc(c.numero) + '\')">🚫</button>' : '';
+            var btnRevertir = anulado ? '<button class="act-btn edit" data-tip="Revertir anulación" onclick="revertirComprobanteCP(' + c.id + ',\'' + esc(c.numero) + '\')">↩️</button>' : '';
+            var btnDel = borrador ? '<button class="act-btn del" data-tip="Eliminar borrador" onclick="eliminarComprobanteCP(' + c.id + ',\'' + esc(c.numero) + '\')">🗑️</button>' : '';
 
             return '<tr class="' + trCls + '" data-id="' + c.id + '">' +
                 '<td><input type="checkbox" class="chk-row chk-item-cp" ' + chked + ' onchange="toggleSeleccionCP(' + c.id + ',this)"></td>' +
                 '<td>' + badgeTipoCP(c.tipo) + '</td>' +
-                '<td><span class="td-mono">' + esc(c.prefijo) + esc(c.numero) + '</span></td>' +
+                '<td><span class="td-mono">' + esc(c.numero) + '</span></td>' +
                 '<td>' + fmtFechaCP(c.fecha) + '</td>' +
                 '<td class="td-trunc" title="' + esc(c.tercero || '') + '">' + esc(c.tercero || '—') + '</td>' +
                 '<td class="td-trunc" title="' + esc(c.descripcion || '') + '">' + esc(c.descripcion || '—') + '</td>' +
@@ -1276,7 +1276,7 @@
             .then(function(r) { return r.json().then(function(d) { if (!r.ok) throw new Error(d.message || 'No se pudo cargar el comprobante.'); return d; }); })
             .then(function(c) {
                 CP.actual = c;
-                document.getElementById('cp-vf-title').textContent = 'Comprobante ' + (c.prefijo || '') + (c.numero || '');
+                document.getElementById('cp-vf-title').textContent = 'Comprobante ' + (c.numero || '');
                 document.getElementById('cp-vf-sub').textContent = (c.tipo || '') + ' · ' + fmtFechaCP(c.fecha);
                 renderVerCP(c);
             })
@@ -1316,7 +1316,7 @@
 
         body.innerHTML = anulTag + relTag +
             '<div class="cp-grid" style="grid-template-columns:repeat(3,1fr);">' +
-            fldCP('Tipo', c.tipo) + fldCP('Documento', (c.prefijo || '') + (c.numero || '')) + fldCP('Estado', c.estado) +
+            fldCP('Tipo', c.tipo) + fldCP('Documento', c.numero || '') + fldCP('Estado', c.estado) +
             fldCP('Fecha', fmtFechaCP(c.fecha)) + fldCP('Tercero', c.tercero || '—') + fldCP('Usuario', c.usuario || '—') +
             (c.registrado_por ? fldCP('Registrado por', c.registrado_por) : '') +
             '</div>' +
@@ -1383,10 +1383,10 @@
                 document.getElementById('cp-ed-tipo').disabled = true;
                 document.getElementById('cp-ed-prefijo').value = c.prefijo || '';
                 document.getElementById('cp-ed-prefijo').disabled = true;
-                document.getElementById('cp-ed-numero').value = (c.prefijo || '') + (c.numero || '');
+                document.getElementById('cp-ed-numero').value = c.numero || '';
                 document.getElementById('cp-ed-fecha').value = c.fecha || '';
                 document.getElementById('cp-ed-descripcion').value = c.descripcion || '';
-                document.getElementById('cp-ed-title').textContent = 'Editar ' + (c.prefijo || '') + (c.numero || '');
+                document.getElementById('cp-ed-title').textContent = 'Editar ' + (c.numero || '');
                 document.getElementById('cp-ed-sub').textContent = 'Complete los movimientos y registre cuando esté cuadrado';
                 document.getElementById('cp-btn-registrar').style.display = '';
 
@@ -1526,8 +1526,8 @@
         return fetch('/comprobantes/' + id + '/edit', { headers: hdrsCP() })
             .then(function(r) { return r.json(); })
             .then(function(c) {
-                document.getElementById('cp-ed-numero').value = (c.prefijo || '') + (c.numero || '');
-                document.getElementById('cp-ed-title').textContent = 'Editar ' + (c.prefijo || '') + (c.numero || '');
+                document.getElementById('cp-ed-numero').value = c.numero || '';
+                document.getElementById('cp-ed-title').textContent = 'Editar ' + (c.numero || '');
             })
             .catch(function() {});
     }
@@ -1670,7 +1670,7 @@
         if (!lista.length) { notifCP('No hay comprobantes para exportar.', 'warning'); return; }
         var encabezados = ['Tipo', 'Documento', 'Fecha', 'Tercero', 'Descripción', 'Débito', 'Crédito', 'Estado', 'Usuario'];
         var filas = lista.map(function(c) {
-            return [c.tipo || '', (c.prefijo || '') + (c.numero || ''), c.fecha || '', c.tercero || '', c.descripcion || '',
+            return [c.tipo || '', c.numero || '', c.fecha || '', c.tercero || '', c.descripcion || '',
                 c.debito || 0, c.credito || 0, c.estado || '', c.usuario || ''
             ].map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
         });

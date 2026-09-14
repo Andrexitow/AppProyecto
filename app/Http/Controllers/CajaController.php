@@ -6,12 +6,17 @@ use App\Models\Bodega;
 use App\Models\Caja;
 use App\Models\Impresora;
 use App\Models\User;
+use App\Services\CajeroAsignacionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CajaController extends Controller
 {
+    public function __construct(private CajeroAsignacionService $cajeroAsignacion)
+    {
+    }
+
     public function index()
     {
         // Traemos las cajas con sus relaciones para la tabla/cards
@@ -42,7 +47,7 @@ class CajaController extends Controller
             // 1. Validaciones incluyendo los nuevos campos del formulario
             $request->validate([
                 'nombre'         => 'required|string|max:255',
-                'prefijo'        => 'required|string|max:10',
+                'prefijo'        => 'required|string|max:10|exists:prefijos,codigo',
                 'proximo_numero' => 'required|integer|min:1', // Nuevo campo validado
                 'bodega_id'      => 'required|exists:bodegas,id',
                 'impresora_id'   => 'nullable|exists:impresoras,id', // Nuevo campo validado
@@ -59,7 +64,7 @@ class CajaController extends Controller
             // 3. Crear la caja con todos los parámetros
             $caja = DB::transaction(function () use ($datos) {
                 $caja = Caja::create($datos);
-                $this->sincronizarCajero($caja, $datos['user_id'] ?? null, null);
+                $this->cajeroAsignacion->asignarUsuarioACaja($caja, $datos['user_id'] ?? null, null);
                 return $caja;
             });
 
@@ -96,7 +101,7 @@ class CajaController extends Controller
             // 1. Validaciones incluyendo los nuevos campos del formulario
             $request->validate([
                 'nombre'         => 'required|string|max:255',
-                'prefijo'        => 'required|string|max:10',
+                'prefijo'        => 'required|string|max:10|exists:prefijos,codigo',
                 'proximo_numero' => 'required|integer|min:1', // Nuevo campo
                 'bodega_id'      => 'required|exists:bodegas,id',
                 'impresora_id'   => 'nullable|exists:impresoras,id', // Nuevo campo
@@ -116,7 +121,7 @@ class CajaController extends Controller
                 // Evaluamos correctamente el checkbox si viene marcado (1) o desmarcado (0)
                 'activa'         => $request->boolean('activa'),
             ]);
-            $this->sincronizarCajero($caja, $request->user_id ?: null, $anteriorCajeroId);
+            $this->cajeroAsignacion->asignarUsuarioACaja($caja, $request->user_id ?: null, $anteriorCajeroId);
 
             return response()->json([
                 'status'  => 'success',
@@ -141,17 +146,6 @@ class CajaController extends Controller
             'message' => $caja->activa ? 'Caja habilitada correctamente.' : 'Caja deshabilitada correctamente.',
             'data' => $caja->fresh(),
         ]);
-    }
-
-    private function sincronizarCajero(Caja $caja, ?int $nuevoCajeroId, ?int $anteriorCajeroId): void
-    {
-        if ($anteriorCajeroId && $anteriorCajeroId !== $nuevoCajeroId) {
-            User::where('id', $anteriorCajeroId)->where('caja_id', $caja->id)->update(['caja_id' => null]);
-        }
-        if (!$nuevoCajeroId) return;
-
-        Caja::where('user_id', $nuevoCajeroId)->where('id', '!=', $caja->id)->update(['user_id' => null]);
-        User::whereKey($nuevoCajeroId)->update(['caja_id' => $caja->id]);
     }
 
     public function destroy($id)

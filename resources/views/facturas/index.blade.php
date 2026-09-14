@@ -1097,6 +1097,53 @@
 </div>
 
 {{-- ═══════════════════════════════════════════════
+     MODAL NOTA CRÉDITO / DÉBITO
+     Corrección parcial de una factura ya emitida (devolución de productos,
+     corrección de precio) sin anular todo el documento — ver NotaFacturaService.
+═══════════════════════════════════════════════ --}}
+<div id="modal-nota" style="display:none;" class="modal-backdrop" onclick="if(event.target===this) cerrarModalNota()">
+    <div class="modal-factura" style="max-width:560px;">
+        <div class="modal-head">
+            <div>
+                <p class="modal-head-title">Nota crédito / débito</p>
+                <p class="modal-head-sub" id="nota-sub"></p>
+            </div>
+            <button onclick="cerrarModalNota()" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;padding:4px;border-radius:6px;line-height:1;">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="field-grid" style="margin-bottom:14px;">
+                <div class="field">
+                    <label>Tipo</label>
+                    <select id="nota-tipo" onchange="renderLineasNota()">
+                        <option value="credito">Nota crédito (devolución/descuento)</option>
+                        <option value="debito">Nota débito (cobro adicional)</option>
+                    </select>
+                </div>
+                <div class="field" id="nota-campo-restaura">
+                    <label>&nbsp;</label>
+                    <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+                        <input type="checkbox" id="nota-restaura-inventario" checked style="width:auto;">
+                        Devolver producto a bodega
+                    </label>
+                </div>
+            </div>
+
+            <p class="field-hint" style="margin-bottom:8px;">Marca la cantidad a notar de cada línea (deja en 0 lo que no aplica):</p>
+            <div id="nota-lineas" style="margin-bottom:14px;"></div>
+
+            <div class="field full" style="margin-bottom:0;">
+                <label>Motivo</label>
+                <textarea id="nota-motivo" rows="2" placeholder="Ej: cliente devolvió 1 unidad por error de pedido"></textarea>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-outline" onclick="cerrarModalNota()">Cancelar</button>
+            <button class="btn-primary" id="nota-btn-guardar" onclick="guardarNota()">💾 Emitir nota</button>
+        </div>
+    </div>
+</div>
+
+{{-- ═══════════════════════════════════════════════
      SCRIPT
 ═══════════════════════════════════════════════ --}}
 <script>
@@ -1374,9 +1421,18 @@
                 '<span class="badge badge-blue">✓ Sí</span>' :
                 '<span class="badge badge-gray">— No</span>';
 
-            var badgeElec = f.doc_electronico ?
-                '<span class="badge badge-purple">⚡ Generado</span>' :
-                '<span class="badge badge-yellow">⏳ Pendiente</span>';
+            // estado_dian: 'no_aplica' mientras no haya proveedor de
+            // facturación electrónica configurado (ver FacturacionElectronicaService) —
+            // es el caso normal de hoy, no un error.
+            var badgesEstadoDian = {
+                no_aplica: '<span class="badge badge-gray">— No aplica</span>',
+                pendiente: '<span class="badge badge-yellow">⏳ Pendiente</span>',
+                enviada: '<span class="badge badge-blue">📤 Enviada</span>',
+                aceptada: '<span class="badge badge-purple">⚡ Aceptada</span>',
+                rechazada: '<span class="badge badge-red">❌ Rechazada</span>',
+                error: '<span class="badge badge-red">⚠️ Error</span>',
+            };
+            var badgeElec = badgesEstadoDian[f.estado_dian] || badgesEstadoDian.no_aplica;
 
             var chked = FAC.seleccionadas.has(f.id) ? 'checked' : '';
 
@@ -1395,14 +1451,26 @@
                 '<button class="act-btn edit" data-tip="Revertir anulación" ' +
                 'onclick="revertirAnulacion(' + f.id + ',\'' + esc(f.prefijo) + f.numero + '\')">↩️</button>' :
                 '';
+            // Corrección parcial sin anular todo el documento (devolución de
+            // productos, corrección de precio) — ver NotaFacturaController.
+            var btnNota = !anulada && f.registrada ?
+                '<button class="act-btn edit" data-tip="Nota crédito/débito" ' +
+                'onclick="abrirModalNota(' + f.id + ')">📝</button>' : '';
             var btnDel = esBorrador ?
                 '<button class="act-btn del" data-tip="Eliminar borrador" ' +
                 'onclick="eliminarFactura(' + f.id + ',\'' + esc(f.prefijo) + f.numero + '\')">🗑️</button>' : '';
+            // 'fallida' = agotó los reintentos automáticos de transmisión
+            // DIAN — sin este botón quedaba invisible para siempre.
+            var btnReintentarDian = f.estado_dian === 'fallida' ?
+                '<button class="act-btn edit" data-tip="Reintentar transmisión DIAN" ' +
+                'onclick="reintentarDian(' + f.id + ',\'' + esc(f.prefijo) + f.numero + '\')">📡</button>' : '';
             if (!puedeGestionarFacturas) {
                 btnEdit = '';
                 btnRev = '';
                 btnRestaurar = '';
+                btnNota = '';
                 btnDel = '';
+                btnReintentarDian = '';
             }
             return '<tr class="' + trCls + '" data-id="' + f.id + '">' +
                 '<td><input type="checkbox" class="chk-row chk-item" ' + chked +
@@ -1418,7 +1486,7 @@
                 '<td>' + badgeEstado + '</td>' +
                 '<td style="color:#6B7280;font-size:12px;">' + esc(f.usuario || '—') + '</td>' +
                 '<td>' + badgeElec + '</td>' +
-                '<td><div class="tbl-actions">' + btnVer + btnEdit + btnRev + btnRestaurar + btnDel + '</div></td>' +
+                '<td><div class="tbl-actions">' + btnVer + btnEdit + btnRev + btnRestaurar + btnNota + btnReintentarDian + btnDel + '</div></td>' +
                 '</tr>';
         }).join('');
 
@@ -1948,6 +2016,97 @@
             });
     }
 
+    /* ── Nota crédito / débito ── */
+    var NOTA = { facturaId: null, numero: '', items: [] };
+
+    window.abrirModalNota = function (facturaId) {
+        fetch('/facturas/' + facturaId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.id) throw new Error(data && data.message || 'No se pudo cargar la factura');
+                NOTA.facturaId = data.id;
+                NOTA.numero = data.numero;
+                NOTA.items = data.items || [];
+
+                document.getElementById('nota-sub').textContent = 'Factura ' + data.numero;
+                document.getElementById('nota-tipo').value = 'credito';
+                document.getElementById('nota-restaura-inventario').checked = true;
+                document.getElementById('nota-motivo').value = '';
+                renderLineasNota();
+
+                document.getElementById('modal-nota').style.display = 'flex';
+            })
+            .catch(function (e) { notif(e.message || 'No se pudo abrir la factura', 'error'); });
+    };
+
+    window.cerrarModalNota = function () {
+        document.getElementById('modal-nota').style.display = 'none';
+    };
+
+    window.renderLineasNota = function () {
+        var tipo = document.getElementById('nota-tipo').value;
+        var restauraWrap = document.getElementById('nota-campo-restaura');
+        if (restauraWrap) restauraWrap.style.display = tipo === 'credito' ? '' : 'none';
+
+        var box = document.getElementById('nota-lineas');
+        box.innerHTML = NOTA.items.map(function (it, idx) {
+            return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
+                '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + esc(it.producto) + '</div>' +
+                '<div style="font-size:11px;color:#6B7280;">Vendido: ' + it.cantidad + ' × $' + Number(it.precio).toLocaleString('es-CO') + '</div></div>' +
+                '<input type="number" min="0" max="' + it.cantidad + '" step="0.01" value="0" id="nota-cant-' + idx + '" ' +
+                'style="width:90px;border:1px solid #D1D5DB;border-radius:7px;padding:6px 8px;font-size:12.5px;">' +
+                '</div>';
+        }).join('') || '<p class="field-hint">Esta factura no tiene líneas.</p>';
+    };
+
+    window.guardarNota = function () {
+        var tipo = document.getElementById('nota-tipo').value;
+        var motivo = document.getElementById('nota-motivo').value.trim();
+        var restaurarInventario = document.getElementById('nota-restaura-inventario').checked;
+
+        if (motivo.length < 5) {
+            notif('Escribe el motivo de la nota (mínimo 5 caracteres)', 'warning');
+            return;
+        }
+
+        var lineas = [];
+        NOTA.items.forEach(function (it, idx) {
+            var cantidad = Number(document.getElementById('nota-cant-' + idx).value) || 0;
+            if (cantidad > 0) lineas.push({ factura_detalle_id: it.id, cantidad: cantidad });
+        });
+
+        if (lineas.length === 0) {
+            notif('Indica la cantidad a notar de al menos una línea', 'warning');
+            return;
+        }
+
+        var btn = document.getElementById('nota-btn-guardar');
+        btn.disabled = true;
+        btn.textContent = 'Procesando...';
+
+        var token = document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch('/facturas/' + NOTA.facturaId + '/notas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'Accept': 'application/json' },
+                body: JSON.stringify({ tipo: tipo, motivo: motivo, restaura_inventario: restaurarInventario, lineas: lineas }),
+            })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (res) {
+                if (!res.ok) {
+                    var msg = res.data.message || (res.data.errors && Object.values(res.data.errors)[0][0]) || 'No se pudo emitir la nota';
+                    throw new Error(msg);
+                }
+                notif(res.data.message, 'success');
+                cerrarModalNota();
+                cargarFacturas();
+            })
+            .catch(function (e) { notif(e.message, 'error'); })
+            .finally(function () {
+                btn.disabled = false;
+                btn.textContent = '💾 Emitir nota';
+            });
+    };
+
     /* ── Revertir / Anular ── */
     function anularFactura(id, codigo) {
         confirmarAccionFactura('¿Anular la factura ' + codigo + '? Se marcará como anulada y se revertirá el inventario.', function() {
@@ -2005,6 +2164,23 @@
                 .catch(function() {
                     notif('Error al revertir la anulación', 'error');
                 });
+        });
+    }
+
+    function reintentarDian(id, codigo) {
+        confirmarAccionFactura('¿Reintentar la transmisión a la DIAN de ' + codigo + '?', function() {
+            var token = document.querySelector('meta[name="csrf-token"]')?.content;
+            fetch('/facturas/' + id + '/reintentar-dian', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+                })
+                .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+                .then(function(res) {
+                    if (!res.ok) throw new Error(res.data.message || 'No se pudo reintentar');
+                    notif(res.data.message, 'success');
+                    cargarFacturas();
+                })
+                .catch(function(e) { notif(e.message, 'error'); });
         });
     }
 

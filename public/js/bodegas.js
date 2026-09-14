@@ -25,6 +25,7 @@ window.abrirNuevaBodega = function () {
 
     form.reset();
     form.dataset.bodegaId = '';
+    form.punto_impresion.value = 'RESTAURANTE';
     document.getElementById('bodegaModalTitulo').textContent = 'Nueva Bodega';
     window.openModalBodega();
 };
@@ -36,6 +37,7 @@ window.editarBodega = function (id) {
             var form = document.getElementById('formBodega');
             form.dataset.bodegaId = bodega.id;
             form.descripcion.value = bodega.descripcion;
+            form.punto_impresion.value = bodega.punto_impresion || 'RESTAURANTE';
             document.getElementById('bodegaModalTitulo').textContent = 'Editar Bodega';
             window.openModalBodega();
         })
@@ -77,7 +79,10 @@ document.addEventListener('submit', function (event) {
             'X-CSRF-TOKEN': tokenBodega(),
             Accept: 'application/json',
         },
-        body: JSON.stringify({ descripcion: form.descripcion.value.trim() }),
+        body: JSON.stringify({
+            descripcion: form.descripcion.value.trim(),
+            punto_impresion: form.punto_impresion.value,
+        }),
     })
         .then(respuestaBodega)
         .then(function (respuesta) {

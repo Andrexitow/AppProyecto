@@ -61,6 +61,31 @@ class ConfiguracionContableSeeder extends Seeder
                 'nombre' => 'Cuenta Retención en la Fuente'
             ],
 
+            [
+                'clave' => 'CUENTA_RETEIVA',
+                'nombre' => 'Cuenta Retención de IVA'
+            ],
+
+            [
+                'clave' => 'CUENTA_RETEICA',
+                'nombre' => 'Cuenta Retención de ICA'
+            ],
+
+            [
+                'clave' => 'CUENTA_PERDIDA_BAJA_ACTIVOS',
+                'nombre' => 'Cuenta Pérdida en Baja de Activos Fijos'
+            ],
+
+            [
+                'clave' => 'CUENTA_PROVISION_CARTERA',
+                'nombre' => 'Cuenta Provisión Clientes (contra-activo)'
+            ],
+
+            [
+                'clave' => 'CUENTA_GASTO_PROVISION_CARTERA',
+                'nombre' => 'Cuenta Gasto Provisión Cartera'
+            ],
+
         ];
 
         foreach ($configuraciones as $configuracion) {

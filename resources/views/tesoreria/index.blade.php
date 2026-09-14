@@ -105,6 +105,7 @@
             <input type="date" id="tz-hasta" class="fi-input">
         </div>
         <button class="btn-primary" onclick="cargarLedgerTz()">🔍 Consultar</button>
+        <button class="btn-outline" onclick="abrirConciliacionTz()">🔄 Conciliar extracto</button>
     </div>
 
     <div class="table-wrapper" id="tz-tabla-wrapper" style="display:none;">
@@ -164,6 +165,52 @@
             </div>
         </div>
         <div class="modal-foot"><button class="btn-outline" onclick="cerrarModalTz('modal-transferencia-tz')">Cancelar</button><button class="btn-primary" onclick="guardarTransferenciaTz()">Transferir</button></div>
+    </div>
+</div>
+
+{{-- MODAL CONCILIACIÓN BANCARIA --}}
+<div id="modal-conciliacion-tz" style="display:none;" class="modal-backdrop">
+    <div class="modal-box" style="max-width:920px;">
+        <div class="modal-head">
+            <div><p class="modal-head-title">Conciliación Bancaria</p><p style="font-size:11px;color:#6B7280;margin-top:2px;" id="cz-cuenta-nombre"></p></div>
+            <button onclick="cerrarModalTz('modal-conciliacion-tz')" style="border:0;background:transparent;font-size:20px;cursor:pointer;">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="co-grid" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end;margin-bottom:12px;">
+                <div class="co-field"><label>Desde</label><input id="cz-desde" type="date"></div>
+                <div class="co-field"><label>Hasta</label><input id="cz-hasta" type="date"></div>
+                <div class="co-field"><label>&nbsp;</label><button class="btn-primary" style="width:100%;" onclick="cargarConciliacionTz()">🔍 Consultar</button></div>
+                <div></div>
+            </div>
+
+            <div class="metrics-row" id="cz-metrics" style="margin-bottom:14px;"></div>
+
+            <p style="font-size:12px;font-weight:700;margin-bottom:6px;">➕ Añadir línea del extracto bancario</p>
+            <div class="co-grid" style="grid-template-columns:1fr 2fr 1fr auto;margin-bottom:16px;">
+                <input id="cz-nueva-fecha" type="date" placeholder="Fecha">
+                <input id="cz-nueva-desc" placeholder="Descripción (ej: Consignación, Comisión...)">
+                <input id="cz-nueva-valor" type="number" step="0.01" placeholder="Valor (+ / -)">
+                <button class="btn-outline" onclick="agregarLineaExtractoTz()">＋ Añadir</button>
+            </div>
+
+            <div id="cz-sugerencias"></div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div>
+                    <p style="font-size:12px;font-weight:700;margin-bottom:6px;">📒 Según el sistema</p>
+                    <div class="table-scroll" style="max-height:280px;overflow-y:auto;border:1px solid #EAECF0;border-radius:8px;">
+                        <table class="tz-tbl" style="font-size:11.5px;"><thead><tr><th>Fecha</th><th>Comprobante</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="cz-sistema-tbody"></tbody></table>
+                    </div>
+                </div>
+                <div>
+                    <p style="font-size:12px;font-weight:700;margin-bottom:6px;">🏦 Según el extracto</p>
+                    <div class="table-scroll" style="max-height:280px;overflow-y:auto;border:1px solid #EAECF0;border-radius:8px;">
+                        <table class="tz-tbl" style="font-size:11.5px;"><thead><tr><th>Fecha</th><th>Descripción</th><th style="text-align:right;">Valor</th><th></th></tr></thead><tbody id="cz-extracto-tbody"></tbody></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot"><button class="btn-outline" onclick="cerrarModalTz('modal-conciliacion-tz')">Cerrar</button></div>
     </div>
 </div>
 
@@ -237,7 +284,7 @@
             var filas = data.movimientos.map(function (m) {
                 return '<tr>' +
                     '<td>' + fmtFechaTz(m.fecha) + '</td>' +
-                    '<td><span class="td-mono">' + escTz(m.tipo) + ' ' + escTz(m.prefijo) + escTz(m.numero) + '</span></td>' +
+                    '<td><span class="td-mono">' + escTz(m.tipo) + ' ' + escTz(m.numero) + '</span></td>' +
                     '<td>' + escTz(m.detalle || '—') + '</td>' +
                     '<td>' + escTz(m.tercero || '—') + '</td>' +
                     '<td class="td-money">' + (m.debito > 0 ? fmtMoneyTz(m.debito) : '—') + '</td>' +
@@ -407,5 +454,111 @@
                 cargarCuentasTz();
                 if (TZ.cuentaSeleccionada) cargarLedgerTz();
             }).catch(function (e) { notifTz(e.message, 'error'); });
+    };
+
+    /* ── Conciliación bancaria ── */
+    var CZ = { datos: null };
+
+    window.abrirConciliacionTz = function () {
+        if (!TZ.cuentaSeleccionada) { notifTz('Seleccione primero una cuenta de tesorería.', 'error'); return; }
+        var cuenta = TZ.cuentas.find(function (c) { return c.id === TZ.cuentaSeleccionada; });
+        document.getElementById('cz-cuenta-nombre').textContent = cuenta ? (cuenta.nombre + ' · ' + (cuenta.cuenta_contable || '')) : '';
+        document.getElementById('cz-desde').value = document.getElementById('tz-desde').value || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+        document.getElementById('cz-hasta').value = document.getElementById('tz-hasta').value || new Date().toISOString().slice(0, 10);
+        document.getElementById('cz-nueva-fecha').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('modal-conciliacion-tz').style.display = 'flex';
+        cargarConciliacionTz();
+    };
+
+    window.cargarConciliacionTz = function () {
+        var params = new URLSearchParams({ cuenta_tesoreria_id: TZ.cuentaSeleccionada, desde: document.getElementById('cz-desde').value, hasta: document.getElementById('cz-hasta').value });
+        fetch('/conciliacion-bancaria/resumen?' + params.toString(), { headers: hdrsTz() }).then(function (r) { return r.json(); }).then(function (d) {
+            CZ.datos = d;
+            renderConciliacionTz();
+        }).catch(function () { notifTz('No fue posible cargar la conciliación.', 'error'); });
+    };
+
+    function renderConciliacionTz() {
+        var d = CZ.datos;
+        document.getElementById('cz-metrics').innerHTML = [
+            { label: 'Saldo según libros (al corte)', value: fmtMoneyTz(d.saldo_libros_al_corte), accent: '#1D4ED8' },
+            { label: 'Movimientos del sistema (rango)', value: fmtMoneyTz(d.total_movimientos_libros), accent: '#374151' },
+            { label: 'Líneas del extracto (rango)', value: fmtMoneyTz(d.total_lineas_extracto), accent: '#374151' },
+            { label: 'Pendientes sin conciliar', value: fmtMoneyTz(d.total_pendientes_sistema) + ' / ' + fmtMoneyTz(d.total_pendientes_extracto), accent: d.pendientes_sistema.length || d.pendientes_extracto.length ? '#D97706' : '#059669' },
+        ].map(function (t) { return '<div class="metric-card" style="--accent:' + t.accent + '"><p class="metric-label">' + escTz(t.label) + '</p><p class="metric-value" style="font-size:14px;">' + t.value + '</p></div>'; }).join('');
+
+        if (d.sugerencias.length) {
+            document.getElementById('cz-sugerencias').innerHTML = '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;">' +
+                '💡 ' + d.sugerencias.length + ' coincidencia(s) sugerida(s) por mismo valor y fecha cercana — ' +
+                '<button class="btn-outline" style="padding:3px 10px;font-size:11px;" onclick="aplicarSugerenciasTz()">Aplicar todas</button></div>';
+        } else {
+            document.getElementById('cz-sugerencias').innerHTML = '';
+        }
+
+        document.getElementById('cz-sistema-tbody').innerHTML = d.movimientos_sistema.map(function (m) {
+            var accion = m.conciliado ? '<span class="badge badge-green">✓</span>' : '<button class="btn-outline" style="padding:2px 8px;font-size:10px;" onclick="marcarConciliadoManualTz(' + m.id + ')">Conciliar…</button>';
+            return '<tr' + (m.conciliado ? ' style="opacity:.5;"' : '') + '><td>' + fmtFechaTz(m.fecha) + '</td><td>' + escTz(m.numero) + '</td>' +
+                '<td class="td-money ' + (m.valor >= 0 ? 'positivo' : 'negativo') + '">' + fmtMoneyTz(m.valor) + '</td><td>' + accion + '</td></tr>';
+        }).join('') || '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:14px;">Sin movimientos en el rango</td></tr>';
+
+        document.getElementById('cz-extracto-tbody').innerHTML = d.lineas_extracto.map(function (l) {
+            var accion = l.conciliado
+                ? '<button class="btn-outline" style="padding:2px 8px;font-size:10px;" onclick="desconciliarLineaTz(' + l.id + ')">Desconciliar</button>'
+                : '<button class="btn-outline" style="padding:2px 8px;font-size:10px;color:#DC2626;" onclick="eliminarLineaExtractoTz(' + l.id + ')">✕</button>';
+            return '<tr' + (l.conciliado ? ' style="opacity:.5;"' : '') + '><td>' + fmtFechaTz(l.fecha) + '</td><td>' + escTz(l.descripcion) + '</td>' +
+                '<td class="td-money ' + (l.valor >= 0 ? 'positivo' : 'negativo') + '">' + fmtMoneyTz(l.valor) + '</td><td>' + accion + '</td></tr>';
+        }).join('') || '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:14px;">Sin líneas cargadas</td></tr>';
+    }
+
+    window.agregarLineaExtractoTz = function () {
+        var valor = Number(document.getElementById('cz-nueva-valor').value);
+        var descripcion = document.getElementById('cz-nueva-desc').value.trim();
+        var fecha = document.getElementById('cz-nueva-fecha').value;
+        if (!valor) { notifTz('Ingrese un valor distinto de cero (negativo si es un cargo).', 'error'); return; }
+        if (!descripcion) { notifTz('Ingrese una descripción.', 'error'); return; }
+
+        fetch('/conciliacion-bancaria/lineas', {
+            method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, hdrsTz()),
+            body: JSON.stringify({ cuenta_tesoreria_id: TZ.cuentaSeleccionada, fecha: fecha, descripcion: descripcion, valor: valor }),
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (r) {
+                if (!r.ok) throw new Error(r.data.message || Object.values(r.data.errors || {}).flat().join(' ') || 'No se pudo añadir la línea.');
+                document.getElementById('cz-nueva-desc').value = '';
+                document.getElementById('cz-nueva-valor').value = '';
+                cargarConciliacionTz();
+            }).catch(function (e) { notifTz(e.message, 'error'); });
+    };
+
+    window.eliminarLineaExtractoTz = function (id) {
+        fetch('/conciliacion-bancaria/lineas/' + id, { method: 'DELETE', headers: hdrsTz() })
+            .then(function (r) { return r.json(); }).then(function () { cargarConciliacionTz(); });
+    };
+
+    window.marcarConciliadoManualTz = function (movimientoId) {
+        var idLinea = window.prompt('ID de la línea del extracto con la que quiere conciliar este movimiento (véala en la tabla de la derecha):');
+        if (!idLinea) return;
+        conciliarParTz(Number(idLinea), movimientoId);
+    };
+
+    function conciliarParTz(lineaId, movimientoId) {
+        fetch('/conciliacion-bancaria/lineas/' + lineaId + '/conciliar', {
+            method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, hdrsTz()), body: JSON.stringify({ movimiento_contable_id: movimientoId }),
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (r) { if (!r.ok) throw new Error(r.data.message || 'No se pudo conciliar.'); cargarConciliacionTz(); })
+            .catch(function (e) { notifTz(e.message, 'error'); });
+    }
+
+    window.desconciliarLineaTz = function (id) {
+        fetch('/conciliacion-bancaria/lineas/' + id + '/desconciliar', { method: 'POST', headers: hdrsTz() })
+            .then(function (r) { return r.json(); }).then(function () { cargarConciliacionTz(); });
+    };
+
+    window.aplicarSugerenciasTz = function () {
+        var sugerencias = (CZ.datos && CZ.datos.sugerencias) || [];
+        Promise.all(sugerencias.map(function (s) {
+            return fetch('/conciliacion-bancaria/lineas/' + s.linea_extracto_id + '/conciliar', {
+                method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, hdrsTz()), body: JSON.stringify({ movimiento_contable_id: s.movimiento_contable_id }),
+            });
+        })).then(function () { notifTz('Sugerencias aplicadas.', 'success'); cargarConciliacionTz(); });
     };
 </script>

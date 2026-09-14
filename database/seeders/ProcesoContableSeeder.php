@@ -105,6 +105,41 @@ class ProcesoContableSeeder extends Seeder
                 'estado' => true,
             ],
 
+            [
+                'codigo' => 'ALTA_ACTIVO_FIJO',
+                'nombre' => 'Alta de activo fijo',
+                'tipo_documento_contable_id' => $tipos['AF'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'DEPRECIACION_ACTIVO_FIJO',
+                'nombre' => 'Depreciación mensual de activos fijos',
+                'tipo_documento_contable_id' => $tipos['AF'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'BAJA_ACTIVO_FIJO',
+                'nombre' => 'Baja de activo fijo',
+                'tipo_documento_contable_id' => $tipos['AF'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'NOMINA_MENSUAL',
+                'nombre' => 'Liquidación y contabilización de nómina',
+                'tipo_documento_contable_id' => $tipos['NO'],
+                'estado' => true,
+            ],
+
+            [
+                'codigo' => 'SALDO_INICIAL',
+                'nombre' => 'Carga de saldos iniciales',
+                'tipo_documento_contable_id' => $tipos['SI'],
+                'estado' => true,
+            ],
+
         ];
 
         foreach ($procesos as $proceso) {

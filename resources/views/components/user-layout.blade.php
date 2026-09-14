@@ -187,6 +187,26 @@
             margin: 6px 8px;
         }
 
+        .nav-item-chevron {
+            margin-left: auto;
+            font-size: 10px;
+            color: #9CA3AF;
+            transition: transform 0.15s;
+        }
+
+        .nav-item-chevron.open {
+            transform: rotate(90deg);
+        }
+
+        .nav-subitem {
+            padding-left: 30px;
+        }
+
+        .nav-subitem .nav-item-label {
+            font-size: 12.5px;
+        }
+
+
         /* Footer usuario */
         .sidebar-footer {
             padding: 12px 10px;
@@ -411,6 +431,9 @@
                 <button class="nav-item" onclick="loadViewAndClose('usuarios')"><span class="nav-item-icon">👤</span><span class="nav-item-label">Cuentas y roles</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('cajas')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cajas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('impresoras')"><span class="nav-item-icon">🖨️</span><span class="nav-item-label">Impresoras</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('prefijos')"><span class="nav-item-icon">🔖</span><span class="nav-item-label">Prefijos</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('conceptos-caja')"><span class="nav-item-icon">💵</span><span class="nav-item-label">Conceptos de Caja</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('configuracion-emisor')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Datos del Emisor</span></button>
 
                 <div class="nav-sep"></div>
                 <div class="nav-section-label">Catálogo e inventario</div>
@@ -426,19 +449,41 @@
 
             @if ($esAdministrador || $esContabilidad)
                 @if ($esAdministrador)<div class="nav-sep"></div>@endif
-                <div class="nav-section-label">Contabilidad</div>
+
+                <div class="nav-section-label">Ventas y Compras</div>
                 <button class="nav-item" onclick="loadViewAndClose('facturas')"><span class="nav-item-icon">📄</span><span class="nav-item-label">Facturas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('compras')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Compras</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('documentos')"><span class="nav-item-icon">▤</span><span class="nav-item-label">Documentos</span></button>
+
+                <button class="nav-item" onclick="toggleInformesMenu()">
+                    <span class="nav-item-icon">📊</span><span class="nav-item-label">Informes</span>
+                    <span class="nav-item-chevron" id="informes-chevron">▸</span>
+                </button>
+                <div id="informes-submenu" style="display:none;">
+                    <button class="nav-item nav-subitem" onclick="loadViewAndClose('venta-productos')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Venta por Producto</span></button>
+                    <button class="nav-item nav-subitem" onclick="loadViewAndClose('propinas-vendedor')"><span class="nav-item-icon">💵</span><span class="nav-item-label">Propinas por Vendedor</span></button>
+                </div>
+
+                <div class="nav-section-label">Comprobantes y Libros</div>
                 <button class="nav-item" onclick="loadViewAndClose('comprobantes')"><span class="nav-item-icon">📊</span><span class="nav-item-label">Comprobantes</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('informes-contables')"><span class="nav-item-icon">📈</span><span class="nav-item-label">Informes contables</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('kardex')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Kardex y costos</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('cuentas-por-cobrar')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cuentas por cobrar</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('tesoreria')"><span class="nav-item-icon">🏦</span><span class="nav-item-label">Tesorería</span></button>
-                  <button class="nav-item" onclick="loadViewAndClose('periodos-contables')"><span class="nav-item-icon">🔒</span><span class="nav-item-label">Períodos contables</span></button>
-                  @if ($esAdministrador)<button class="nav-item" onclick="loadViewAndClose('metodos-pago-contables')"><span class="nav-item-icon">⇄</span><span class="nav-item-label">Medios de pago</span></button>@endif
+                <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('informes-contables')"><span class="nav-item-icon">📈</span><span class="nav-item-label">Informes contables</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('kardex')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Kardex y costos</span></button>
+
+                <div class="nav-section-label">Cartera y Tesorería</div>
+                <button class="nav-item" onclick="loadViewAndClose('cuentas-por-cobrar')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cuentas por cobrar</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('cuentas-por-pagar')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cuentas por pagar</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('tesoreria')"><span class="nav-item-icon">🏦</span><span class="nav-item-label">Tesorería</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('cierres-caja')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cierres de caja</span></button>
+
+                <div class="nav-section-label">Nómina y Activos</div>
+                <button class="nav-item" onclick="loadViewAndClose('nomina')"><span class="nav-item-icon">🧑‍💼</span><span class="nav-item-label">Nómina</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('activos-fijos')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Activos fijos</span></button>
+
+                <div class="nav-section-label">Configuración Contable</div>
+                <button class="nav-item" onclick="loadViewAndClose('saldos-iniciales')"><span class="nav-item-icon">🚀</span><span class="nav-item-label">Saldos iniciales</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('periodos-contables')"><span class="nav-item-icon">🔒</span><span class="nav-item-label">Períodos contables</span></button>
+                @if ($esAdministrador)<button class="nav-item" onclick="loadViewAndClose('metodos-pago-contables')"><span class="nav-item-icon">⇄</span><span class="nav-item-label">Medios de pago</span></button>@endif
                 <button class="nav-item" onclick="loadViewAndClose('terceros')"><span class="nav-item-icon">👥</span><span class="nav-item-label">Terceros</span></button>
             @endif
 
@@ -619,12 +664,26 @@
             ajustes: 'Ajustes'
         };
 
+        // Submenú "Informes": se abre/cierra con clic, y se auto-abre si la
+        // vista activa es una de sus hijas (para que nunca quede escondida).
+        window.toggleInformesMenu = function () {
+            var submenu = document.getElementById('informes-submenu');
+            var abrir = submenu.style.display !== 'block';
+            submenu.style.display = abrir ? 'block' : 'none';
+            document.getElementById('informes-chevron').classList.toggle('open', abrir);
+        };
+
         function setActiveNav(view) {
             document.querySelectorAll('.nav-item').forEach(function(b) {
                 b.classList.remove('active');
                 var oc = b.getAttribute('onclick') || '';
                 if (oc.includes("'" + view + "'")) b.classList.add('active');
             });
+
+            if (['venta-productos', 'propinas-vendedor'].includes(view)) {
+                document.getElementById('informes-submenu').style.display = 'block';
+                document.getElementById('informes-chevron').classList.add('open');
+            }
             var section = sectionMap[view] || '';
             var label = labelMap[view] || view;
             var bc = document.getElementById('topbar-breadcrumb');

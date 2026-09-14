@@ -115,6 +115,24 @@ class PrintService
     }
 
     /**
+     * Encola un reporte de texto libre (ej. Existencias) hacia una impresora
+     * de red concreta, igual que las comandas: el agente local instalado en
+     * el negocio es quien de verdad abre el socket hacia $impresora->ip:puerto
+     * y envía el ticket — este método solo lo deja listo en la cola.
+     */
+    public function imprimirInventario(string $texto, $impresora): array
+    {
+        try {
+            $this->encolar('inventario', $impresora->id, $texto);
+
+            return ['status' => 'success'];
+        } catch (\Exception $e) {
+            Log::error("Error encolando inventario: " . $e->getMessage());
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Encola la comanda de cocina/bar (antes imprimía directo)
      */
     public function imprimirComanda($pedido, $items, $impresora, $nombreDestino)
@@ -214,6 +232,53 @@ class PrintService
             'success' => true,
             'destinos' => count($destinosImpresos) > 0 ? implode(', ', $destinosImpresos) : 'Ninguno (sin impresora asignada)'
         ];
+    }
+
+    /**
+     * Comprobante de un movimiento de caja (ingreso/salida) para que la
+     * persona que recibe o entrega el dinero lo firme físicamente.
+     */
+    public function imprimirComprobanteMovimiento($movimiento, $impresora, $usuario)
+    {
+        try {
+            $txt = "";
+            $txt .= str_repeat("=", 32) . "\n";
+            $esSalida = strtolower($movimiento->tipo) === 'salida';
+            $txt .= ($esSalida ? "   COMPROBANTE DE SALIDA\n" : "   COMPROBANTE DE INGRESO") . "\n";
+            $txt .= "         DE CAJA\n";
+            $txt .= str_repeat("=", 32) . "\n";
+            $txt .= "Fecha  : " . $movimiento->created_at->format('d/m/Y') . "\n";
+            $txt .= "Hora   : " . $movimiento->created_at->format('h:i A') . "\n";
+            $txt .= "Cajero : " . ($usuario->name ?? 'N/A') . "\n";
+            $txt .= str_repeat("-", 32) . "\n";
+            $txt .= "Concepto:\n" . ($movimiento->conceptoCaja->nombre ?? $movimiento->concepto) . "\n";
+            $txt .= str_repeat("-", 32) . "\n";
+            $txt .= "VALOR: $" . number_format((float) $movimiento->valor, 0, ',', '.') . "\n";
+            $txt .= str_repeat("-", 32) . "\n";
+
+            if ($movimiento->tercero) {
+                $txt .= ($esSalida ? "RECIBE:\n" : "ENTREGA:\n");
+                $txt .= ($movimiento->tercero->nombre_completo ?? 'N/A') . "\n";
+                $doc = $movimiento->tercero->cedula ?? $movimiento->tercero->nit ?? null;
+                if ($doc) {
+                    $txt .= "Doc.: " . $doc . "\n";
+                }
+                $txt .= str_repeat("-", 32) . "\n";
+            }
+
+            $txt .= "\n\n";
+            $txt .= "_____________________________\n";
+            $txt .= ($esSalida ? "Firma de quien recibe" : "Firma de quien entrega") . "\n";
+            $txt .= $this->piePaginaTexto();
+            $txt .= "\n\n\n\n";
+
+            $this->encolar('movimiento_caja', $impresora->id, $txt);
+
+            return ['status' => 'success'];
+        } catch (\Exception $e) {
+            Log::error("Error encolando comprobante de movimiento de caja: " . $e->getMessage());
+            return ['status' => 'error', 'message' => $e->getMessage()];
+        }
     }
 
     /**

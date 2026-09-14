@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Database\Seeders\{TipoDocumentoSeeder, TipoDocumentoContableSeeder, ProcesoContableSeeder, ConfiguracionContableSeeder, PucSeeder, ParametrizacionInicialContableSeeder, MetodoPagoContableSeeder};
-use App\Models\{Bodega, Compra, ComprobanteContable, PagoProveedorAplicacion, Producto, Roles, Tercero, User};
+use Database\Seeders\{TipoDocumentoSeeder, TipoDocumentoContableSeeder, ProcesoContableSeeder, ConfiguracionContableSeeder, PucSeeder, ParametrizacionInicialContableSeeder, MetodoPagoContableSeeder, CuentaTesoreriaSeeder};
+use App\Models\{Bodega, Compra, ComprobanteContable, CuentaContable, CuentaTesoreria, PagoProveedorAplicacion, Producto, Roles, Tercero, User};
+use App\Services\TesoreriaService;
+use Illuminate\Validation\ValidationException;
 
 class CompraContableServiceTest extends TestCase
 {
@@ -21,6 +23,18 @@ class CompraContableServiceTest extends TestCase
         $this->seed(ParametrizacionInicialContableSeeder::class);
         $this->seed(ProcesoContableSeeder::class);
         $this->seed(MetodoPagoContableSeeder::class);
+        $this->seed(CuentaTesoreriaSeeder::class);
+
+        // Con la validación de saldo de tesorería, pagar en efectivo/tarjeta ya
+        // exige que la cuenta tenga fondos reales — se fondea Caja General una
+        // vez aquí para que el resto de pruebas de este archivo (que no prueban
+        // esa validación en sí) sigan representando compras de contado normales.
+        $caja = CuentaTesoreria::where('nombre', 'Caja General')->firstOrFail();
+        $contrapartida = CuentaContable::where('permite_movimientos', true)->where('estado', true)->where('codigo', '!=', '110505')->firstOrFail();
+        app(TesoreriaService::class)->registrarIngreso([
+            'cuenta_tesoreria_id' => $caja->id, 'cuenta_contrapartida_id' => $contrapartida->id,
+            'fecha' => now()->toDateString(), 'valor' => 10000000, 'descripcion' => 'Fondeo para pruebas',
+        ], $this->user()->id);
     }
 
     private function user(): User
@@ -59,6 +73,51 @@ class CompraContableServiceTest extends TestCase
         $movs = $comprobante->movimientos;
         $this->assertEquals((float) $movs->sum('debito'), (float) $movs->sum('credito'));
         $this->assertEquals(10000, (float) $movs->sum('debito'));
+    }
+
+    /**
+     * Encontrado end-to-end probando el sistema con datos reales: un abono o un
+     * pago inicial a proveedor podía dejar Caja/Banco en negativo sin ningún
+     * aviso, a diferencia de un egreso hecho desde Tesorería (que sí valida el
+     * saldo disponible). Ambos caminos afectan la misma cuenta contable.
+     */
+    public function test_rechaza_compra_de_contado_que_supera_el_saldo_de_caja()
+    {
+        $proveedor = Tercero::create(['tipo' => 'empresa', 'razon_social' => 'Proveedor Sin Fondos']);
+        $bodega = Bodega::create(['descripcion' => 'Bodega Sin Fondos']);
+        $producto = Producto::create(['codigo' => 'PSF1', 'descripcion' => 'Producto Sin Fondos', 'und_detal' => 'UND']);
+
+        // Caja General ya trae $10.000.000 del fondeo de setUp(): se pide pagar
+        // de contado más de lo que hay disponible.
+        $respuesta = $this->actingAs($this->user())->postJson('/compras', [
+            'prefijo' => 'FC', 'consecutivo' => 99, 'numero_factura' => 'F-0099',
+            'proveedor_id' => $proveedor->id, 'fecha' => now()->toDateString(), 'confirmar' => true,
+            'items' => [['producto_id' => $producto->id, 'bodega_id' => $bodega->id, 'cantidad' => 1, 'costo_unitario' => 20000000]],
+            'pagos' => [['metodo_pago' => 'efectivo', 'valor' => 20000000]],
+        ]);
+
+        $respuesta->assertStatus(422);
+        $respuesta->assertJsonValidationErrors('valor');
+        $this->assertDatabaseMissing('compras', ['numero_factura' => 'F-0099']);
+    }
+
+    public function test_rechaza_abono_que_supera_el_saldo_de_la_cuenta_de_tesoreria()
+    {
+        $compra = $this->compraConfirmada(); // pagada de contado, sin saldo pendiente
+
+        // Fuerza un saldo pendiente artificial para poder intentar un abono,
+        // sin necesitar otra compra completa a crédito.
+        $compra->update(['saldo_pendiente' => 20000000, 'estado_pago' => 'parcialmente_pagada']);
+        $metodoEfectivo = \App\Models\MetodoPagoContable::where('metodo_pago', 'efectivo')->firstOrFail();
+
+        try {
+            app(\App\Services\CompraContableService::class)->registrarAbono($compra, [
+                'fecha' => now()->toDateString(), 'valor' => 20000000, 'metodo_pago_contable_id' => $metodoEfectivo->id,
+            ], $this->user()->id);
+            $this->fail('Debía rechazar un abono mayor al saldo disponible en Caja General.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('valor', $e->errors());
+        }
     }
 
     /** El bug real: anular() descontaba inventario pero dejaba comprobante y pagos activos. */
@@ -177,6 +236,41 @@ class CompraContableServiceTest extends TestCase
         $inventario = $comprobante->movimientos->firstWhere('cuenta_contable_id', \App\Models\CuentaContable::where('codigo', '143505')->value('id'));
         $this->assertEquals(1000000, (float) $inventario->debito, 'Inventario debe recibir solo la base gravable (1.000.000), no la base más la retención.');
 
+        $this->assertEquals((float) $comprobante->movimientos->sum('debito'), (float) $comprobante->movimientos->sum('credito'));
+    }
+
+    /**
+     * Antes, retefuente + reteiva + reteica se sumaban y se acreditaban TODAS a
+     * la cuenta de Retefuente — contablemente incorrecto (son pasivos y
+     * declaraciones distintas) e imposible de desglosar en un informe de
+     * retenciones. Ahora cada una va a su propia cuenta.
+     */
+    public function test_retenciones_de_fuente_iva_e_ica_van_a_cuentas_separadas()
+    {
+        $proveedor = Tercero::create(['tipo' => 'empresa', 'razon_social' => 'Proveedor Retenciones Varias']);
+        $bodega = Bodega::create(['descripcion' => 'Bodega Retenciones Varias']);
+        $producto = Producto::create(['codigo' => 'PCR2', 'descripcion' => 'Producto Retenciones Varias', 'und_detal' => 'UND']);
+
+        $this->actingAs($this->user())->postJson('/compras', [
+            'prefijo' => 'FC', 'consecutivo' => 56, 'numero_factura' => 'F-0056',
+            'proveedor_id' => $proveedor->id, 'fecha' => now()->toDateString(), 'confirmar' => true,
+            'retefuente_porcentaje' => 2.5, 'reteiva_porcentaje' => 15, 'reteica_porcentaje' => 0.7,
+            'items' => [['producto_id' => $producto->id, 'bodega_id' => $bodega->id, 'cantidad' => 1, 'costo_unitario' => 1000000, 'iva_porcentaje' => 19]],
+            // reteiva y reteica también se calculan sobre la base gravable (no
+            // sobre el IVA) en este sistema: 15%*1.000.000=150.000, 0.7%*1.000.000=7.000.
+            'pagos' => [['metodo_pago' => 'credito', 'valor' => 1000000 + 190000 - 25000 - 150000 - 7000]],
+        ])->assertStatus(201);
+
+        $compra = Compra::latest('id')->firstOrFail();
+        $comprobante = ComprobanteContable::where('documento_origen', 'COMPRA')->where('documento_origen_id', $compra->id)->firstOrFail();
+
+        $creditoDe = fn (string $codigo) => (float) $comprobante->movimientos
+            ->firstWhere('cuenta_contable_id', CuentaContable::where('codigo', $codigo)->value('id'))
+            ?->credito;
+
+        $this->assertEquals(25000, $creditoDe('236540'), 'Retefuente debe quedar en su propia cuenta.');
+        $this->assertEquals(150000, $creditoDe('236705'), 'Reteiva debe quedar en su propia cuenta, no mezclada con retefuente.');
+        $this->assertEquals(7000, $creditoDe('236805'), 'Reteica debe quedar en su propia cuenta, no mezclada con retefuente.');
         $this->assertEquals((float) $comprobante->movimientos->sum('debito'), (float) $comprobante->movimientos->sum('credito'));
     }
 

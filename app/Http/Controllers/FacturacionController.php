@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Caja;
 use App\Models\CierreCaja;
 use App\Models\ComandaPendiente;
+use App\Models\ConceptoCaja;
 use App\Models\DetallePedido;
 use App\Models\Factura;
+use App\Models\Impresora;
 use App\Models\Mesa;
+use App\Models\MovimientoCaja;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Zona;
@@ -20,6 +23,7 @@ use App\Services\PrintService;
 use App\Services\ContabilidadService;
 use App\DataTransferObjects\ContabilidadData;
 use App\Services\FacturacionContableService;
+use App\Services\FacturacionElectronicaService;
 use App\Services\AuditoriaService;
 use Carbon\Carbon;
 
@@ -53,7 +57,11 @@ class FacturacionController extends Controller
         }])->get();
 
         $zonas    = Zona::all();
-        $productos = Producto::where('activo', 1)->orderBy('categoria')->get();
+        // 'activo' es una columna heredada que nadie actualiza: el toggle
+        // real de ProductoController usa 'inactivo'. Filtrar por 'activo'
+        // (siempre 1) dejaba ver en el POS productos que sí se habían
+        // desactivado desde el catálogo.
+        $productos = Producto::where('inactivo', 0)->orderBy('categoria')->get();
         $categorias = $productos->pluck('categoria')->unique();
 
         // ← Agregar esta línea
@@ -86,28 +94,61 @@ class FacturacionController extends Controller
         return response()->json(['status' => 'success']);
     }
 
-    public function liberarMesa($id)
+    public function liberarMesa($id, Request $request)
     {
         try {
+            $user = Auth::user();
+            $rolNombre = $user?->rol?->nombre;
+
+            if (!in_array($rolNombre, ['Mesero', 'Administrador', 'Cajero'], true)) {
+                return response()->json(['status' => 'error', 'message' => 'No tienes acceso a la zona de facturación.'], 403);
+            }
+
             $mesa = Mesa::findOrFail($id);
-
-            // 1. Cambiamos el estado a disponible
-            $mesa->estado = 'disponible';
-
-            // OJO: Si usas una columna para saber quién bloqueó la mesa (ej: usuario_id), 
-            // asegúrate de limpiarla también aquí.
-            // $mesa->usuario_id = null; 
-
-            $mesa->save();
-
-            // 2. Buscamos el pedido pendiente para borrar sus detalles primero (evita errores de integridad)
             $pedido = Pedido::where('mesa_id', $id)->where('estado', 'pendiente')->first();
 
             if ($pedido) {
-                // Borramos los detalles y luego el pedido
+                // Solo quien abrió el pedido (o un Administrador) puede
+                // liberar la mesa — antes cualquier autenticado podía
+                // cancelar el pedido de otro mesero/cajero.
+                if ($pedido->user_id !== $user->id && $rolNombre !== 'Administrador') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Esta mesa la tiene abierta otro usuario; no puedes liberarla tú.',
+                    ], 403);
+                }
+
+                // Si la mesa ya está "ocupada" significa que al menos una
+                // comanda salió hacia cocina/barra — borrar el pedido acá
+                // perdería ese pedido ya en preparación. Antes se borraba
+                // siempre, sin mirar esto. Un Administrador puede forzarlo
+                // (p. ej. para corregir un error), quedando auditado.
+                if ($mesa->estado === 'ocupada' && $rolNombre !== 'Administrador') {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Esta mesa ya tiene productos enviados a cocina/barra; no se puede cancelar así. Ciérrala como venta o pide a un administrador que la libere.',
+                    ], 422);
+                }
+
+                $forzado = $mesa->estado === 'ocupada';
+
                 $pedido->detalles()->delete();
                 $pedido->delete();
+
+                if ($forzado) {
+                    AuditoriaService::registrar(
+                        $user,
+                        'Facturación',
+                        'Mesa liberada forzosamente',
+                        "Mesa {$mesa->numero} tenía un pedido con productos ya enviados a cocina y fue liberada/borrada por un administrador.",
+                        $request,
+                        'Pedido #' . $pedido->id
+                    );
+                }
             }
+
+            $mesa->estado = 'disponible';
+            $mesa->save();
 
             return response()->json([
                 'status' => 'success',
@@ -136,6 +177,30 @@ class FacturacionController extends Controller
 
     public function guardarPedido(Request $request, PrintService $printService)
     {
+        $request->validate([
+            'mesa_id' => 'required|exists:mesas,id',
+            'cliente_id' => 'nullable|exists:terceros,id',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|integer',
+            'items.*.cantidad' => 'required|integer|min:1',
+            'items.*.observacion' => 'nullable|string|max:255',
+        ]);
+
+        // El precio y la disponibilidad del producto se resuelven aquí, en
+        // el servidor — antes se guardaba item.precio tal cual llegaba del
+        // navegador, así que un usuario autenticado podía manipular el
+        // payload y facturar cualquier precio que quisiera.
+        $productoIds = collect($request->items)->pluck('id')->unique();
+        $productos = Producto::whereIn('id', $productoIds)->where('inactivo', 0)->get()->keyBy('id');
+
+        $faltantes = $productoIds->diff($productos->keys());
+        if ($faltantes->isNotEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Uno o más productos ya no están disponibles. Refresca el catálogo e intenta de nuevo.',
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 
@@ -158,14 +223,18 @@ class FacturacionController extends Controller
             $nuevoSubtotal = 0;
             $itemsNuevosIds = [];
 
-            // 2. Guardamos cada item
+            // 2. Guardamos cada item, con el precio oficial del producto
+            // (nunca el que venga en el request)
             foreach ($request->items as $item) {
-                $subtotalItem = $item['precio'] * $item['cantidad'];
+                $producto = $productos->get((int) $item['id']);
+                $precioOficial = (float) $producto->precio;
+                $subtotalItem = round($precioOficial * $item['cantidad'], 2);
+
                 $detalle = DetallePedido::create([
                     'pedido_id' => $pedido->id,
-                    'producto_id' => $item['id'],
+                    'producto_id' => $producto->id,
                     'cantidad' => $item['cantidad'],
-                    'precio_unitario' => $item['precio'],
+                    'precio_unitario' => $precioOficial,
                     'subtotal' => $subtotalItem,
                     'observacion' => $item['observacion'] ?? null,
                 ]);
@@ -186,16 +255,16 @@ class FacturacionController extends Controller
                 }
             ])->find($pedido->id);
 
-            // 🌟 DETECTAR EL PUNTO DE IMPRESIÓN BASADO EN LA CAJA DEL MESERO
+            // Punto de impresión según la bodega de la caja del mesero.
+            // Antes se comparaba caja_id == 2 / bodega_id == 2 a lo bruto,
+            // así que crear una caja o bodega nueva (o reordenar IDs) lo
+            // rompía en silencio. Ahora cada bodega declara su propio punto
+            // (columna bodegas.punto_impresion).
             $puntoActual = 'RESTAURANTE'; // Punto por defecto para administradores o si no tienen caja
 
             if ($user->caja_id) {
-                $caja = DB::table('cajas')->where('id', $user->caja_id)->first();
-
-                // Evaluamos la condición de tu sistema (por ejemplo, si caja_id es 2, o si tiene bodega_id = 2)
-                if ($caja && ($caja->id == 2 || (isset($caja->bodega_id) && $caja->bodega_id == 2))) {
-                    $puntoActual = 'DISCOTECA';
-                }
+                $caja = Caja::with('bodega')->find($user->caja_id);
+                $puntoActual = $caja?->bodega?->punto_impresion ?? 'RESTAURANTE';
             }
 
             // 6. ENVIAR AL SERVICIO PASANDO EL PUNTO ACTUAL DETECTADO
@@ -365,10 +434,73 @@ class FacturacionController extends Controller
         }
     }
 
+    /**
+     * Registra un ingreso o salida de caja. Las salidas exigen un concepto
+     * del catálogo y el tercero que recibe el dinero, y encolan un
+     * comprobante imprimible para que esa persona lo firme.
+     */
+    public function guardarMovimiento(Request $request, PrintService $printService)
+    {
+        $user = Auth::user();
+
+        $datos = $request->validate([
+            'tipo' => 'required|in:ingreso,salida',
+            'monto' => 'required|numeric|min:0.01',
+            'concepto_caja_id' => 'required|exists:conceptos_caja,id',
+            'tercero_id' => 'nullable|exists:terceros,id|required_if:tipo,salida',
+            'nota' => 'nullable|string|max:255',
+        ], [
+            'concepto_caja_id.required' => 'Selecciona el concepto del movimiento.',
+            'tercero_id.required_if' => 'Selecciona quién recibe el dinero.',
+        ]);
+
+        $concepto = ConceptoCaja::find($datos['concepto_caja_id']);
+        if ($concepto->tipo !== 'ambos' && $concepto->tipo !== $datos['tipo']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Ese concepto no aplica para este tipo de movimiento.',
+            ], 422);
+        }
+
+        $nota = $datos['nota'] ?? null;
+        $etiquetaConcepto = trim($concepto->nombre . ($nota ? ' — ' . $nota : ''));
+
+        $movimiento = MovimientoCaja::create([
+            'tipo' => $datos['tipo'] === 'salida' ? 'salida' : 'entrada',
+            'concepto' => $etiquetaConcepto,
+            'concepto_caja_id' => $concepto->id,
+            'tercero_id' => $datos['tercero_id'] ?? null,
+            'valor' => $datos['monto'],
+            'user_id' => $user->id,
+        ]);
+
+        $impresionEncolada = false;
+        try {
+            $caja = Caja::find($user->caja_id);
+            $impresora = $caja?->impresora_id ? Impresora::find($caja->impresora_id) : null;
+
+            if ($impresora) {
+                $movimiento->load('conceptoCaja', 'tercero');
+                $printService->imprimirComprobanteMovimiento($movimiento, $impresora, $user);
+                $impresionEncolada = true;
+            }
+        } catch (\Exception $e) {
+            Log::error('Error encolando comprobante de movimiento de caja: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $movimiento,
+            'comprobante_impreso' => $impresionEncolada,
+            'message' => $datos['tipo'] === 'salida' ? 'Salida de caja registrada.' : 'Ingreso de caja registrado.',
+        ]);
+    }
+
     public function cerrarMesa(
         Request $request,
         PrintService $printService,
-        FacturacionContableService $facturacionContableService
+        FacturacionContableService $facturacionContableService,
+        FacturacionElectronicaService $facturacionElectronicaService
     ) {
         $user = Auth::user();
 
@@ -388,7 +520,26 @@ class FacturacionController extends Controller
             'banco_destino' => 'nullable|string',
             'referencia'    => 'nullable|string',
             'cliente_id'    => 'nullable|integer',
+            // 'mixto' exige el desglose real de formas de pago: antes se
+            // aceptaba sin pedir este dato y se contabilizaba todo como Caja.
+            // No incluye 'credito': una venta mixta con una porción a crédito
+            // necesitaría integrarse con cartera/cuentas por cobrar, que es
+            // un frente aparte todavía no construido para este caso.
+            'pagos'                 => 'required_if:metodo_pago,mixto|array|min:2',
+            'pagos.*.metodo_pago'   => 'required_with:pagos|in:efectivo,tarjeta,transferencia,nequi,daviplata',
+            'pagos.*.valor'         => 'required_with:pagos|numeric|gt:0',
+            'pagos.*.referencia'    => 'nullable|string',
         ]);
+
+        if ($request->metodo_pago === 'mixto') {
+            $sumaPagos = round(collect($request->pagos)->sum('valor'), 2);
+            if (abs($sumaPagos - round((float) $request->total, 2)) > 0.01) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => "La suma de las formas de pago (\${$sumaPagos}) debe ser igual al total de la factura.",
+                ], 422);
+            }
+        }
 
         $caja = Caja::with('impresora')->find($user->caja_id);
 
@@ -433,7 +584,11 @@ class FacturacionController extends Controller
                 ], 422);
             }
 
-            // 1. Validar stock
+            // 1. Validar stock — lockForUpdate() bloquea la fila hasta que
+            // esta transacción termine. Sin esto, dos cajeros vendiendo el
+            // último producto en simultáneo podían leer el mismo stock
+            // "suficiente" antes de que cualquiera decrementara, y terminar
+            // ambos vendiendo por debajo de cero (sobreventa silenciosa).
             foreach ($todosLosDetalles as $detalle) {
                 $producto = $detalle->producto;
 
@@ -444,6 +599,7 @@ class FacturacionController extends Controller
                 $inventario = DB::table('inventarios')
                     ->where('producto_id', $producto->id)
                     ->where('bodega_id', $caja->bodega_id)
+                    ->lockForUpdate()
                     ->first();
 
                 if (!$inventario || $inventario->stock < $detalle->cantidad) {
@@ -453,6 +609,20 @@ class FacturacionController extends Controller
 
             // 2. Totales fiscales (una sola fuente de verdad: el service)
             $totales = $facturacionContableService->calcularTotales($todosLosDetalles);
+
+            // El total que llega del navegador debe coincidir con lo calculado
+            // server-side (productos + IVA + propina) — sin este chequeo, un
+            // valor manipulado o desincronizado del lado del cliente se
+            // guardaba tal cual, sin comparar contra nada.
+            $totalEsperado = round($totales['base'] + $totales['iva'] + (float) ($request->propina ?? 0), 2);
+            if (abs((float) $request->total - $totalEsperado) > 1) {
+                DB::rollBack();
+
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => "El total recibido (\${$request->total}) no coincide con el calculado a partir del pedido (\${$totalEsperado}). Refresca la mesa e intenta de nuevo.",
+                ], 422);
+            }
 
             // 3. Numeración de factura
             $ultimaFactura = Factura::where('caja_id', $caja->id)
@@ -487,6 +657,16 @@ class FacturacionController extends Controller
                 'saldo_pendiente' => $request->metodo_pago === 'credito' ? $request->total : 0,
             ]);
 
+            if ($request->metodo_pago === 'mixto') {
+                foreach ($request->pagos as $pago) {
+                    $factura->pagos()->create([
+                        'metodo_pago' => $pago['metodo_pago'],
+                        'valor'       => $pago['valor'],
+                        'referencia'  => $pago['referencia'] ?? null,
+                    ]);
+                }
+            }
+
             // 5. Detalles + inventario
             foreach ($todosLosDetalles as $detalle) {
                 $factura->detalles()->create([
@@ -512,6 +692,10 @@ class FacturacionController extends Controller
 
             // 7. Contabilizar — el controlador NO sabe de IVA, integraciones ni ContabilidadData
             $facturacionContableService->contabilizar($factura);
+
+            // 7.1 Facturación electrónica: no hace nada mientras no haya
+            // proveedor configurado (ver FacturacionElectronicaService).
+            $facturacionElectronicaService->encolarFactura($factura);
 
             // 8. Imprimir
             if ($caja->impresora) {
@@ -574,7 +758,7 @@ class FacturacionController extends Controller
             $user = Auth::user();
 
             // 1. Obtener la caja e impresora
-            $caja = DB::table('cajas')->where('id', $user->caja_id)->first();
+            $caja = Caja::with('bodega')->find($user->caja_id);
             if (!$caja) {
                 return response()->json(['success' => false, 'message' => 'Caja no encontrada.'], 400);
             }
@@ -584,9 +768,10 @@ class FacturacionController extends Controller
                 return response()->json(['success' => false, 'message' => 'Impresora no configurada.'], 400);
             }
 
-            // 2. Determinar la Bodega según la caja (Bodega 1 = Restaurante, 2 = Discoteca)
+            // 2. Determinar la Bodega según la caja — antes asumía
+            // "bodega_id == 1 es Restaurante, cualquier otra es Discoteca".
             $bodegaId = $caja->bodega_id;
-            $nombreBodega = ($bodegaId == 1) ? "RESTAURANTE" : "DISCOTECA";
+            $nombreBodega = $caja->bodega?->punto_impresion ?? 'RESTAURANTE';
 
             // 3. Consultar la tabla INVENTARIOS con JOIN a PRODUCTOS
             // Esto trae el nombre del producto y el stock específico de esa bodega

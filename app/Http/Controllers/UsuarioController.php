@@ -6,12 +6,17 @@ use App\Models\Caja;
 use App\Models\Permisos;
 use App\Models\User;
 use App\Models\Roles;
+use App\Services\CajeroAsignacionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
 class UsuarioController extends Controller
 {
+    public function __construct(private CajeroAsignacionService $cajeroAsignacion)
+    {
+    }
+
     public function index()
     {
         $usuarios = User::with(['rol', 'caja'])->get(); // ← agregar caja
@@ -37,7 +42,7 @@ class UsuarioController extends Controller
             'rol_id.required' => 'Debes asignar un rol al usuario.',
         ]);
 
-        User::create([
+        $usuario = User::create([
             'name'     => $request->name,
             'username' => $request->username,
             'password' => Hash::make($request->password),
@@ -47,6 +52,7 @@ class UsuarioController extends Controller
             'caja_id'  => $request->caja_id ?: null, // ← agregar
             'activo'   => true,
         ]);
+        $this->cajeroAsignacion->asignarCajaAUsuario($usuario, $request->caja_id ?: null, null);
 
         return response()->json(['success' => 'Usuario creado con éxito']);
     }
@@ -72,6 +78,8 @@ class UsuarioController extends Controller
             'rol_id.exists'   => 'El rol seleccionado no es válido.'
         ]);
 
+        $cajaAnteriorId = $usuario->caja_id;
+
         $usuario->name     = $request->name;
         $usuario->username = $request->username;
         $usuario->rol_id   = $request->rol_id;
@@ -88,6 +96,7 @@ class UsuarioController extends Controller
         }
 
         $usuario->save();
+        $this->cajeroAsignacion->asignarCajaAUsuario($usuario, $request->caja_id ?: null, $cajaAnteriorId);
 
         return response()->json(['success' => '¡Usuario actualizado correctamente!']);
     }
@@ -109,6 +118,7 @@ class UsuarioController extends Controller
 
         try {
             $usuario = User::findOrFail($id);
+            Caja::where('user_id', $usuario->id)->update(['user_id' => null]);
             $usuario->delete();
 
             return response()->json(['success' => 'Usuario eliminado correctamente']);

@@ -198,7 +198,10 @@
                 <option value="42">POS 80mm</option>
                 <option value="32">POS 58mm</option>
             </select>
-            <button class="btn-primary" id="ex-btn-pos" onclick="imprimirExistenciasPOS()" disabled>🧾 Imprimir POS</button>
+            <select class="fi-select" id="ex-impresora-red" style="flex:none;min-width:160px;">
+                <option value="">Impresora de red…</option>
+            </select>
+            <button class="btn-primary" id="ex-btn-red" onclick="enviarExistenciasRed()" disabled>📡 Enviar a impresora</button>
         </div>
     </div>
 
@@ -299,7 +302,7 @@
             EX.datos = [];
             document.getElementById('ex-metrics').style.display = 'none';
             document.getElementById('ex-btn-carta').disabled = true;
-            document.getElementById('ex-btn-pos').disabled = true;
+            document.getElementById('ex-btn-red').disabled = true;
             tbody.innerHTML = '<tr><td colspan="6"><div class="spinner-cell">📭 Seleccione una bodega para visualizar los datos</div></td></tr>';
             return;
         }
@@ -313,7 +316,7 @@
                 EX.bodegaNombre = res.bodega ? res.bodega.descripcion : '';
                 document.getElementById('ex-metrics').style.display = 'grid';
                 document.getElementById('ex-btn-carta').disabled = EX.datos.length === 0;
-                document.getElementById('ex-btn-pos').disabled = EX.datos.length === 0;
+                document.getElementById('ex-btn-red').disabled = EX.datos.length === 0;
                 renderExistencias();
             })
             .catch(function (e) {
@@ -440,10 +443,8 @@
     /* ════════════════════════════════════════════════
        IMPRESIÓN — FORMATO POS (térmica 80mm / 58mm)
     ════════════════════════════════════════════════ */
-    window.imprimirExistenciasPOS = function () {
-        if (!EX.filtradas.length) { notifEX('No hay existencias para imprimir', 'warning'); return; }
-
-        var ancho = parseInt(document.getElementById('ex-ancho-pos').value, 10) || 42;
+    /** Arma el texto plano del ticket de existencias (lo usan tanto la impresión por navegador como el envío por red). */
+    function construirTextoExistenciasPOS(ancho) {
         var linea = repetir('-', ancho);
         var lineaDoble = repetir('=', ancho);
         var fecha = new Date().toLocaleString('es-CO');
@@ -484,15 +485,8 @@
         txt += centrar('Sistema de Gestion POS', ancho) + '\n';
         txt += lineaDoble + '\n';
 
-        var anchoMm = ancho === 32 ? 58 : 80;
-        var html = '<!doctype html><html><head><meta charset="utf-8"><title>Existencias POS</title><style>' +
-            '@page{size:' + anchoMm + 'mm auto;margin:0;}' +
-            'html{background:#fff;color-scheme:light;}' +
-            'body{margin:0;padding:2mm;font-family:"Courier New",Courier,monospace;font-size:' + (ancho === 32 ? '10px' : '11px') + ';white-space:pre;color:#000;background:#fff;}' +
-            '</style></head><body>' + esc(txt) + '</body></html>';
-
-        abrirEImprimir(html);
-    };
+        return txt;
+    }
 
     function abrirEImprimir(html) {
         var ventana = window.open('', '_blank', 'width=420,height=600');
@@ -551,4 +545,43 @@
         if (typeof mostrarNotificacion === 'function') { mostrarNotificacion(msg, tipo === 'error' ? 'error' : tipo === 'warning' ? 'warning' : 'success'); return; }
         window.alert(msg);
     }
+
+    /* ════════════════════════════════════════════════
+       IMPRESIÓN POR RED — encola el reporte para que el
+       agente local instalado en el negocio lo envíe por IP
+       a la impresora térmica elegida (igual que las comandas).
+    ════════════════════════════════════════════════ */
+    (function cargarImpresorasRedEX() {
+        fetch('/api/impresoras', { headers: hdrsEX() }).then(function (r) { return r.json(); }).then(function (impresoras) {
+            var select = document.getElementById('ex-impresora-red');
+            (impresoras || []).filter(function (i) { return i.activa; }).forEach(function (i) {
+                select.insertAdjacentHTML('beforeend', '<option value="' + i.id + '">' + esc(i.nombre) + '</option>');
+            });
+        }).catch(function () {});
+    })();
+
+    window.enviarExistenciasRed = function () {
+        if (!EX.filtradas.length) { notifEX('No hay existencias para enviar.', 'warning'); return; }
+        var impresoraId = document.getElementById('ex-impresora-red').value;
+        if (!impresoraId) { notifEX('Seleccione a qué impresora de red enviarlo.', 'error'); return; }
+
+        var ancho = parseInt(document.getElementById('ex-ancho-pos').value, 10) || 42;
+        var txt = construirTextoExistenciasPOS(ancho);
+
+        var btn = document.getElementById('ex-btn-red');
+        btn.disabled = true;
+
+        fetch('/existencias/imprimir-red', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, hdrsEX()),
+            body: JSON.stringify({ impresora_id: impresoraId, contenido: txt }),
+        })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (r) {
+                if (!r.ok) throw new Error(r.data.message || Object.values(r.data.errors || {}).flat().join(' ') || 'No se pudo enviar el reporte.');
+                notifEX(r.data.message, 'success');
+            })
+            .catch(function (e) { notifEX(e.message, 'error'); })
+            .finally(function () { btn.disabled = false; });
+    };
 </script>

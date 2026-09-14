@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Factura;
+use App\Services\FacturacionContableService;
+use App\Services\FacturacionElectronicaService;
 use App\Services\PrintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +32,7 @@ class FacturaController extends Controller
                 'facturas.propina',      // NUEVO
                 'facturas.total',
                 'facturas.estado',
-                'facturas.doc_electronico',
+                'facturas.estado_dian',
                 'facturas.metodo_pago',
                 'facturas.created_at',
                 'terceros.nombre as tercero_nombre',
@@ -66,7 +68,10 @@ class FacturaController extends Controller
                     'registrada'      => in_array($f->estado, ['pagada', 'anulada'], true),
                     'anulada'         => $f->estado === 'anulada',
                     'usuario'         => $f->usuario_nombre ?? '—',
-                    'doc_electronico' => (bool) $f->doc_electronico,
+                    // 'no_aplica' (sin proveedor DIAN configurado, el caso de
+                    // hoy) | 'pendiente' | 'enviada' | 'aceptada' | 'rechazada' | 'error'
+                    'estado_dian'     => $f->estado_dian ?? 'no_aplica',
+                    'doc_electronico' => $f->estado_dian === 'aceptada',
                 ];
             });
 
@@ -99,6 +104,7 @@ class FacturaController extends Controller
             ->join('productos', 'productos.id', '=', 'factura_detalles.producto_id')
             ->where('factura_detalles.factura_id', $id)
             ->select(
+                'factura_detalles.id as detalle_id',
                 'productos.descripcion as producto',
                 'factura_detalles.cantidad',
                 'factura_detalles.precio_unitario as precio',
@@ -107,6 +113,7 @@ class FacturaController extends Controller
             ->get()
             ->map(function ($it) {
                 return [
+                    'id'        => $it->detalle_id, // usado por Notas Crédito/Débito
                     'producto'  => $it->producto,
                     'cantidad'  => $it->cantidad,
                     'precio'    => (float) $it->precio,
@@ -123,6 +130,9 @@ class FacturaController extends Controller
             'propina'   => (float) $factura->propina,    // NUEVO
             'total'     => (float) $factura->total,
             'estado'    => $factura->estado,
+            'anulada'   => $factura->estado === 'anulada', // antes faltaba: el modal "ver factura" nunca mostraba el aviso de anulada
+            'estado_dian'     => $factura->estado_dian ?? 'no_aplica',
+            'doc_electronico' => $factura->estado_dian === 'aceptada', // antes faltaba: el aviso "pendiente ante la DIAN" salía siempre, sin importar el estado real
             'cliente'   => $factura->razon_social ?: trim($factura->tercero_nombre . ' ' . $factura->tercero_apellido),
             'items'     => $items,
         ]);
@@ -182,9 +192,9 @@ class FacturaController extends Controller
         return response()->json(['data' => $productos]);
     }
 
-    public function anular($id)
+    public function anular($id, FacturacionContableService $facturacionContableService)
     {
-        $factura = DB::table('facturas')->where('id', $id)->first();
+        $factura = Factura::find($id);
 
         if (!$factura) {
             return response()->json(['message' => 'Factura no encontrada'], 404);
@@ -194,9 +204,15 @@ class FacturaController extends Controller
             return response()->json(['message' => 'Esta factura ya se encuentra anulada.'], 422);
         }
 
-        if ($factura->doc_electronico) {
+        if (in_array($factura->estado_dian, ['aceptada', 'enviada'], true)) {
             return response()->json([
-                'message' => 'No se puede anular: el documento electrónico ya fue generado ante la DIAN. Debes hacer una nota crédito.'
+                'message' => 'No se puede anular: el documento electrónico ya fue transmitido a la DIAN. Debes hacer una nota crédito.'
+            ], 422);
+        }
+
+        if ($factura->notas()->exists()) {
+            return response()->json([
+                'message' => 'No se puede anular: esta factura ya tiene notas crédito/débito emitidas. Revisa el historial de notas antes de anularla.'
             ], 422);
         }
 
@@ -205,11 +221,15 @@ class FacturaController extends Controller
             return response()->json(['message' => 'La caja de esta factura no tiene una bodega asignada.'], 422);
         }
 
-        DB::transaction(function () use ($id, $bodegaId) {
+        // Nota: no se envuelve en try/catch — igual que en el resto de la app
+        // (ver CompraAvanzadaController), una ValidationException lanzada aquí
+        // (p. ej. período contable cerrado) la formatea automáticamente el
+        // manejador de excepciones de Laravel como 422 con sus mensajes.
+        DB::transaction(function () use ($factura, $bodegaId, $facturacionContableService) {
             // Reponer stock de cada producto que afecte inventario
             $detalles = DB::table('factura_detalles')
                 ->join('productos', 'productos.id', '=', 'factura_detalles.producto_id')
-                ->where('factura_detalles.factura_id', $id)
+                ->where('factura_detalles.factura_id', $factura->id)
                 ->where('productos.afecta_inventario', 1)
                 ->select('factura_detalles.producto_id', 'factura_detalles.cantidad')
                 ->get();
@@ -235,10 +255,13 @@ class FacturaController extends Controller
                 ]);
             }
 
-            DB::table('facturas')->where('id', $id)->update([
-                'estado'     => 'anulada',
-                'updated_at' => now(),
-            ]);
+            // Antes esto dejaba el/los comprobantes contables en CONTABILIZADO
+            // para siempre: la factura quedaba "anulada" pero sus asientos
+            // (ingreso, IVA, costo de ventas) seguían activos, igual al bug ya
+            // corregido en CompraContableService::prepararReversion().
+            $facturacionContableService->anular($factura);
+
+            $factura->update(['estado' => 'anulada']);
         });
 
         return response()->json([
@@ -247,9 +270,36 @@ class FacturaController extends Controller
         ]);
     }
 
-    public function revertirAnulacion($id)
+    /**
+     * Recupera manualmente una factura 'fallida' ante la DIAN (agotó los 5
+     * reintentos automáticos) — antes no existía forma de reactivarla; se
+     * quedaba invisible para procesarPendientes() para siempre. Se usa
+     * después de corregir lo que la bloqueaba (completar el emisor, revisar
+     * el cliente, etc.).
+     */
+    public function reintentarDian($id, FacturacionElectronicaService $facturacionElectronicaService)
     {
-        $factura = DB::table('facturas')->where('id', $id)->first();
+        $factura = Factura::find($id);
+
+        if (!$factura) {
+            return response()->json(['message' => 'Factura no encontrada'], 404);
+        }
+
+        if ($factura->estado_dian !== 'fallida') {
+            return response()->json(['message' => 'Solo se puede reintentar una factura que haya quedado en estado \'fallida\'.'], 422);
+        }
+
+        $facturacionElectronicaService->reintentarManualmente($factura);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Factura {$factura->numero_factura} lista para reintentar — se transmitirá en el próximo ciclo programado.",
+        ]);
+    }
+
+    public function revertirAnulacion($id, FacturacionContableService $facturacionContableService)
+    {
+        $factura = Factura::find($id);
 
         if (!$factura) {
             return response()->json(['message' => 'Factura no encontrada'], 404);
@@ -262,10 +312,10 @@ class FacturaController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($id, $factura) {
+            DB::transaction(function () use ($factura, $facturacionContableService) {
                 $detalles = DB::table('factura_detalles')
                     ->join('productos', 'productos.id', '=', 'factura_detalles.producto_id')
-                    ->where('factura_detalles.factura_id', $id)
+                    ->where('factura_detalles.factura_id', $factura->id)
                     ->where('productos.afecta_inventario', 1)
                     ->select(
                         'factura_detalles.producto_id',
@@ -295,10 +345,19 @@ class FacturaController extends Controller
                         ->decrement('stock', $d->cantidad);
                 }
 
-                DB::table('facturas')->where('id', $id)->update([
-                    'estado'     => 'pagada',
-                    'updated_at' => now(),
+                // Igual que al cerrar la mesa originalmente: 'credito' queda
+                // pendiente de cobro, cualquier otro método queda pagado.
+                $factura->update([
+                    'estado'          => 'pagada',
+                    'estado_pago'     => $factura->metodo_pago === 'credito' ? 'pendiente' : 'pagada',
+                    'total_pagado'    => $factura->metodo_pago === 'credito' ? 0 : $factura->total,
+                    'saldo_pendiente' => $factura->metodo_pago === 'credito' ? $factura->total : 0,
                 ]);
+
+                // El comprobante anterior quedó ANULADO (no borrado) al anular
+                // la factura, así que contabilizar() puede crear uno nuevo sin
+                // chocar con el chequeo de "ya está contabilizado".
+                $facturacionContableService->contabilizar($factura);
             });
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 422);

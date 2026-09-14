@@ -83,6 +83,10 @@
         <button class="if-tab" data-reporte="libro-auxiliar">Libro Auxiliar</button>
         <button class="if-tab" data-reporte="estado-resultados">Estado de Resultados</button>
         <button class="if-tab" data-reporte="balance-general">Balance General</button>
+        <button class="if-tab" data-reporte="iva-periodo">IVA</button>
+        <button class="if-tab" data-reporte="retenciones">Retenciones</button>
+        <button class="if-tab" data-reporte="comparativo">Comparativo</button>
+        <button class="if-tab" data-reporte="indicadores">Indicadores</button>
     </div>
 
     <div class="filter-bar">
@@ -244,6 +248,8 @@
 
         if (!hasta) { notifIf('Seleccione la fecha final.', 'error'); return; }
 
+        if (IF.reporte === 'comparativo') { consultarComparativo(desde, hasta); return; }
+
         var url, params = new URLSearchParams();
         if (IF.reporte !== 'balance-general') { if (!desde) { notifIf('Seleccione la fecha inicial.', 'error'); return; } params.set('desde', desde); }
         params.set('hasta', hasta);
@@ -334,7 +340,7 @@
         var filas = data.movimientos.map(function (m) {
             return '<tr>' +
                 '<td>' + fmtFechaIf(m.fecha) + '</td>' +
-                '<td><span class="td-mono">' + escIf(m.tipo) + ' ' + escIf(m.prefijo) + escIf(m.numero) + '</span></td>' +
+                '<td><span class="td-mono">' + escIf(m.tipo) + ' ' + escIf(m.numero) + '</span></td>' +
                 '<td>' + escIf(m.cuenta_codigo) + ' - ' + escIf(m.cuenta_nombre) + '</td>' +
                 '<td class="td-trunc" title="' + escIf(m.detalle || '') + '">' + escIf(m.detalle || m.tercero || '—') + '</td>' +
                 '<td class="td-money debito">' + (m.debito > 0 ? fmtMoneyIf(m.debito) : '—') + '</td>' +
@@ -375,7 +381,7 @@
             var extra = esAuxiliar ? ('<td>' + escIf(m.tercero || '—') + '</td><td>' + escIf(m.centro_costo || '—') + '</td>') : ('<td>' + escIf(m.tercero || '—') + '</td>');
             return '<tr>' +
                 '<td>' + fmtFechaIf(m.fecha) + '</td>' +
-                '<td><span class="td-mono">' + escIf(m.tipo) + ' ' + escIf(m.prefijo) + escIf(m.numero) + '</span></td>' +
+                '<td><span class="td-mono">' + escIf(m.tipo) + ' ' + escIf(m.numero) + '</span></td>' +
                 '<td>' + escIf(m.detalle || '—') + '</td>' +
                 extra +
                 '<td class="td-money debito">' + (m.debito > 0 ? fmtMoneyIf(m.debito) : '—') + '</td>' +
@@ -433,6 +439,67 @@
     }
 
     /* ════════════════════════════════════════════════
+       COMPARATIVO — período actual vs. el inmediatamente anterior
+       de la misma duración (no requiere backend nuevo: reutiliza
+       estado-resultados dos veces con rangos de fecha distintos).
+    ════════════════════════════════════════════════ */
+    function consultarComparativo(desde, hasta) {
+        if (!desde) { notifIf('Seleccione la fecha inicial.', 'error'); return; }
+
+        var msDia = 24 * 60 * 60 * 1000;
+        var dDesde = new Date(desde + 'T00:00:00');
+        var dHasta = new Date(hasta + 'T00:00:00');
+        var duracionDias = Math.round((dHasta - dDesde) / msDia) + 1;
+        var hastaAnteriorDate = new Date(dDesde.getTime() - msDia);
+        var desdeAnteriorDate = new Date(hastaAnteriorDate.getTime() - (duracionDias - 1) * msDia);
+        function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+        var desdeAnterior = iso(desdeAnteriorDate), hastaAnterior = iso(hastaAnteriorDate);
+
+        document.getElementById('if-resultado').innerHTML = '<div class="spinner-cell"><div class="spinner"></div>Comparando períodos…</div>';
+        document.getElementById('if-metrics').style.display = 'none';
+
+        Promise.all([
+            fetch('/informes-contables/estado-resultados?desde=' + desde + '&hasta=' + hasta, { headers: hdrsIf() }).then(function (r) { return r.json(); }),
+            fetch('/informes-contables/estado-resultados?desde=' + desdeAnterior + '&hasta=' + hastaAnterior, { headers: hdrsIf() }).then(function (r) { return r.json(); }),
+        ]).then(function (res) {
+            renderComparativo(res[0], res[1], { desde: desde, hasta: hasta }, { desde: desdeAnterior, hasta: hastaAnterior });
+        }).catch(function () {
+            document.getElementById('if-resultado').innerHTML = '<div class="spinner-cell">⚠️ No fue posible generar el comparativo.</div>';
+        });
+    }
+
+    function variacionIf(actual, anterior) {
+        if (!anterior) return actual > 0 ? '+100%' : '—';
+        var pct = ((actual - anterior) / Math.abs(anterior)) * 100;
+        var signo = pct >= 0 ? '+' : '';
+        return signo + pct.toFixed(1) + '%';
+    }
+
+    function renderComparativo(actual, anterior, rangoA, rangoB) {
+        renderMetricasIf([
+            { label: 'Ingresos (actual)', value: fmtMoneyIf(actual.ingresos.total), sub: variacionIf(actual.ingresos.total, anterior.ingresos.total), accent: '#059669' },
+            { label: 'Utilidad neta (actual)', value: fmtMoneyIf(actual.utilidadNeta), sub: variacionIf(actual.utilidadNeta, anterior.utilidadNeta), accent: actual.utilidadNeta >= 0 ? '#1D4ED8' : '#DC2626' },
+        ]);
+
+        function filaComp(label, a, b) {
+            var variacion = variacionIf(a, b);
+            var claseVar = a >= b ? 'positivo' : 'negativo';
+            return '<tr><td>' + escIf(label) + '</td><td class="td-money">' + fmtMoneyIf(a) + '</td><td class="td-money">' + fmtMoneyIf(b) + '</td>' +
+                '<td class="td-money ' + claseVar + '">' + variacion + '</td></tr>';
+        }
+
+        var html = filaComp('Ingresos', actual.ingresos.total, anterior.ingresos.total) +
+            filaComp('Costos', actual.costos.total, anterior.costos.total) +
+            '<tr class="if-total">' + filaComp('Utilidad Bruta', actual.utilidadBruta, anterior.utilidadBruta).slice(4) +
+            filaComp('Gastos Operacionales', actual.gastos.total, anterior.gastos.total) +
+            '<tr class="if-total" style="background:#ECFDF5;font-size:14px;">' + filaComp('Utilidad Neta', actual.utilidadNeta, anterior.utilidadNeta).slice(4);
+
+        document.getElementById('if-resultado').innerHTML =
+            '<table class="if-tbl"><thead><tr><th>Concepto</th><th style="text-align:right;">' + fmtFechaIf(rangoA.desde) + ' a ' + fmtFechaIf(rangoA.hasta) + '</th>' +
+            '<th style="text-align:right;">' + fmtFechaIf(rangoB.desde) + ' a ' + fmtFechaIf(rangoB.hasta) + '</th><th style="text-align:right;">Variación</th></tr></thead><tbody>' + html + '</tbody></table>';
+    }
+
+    /* ════════════════════════════════════════════════
        RENDER — BALANCE GENERAL
     ════════════════════════════════════════════════ */
     function renderBalanceGeneral(data) {
@@ -453,13 +520,153 @@
 
         html += '<tr class="if-grupo"><td colspan="2">PATRIMONIO</td><td></td></tr>';
         html += data.patrimonio.cuentas.map(filaCuentaIf).join('') || '<tr><td colspan="3" style="text-align:center;color:#9CA3AF;">Sin saldos</td></tr>';
-        html += '<tr><td></td><td>Resultado del ejercicio (acumulado)</td><td class="td-money ' + (data.resultadoEjercicio >= 0 ? 'positivo' : 'negativo') + '">' + fmtMoneyIf(data.resultadoEjercicio) + '</td></tr>';
+        html += '<tr><td></td><td>Utilidad del Ejercicio (año actual)</td><td class="td-money ' + (data.utilidadEjercicioActual >= 0 ? 'positivo' : 'negativo') + '">' + fmtMoneyIf(data.utilidadEjercicioActual) + '</td></tr>';
+        html += '<tr><td></td><td>Utilidades Acumuladas (años anteriores)</td><td class="td-money ' + (data.utilidadesAcumuladas >= 0 ? 'positivo' : 'negativo') + '">' + fmtMoneyIf(data.utilidadesAcumuladas) + '</td></tr>';
         html += '<tr class="if-total"><td colspan="2">Total Patrimonio</td><td class="td-money">' + fmtMoneyIf(data.patrimonio.total + data.resultadoEjercicio) + '</td></tr>';
 
         html += '<tr class="if-total" style="background:' + (data.cuadrado ? '#ECFDF5' : '#FEF2F2') + ';font-size:14px;"><td colspan="2">TOTAL PASIVO + PATRIMONIO</td><td class="td-money">' + fmtMoneyIf(data.totalPasivoPatrimonio) + '</td></tr>';
 
         document.getElementById('if-resultado').innerHTML =
             '<table class="if-tbl"><thead><tr><th>Código</th><th>Cuenta</th><th style="text-align:right;">Valor</th></tr></thead><tbody>' + html + '</tbody></table>';
+    }
+
+    /* ════════════════════════════════════════════════
+       RENDER — IVA DEL PERÍODO (Formulario 300)
+    ════════════════════════════════════════════════ */
+    function renderIvaPeriodo(data) {
+        renderMetricasIf([
+            { label: 'IVA Generado', value: fmtMoneyIf(data.ivaGenerado), accent: '#D97706' },
+            { label: 'IVA Descontable', value: fmtMoneyIf(data.ivaDescontable), accent: '#1D4ED8' },
+            { label: data.aPagar ? 'IVA a Pagar' : 'Saldo a Favor', value: fmtMoneyIf(data.valorAbsoluto), accent: data.aPagar ? '#DC2626' : '#059669' },
+        ]);
+
+        var html = '<tr><td>IVA Generado (ventas)</td><td class="td-money positivo">' + fmtMoneyIf(data.ivaGenerado) + '</td></tr>';
+        html += '<tr><td>IVA Descontable (compras)</td><td class="td-money negativo">' + fmtMoneyIf(data.ivaDescontable) + '</td></tr>';
+        html += '<tr class="if-total" style="background:' + (data.aPagar ? '#FEF2F2' : '#ECFDF5') + ';font-size:14px;">' +
+            '<td>' + (data.aPagar ? 'IVA A PAGAR' : 'SALDO A FAVOR') + '</td>' +
+            '<td class="td-money ' + (data.aPagar ? 'negativo' : 'positivo') + '">' + fmtMoneyIf(data.valorAbsoluto) + '</td></tr>';
+
+        document.getElementById('if-resultado').innerHTML =
+            '<table class="if-tbl"><thead><tr><th>Concepto</th><th style="text-align:right;">Valor</th></tr></thead><tbody>' + html + '</tbody></table>';
+    }
+
+    /* ════════════════════════════════════════════════
+       RENDER — RETENCIONES PRACTICADAS (Formulario 350)
+    ════════════════════════════════════════════════ */
+    function renderRetenciones(data) {
+        var tipos = data.tipos;
+        IF.retencionesData = data; // usado por generarCertificadoRetencion()
+        renderMetricasIf([
+            { label: 'Retefuente', value: fmtMoneyIf(tipos.retefuente.total), accent: '#1D4ED8' },
+            { label: 'Reteiva', value: fmtMoneyIf(tipos.reteiva.total), accent: '#D97706' },
+            { label: 'Reteica', value: fmtMoneyIf(tipos.reteica.total), accent: '#7C3AED' },
+            { label: 'Total retenido', value: fmtMoneyIf(data.totalGeneral), accent: '#059669' },
+        ]);
+
+        var html = '';
+        ['retefuente', 'reteiva', 'reteica'].forEach(function (codigo) {
+            var t = tipos[codigo];
+            html += '<tr class="if-grupo"><td colspan="2">' + escIf(t.nombre.toUpperCase()) + '</td></tr>';
+            if (!t.porTercero.length) {
+                html += '<tr><td colspan="2" style="text-align:center;color:#9CA3AF;">Sin retenciones practicadas</td></tr>';
+            } else {
+                html += t.porTercero.map(function (f) {
+                    return '<tr><td>' + escIf(f.tercero) + '</td><td class="td-money positivo">' + fmtMoneyIf(f.valor) + '</td></tr>';
+                }).join('');
+            }
+            html += '<tr class="if-total"><td>Subtotal ' + escIf(t.nombre) + '</td><td class="td-money">' + fmtMoneyIf(t.total) + '</td></tr>';
+        });
+        html += '<tr class="if-total" style="background:#ECFDF5;font-size:14px;"><td>TOTAL RETENIDO</td><td class="td-money positivo">' + fmtMoneyIf(data.totalGeneral) + '</td></tr>';
+
+        // Consolidado por tercero (para emitir el certificado anual): un mismo
+        // proveedor puede aparecer en retefuente, reteiva y reteica a la vez —
+        // aquí se agrupan sus 3 valores en una sola fila con un botón de imprimir.
+        var porTerceroUnico = {};
+        ['retefuente', 'reteiva', 'reteica'].forEach(function (codigo) {
+            tipos[codigo].porTercero.forEach(function (f) {
+                var key = f.tercero_id || f.tercero;
+                if (!porTerceroUnico[key]) porTerceroUnico[key] = { id: f.tercero_id, nombre: f.tercero, cedula: f.cedula, nit: f.nit, retefuente: 0, reteiva: 0, reteica: 0 };
+                porTerceroUnico[key][codigo] = f.valor;
+            });
+        });
+        var filasCert = Object.values(porTerceroUnico);
+        var htmlCert = filasCert.length ? filasCert.map(function (f) {
+            var total = f.retefuente + f.reteiva + f.reteica;
+            return '<tr><td>' + escIf(f.nombre) + '</td><td class="td-money">' + fmtMoneyIf(total) + '</td>' +
+                '<td style="text-align:right;"><button class="btn-outline" style="padding:4px 10px;font-size:11px;" onclick=\'generarCertificadoRetencion(' + JSON.stringify(f).replace(/'/g, "&#39;") + ')\'>🖨️ Certificado</button></td></tr>';
+        }).join('') : '<tr><td colspan="3" style="text-align:center;color:#9CA3AF;">Sin terceros con retenciones en el período</td></tr>';
+
+        document.getElementById('if-resultado').innerHTML =
+            '<table class="if-tbl"><thead><tr><th>Tercero</th><th style="text-align:right;">Valor</th></tr></thead><tbody>' + html + '</tbody></table>' +
+            '<p style="font-size:12px;font-weight:700;color:#111827;margin:20px 0 8px;">📄 Certificados por tercero (consolidado del período)</p>' +
+            '<table class="if-tbl"><thead><tr><th>Tercero</th><th style="text-align:right;">Total retenido</th><th></th></tr></thead><tbody>' + htmlCert + '</tbody></table>';
+    }
+
+    window.generarCertificadoRetencion = function (f) {
+        var desde = document.getElementById('if-desde').value;
+        var hasta = document.getElementById('if-hasta').value;
+        var doc = f.cedula || f.nit || 'No registrado';
+        var total = f.retefuente + f.reteiva + f.reteica;
+
+        var filas = [
+            ['Retención en la Fuente (Renta)', f.retefuente],
+            ['Retención de IVA (Reteiva)', f.reteiva],
+            ['Retención de ICA (Reteica)', f.reteica],
+        ].filter(function (r) { return r[1] > 0; });
+
+        var html = '<!doctype html><html><head><meta charset="utf-8"><title>Certificado de Retención — ' + escIf(f.nombre) + '</title><style>' +
+            '@page{size:letter;margin:20mm;}body{font-family:Arial,Helvetica,sans-serif;color:#111827;}' +
+            '.head{text-align:center;border-bottom:3px solid #1D4ED8;padding-bottom:12px;margin-bottom:24px;}' +
+            '.brand{font-weight:800;color:#1D4ED8;font-size:18px;}.tit{font-size:14px;font-weight:700;margin-top:6px;text-transform:uppercase;}' +
+            'table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px;}th,td{padding:8px;border:1px solid #E5E7EB;text-align:left;}' +
+            'th{background:#F8FAFC;}.money{text-align:right;}.total-row{font-weight:800;background:#ECFDF5;}' +
+            '.firma{margin-top:70px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #111827;width:220px;text-align:center;padding-top:6px;font-size:11px;}' +
+            '.legal{margin-top:24px;font-size:11px;color:#6B7280;}' +
+            '</style></head><body>' +
+            '<div class="head"><div class="brand">📈 Nexora</div><div class="tit">Certificado de Retenciones</div>' +
+            '<div style="font-size:12px;color:#6B7280;">Del ' + fmtFechaIf(desde) + ' al ' + fmtFechaIf(hasta) + '</div></div>' +
+            '<p>Se certifica que a <b>' + escIf(f.nombre) + '</b>, identificado con documento <b>' + escIf(doc) + '</b>, ' +
+            'se le practicaron las siguientes retenciones durante el período indicado:</p>' +
+            '<table><thead><tr><th>Concepto</th><th class="money">Valor Retenido</th></tr></thead><tbody>' +
+            filas.map(function (r) { return '<tr><td>' + r[0] + '</td><td class="money">' + fmtMoneyIf(r[1]) + '</td></tr>'; }).join('') +
+            '<tr class="total-row"><td>TOTAL RETENIDO</td><td class="money">' + fmtMoneyIf(total) + '</td></tr>' +
+            '</tbody></table>' +
+            '<p class="legal">Este certificado se expide para los efectos previstos en el Estatuto Tributario Nacional, con base en los registros contables del sistema.</p>' +
+            '<div class="firma"><div class="linea">Representante Legal / Contador</div><div class="linea">Fecha de expedición: ' + fmtFechaIf(new Date().toISOString().slice(0, 10)) + '</div></div>' +
+            '</body></html>';
+
+        var ventana = window.open('', '_blank', 'width=900,height=700');
+        if (!ventana) { notifIf('El navegador bloqueó la ventana de impresión.', 'error'); return; }
+        ventana.document.open(); ventana.document.write(html); ventana.document.close();
+        setTimeout(function () { ventana.focus(); ventana.print(); }, 300);
+    };
+
+    function renderIndicadores(data) {
+        renderMetricasIf([
+            { label: 'Margen Bruto', value: data.margenBruto === null ? '—' : data.margenBruto + '%', accent: '#059669' },
+            { label: 'Margen Neto', value: data.margenNeto === null ? '—' : data.margenNeto + '%', accent: data.margenNeto >= 0 ? '#1D4ED8' : '#DC2626' },
+            { label: 'Endeudamiento', value: data.endeudamiento === null ? '—' : data.endeudamiento + '%', accent: '#D97706' },
+            { label: 'ROE (Rentab. Patrimonio)', value: data.roe === null ? '—' : data.roe + '%', accent: '#7C3AED' },
+        ]);
+
+        function fila(nombre, formula, valor, interpretacion) {
+            return '<tr><td><b>' + nombre + '</b><div style="font-size:11px;color:#9CA3AF;">' + formula + '</div></td>' +
+                '<td class="td-money">' + (valor === null ? 'N/A' : valor + '%') + '</td>' +
+                '<td style="font-size:12px;color:#6B7280;">' + interpretacion + '</td></tr>';
+        }
+
+        var html = '<tr class="if-grupo"><td colspan="3">RENTABILIDAD</td></tr>' +
+            fila('Margen Bruto', 'Utilidad Bruta / Ingresos', data.margenBruto, 'De cada $100 vendidos, cuánto queda tras el costo de venta.') +
+            fila('Margen Neto', 'Utilidad Neta / Ingresos', data.margenNeto, 'De cada $100 vendidos, cuánto queda como utilidad final.') +
+            fila('ROA', 'Utilidad Neta / Activo Total', data.roa, 'Qué tan rentable es el activo total del negocio.') +
+            fila('ROE', 'Utilidad Neta / Patrimonio', data.roe, 'Rentabilidad para el dueño sobre lo invertido.') +
+            '<tr class="if-grupo"><td colspan="3">ENDEUDAMIENTO</td></tr>' +
+            fila('Endeudamiento', 'Pasivo Total / Activo Total', data.endeudamiento, 'Qué porcentaje del activo está financiado con deuda.');
+
+        document.getElementById('if-resultado').innerHTML =
+            '<table class="if-tbl"><thead><tr><th>Indicador</th><th style="text-align:right;">Valor</th><th>Qué significa</th></tr></thead><tbody>' + html + '</tbody></table>' +
+            '<p style="font-size:11px;color:#9CA3AF;padding:12px;">Activo total: ' + fmtMoneyIf(data.activoTotal) + ' · Pasivo total: ' + fmtMoneyIf(data.pasivoTotal) +
+            ' · Patrimonio: ' + fmtMoneyIf(data.patrimonioTotal) + ' · Ingresos del período: ' + fmtMoneyIf(data.ingresos) + '</p>';
     }
 
     var RENDERERS = {
@@ -469,6 +676,9 @@
         'libro-auxiliar': function (d) { renderLibroCuenta(d, true); },
         'estado-resultados': renderEstadoResultados,
         'balance-general': renderBalanceGeneral,
+        'iva-periodo': renderIvaPeriodo,
+        'retenciones': renderRetenciones,
+        'indicadores': renderIndicadores,
     };
 
     /* ════════════════════════════════════════════════
@@ -482,6 +692,10 @@
             'libro-auxiliar': 'Libro Auxiliar',
             'estado-resultados': 'Estado de Resultados',
             'balance-general': 'Balance General',
+            'iva-periodo': 'IVA del Período',
+            'retenciones': 'Retenciones Practicadas',
+            'comparativo': 'Comparativo de Períodos',
+            'indicadores': 'Indicadores Financieros',
         }[IF.reporte];
     }
 

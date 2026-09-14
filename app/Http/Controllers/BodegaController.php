@@ -40,12 +40,11 @@ class BodegaController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'descripcion' => 'required|string|max:255'
+        $validated = $request->validate([
+            'descripcion' => 'required|string|max:255',
+            'punto_impresion' => 'required|in:RESTAURANTE,DISCOTECA',
         ]);
-        $bodega = Bodega::create([
-            'descripcion' => $request->descripcion
-        ]);
+        $bodega = Bodega::create($validated);
         return response()->json($bodega);
     }
 
@@ -72,6 +71,7 @@ class BodegaController extends Controller
     {
         $validated = $request->validate([
             'descripcion' => 'required|string|max:255',
+            'punto_impresion' => 'required|in:RESTAURANTE,DISCOTECA',
         ]);
 
         $bodega = Bodega::findOrFail($id);

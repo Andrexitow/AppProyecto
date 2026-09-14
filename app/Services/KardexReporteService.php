@@ -13,14 +13,22 @@ use Illuminate\Support\Facades\DB;
  */
 class KardexReporteService
 {
-    public function movimientos(int $productoId, int $bodegaId, string $desde, string $hasta): array
+    public function movimientos(int $productoId, ?int $bodegaId, string $desde, string $hasta): array
     {
         $producto = Producto::findOrFail($productoId);
-        $bodega = Bodega::findOrFail($bodegaId);
 
+        if ($bodegaId !== null) {
+            return $this->movimientosDeUnaBodega($producto, Bodega::findOrFail($bodegaId), $desde, $hasta);
+        }
+
+        return $this->movimientosDeTodasLasBodegas($producto, $desde, $hasta);
+    }
+
+    private function movimientosDeUnaBodega(Producto $producto, Bodega $bodega, string $desde, string $hasta): array
+    {
         $anterior = DB::table('movimientos_inventario')
-            ->where('producto_id', $productoId)
-            ->where('bodega_id', $bodegaId)
+            ->where('producto_id', $producto->id)
+            ->where('bodega_id', $bodega->id)
             ->where('fecha', '<', $desde . ' 00:00:00')
             ->orderByDesc('fecha')
             ->orderByDesc('id')
@@ -35,12 +43,12 @@ class KardexReporteService
         $movimientos = DB::table('movimientos_inventario as m')
             ->leftJoin('documentos as d', 'd.id', '=', 'm.documento_id')
             ->leftJoin('tipos_documento as td', 'td.id', '=', 'd.tipo_documento_id')
-            ->where('m.producto_id', $productoId)
-            ->where('m.bodega_id', $bodegaId)
+            ->where('m.producto_id', $producto->id)
+            ->where('m.bodega_id', $bodega->id)
             ->whereBetween('m.fecha', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
             ->orderBy('m.fecha')
             ->orderBy('m.id')
-            ->select('m.*', 'td.nombre as documento_tipo', 'd.prefijo', 'd.numero')
+            ->select('m.*', 'td.nombre as documento_tipo', 'd.numero')
             ->get();
 
         $ultimo = $movimientos->last();
@@ -52,6 +60,70 @@ class KardexReporteService
         return [
             'producto' => $producto,
             'bodega' => $bodega,
+            'saldo_inicial' => $saldoInicial,
+            'movimientos' => $movimientos,
+            'saldo_final' => $saldoFinal,
+        ];
+    }
+
+    /**
+     * Consolida el kardex del producto en TODAS las bodegas donde se ha
+     * movido. El costo promedio ponderado se calcula por separado en cada
+     * bodega (así lo hace KardexService), así que aquí no se puede sumar un
+     * "costo promedio" directamente: se reconstruye como valor total /
+     * cantidad total, y cada línea del detalle conserva su propia bodega para
+     * que nunca se mezclen cantidades o costos de dos bodegas distintas.
+     */
+    private function movimientosDeTodasLasBodegas(Producto $producto, string $desde, string $hasta): array
+    {
+        $bodegaIds = DB::table('movimientos_inventario')->where('producto_id', $producto->id)->distinct()->pluck('bodega_id');
+
+        $cantidadInicial = 0.0;
+        $valorInicial = 0.0;
+        $cantidadFinal = 0.0;
+        $valorFinal = 0.0;
+
+        foreach ($bodegaIds as $bodegaId) {
+            $antesDesde = DB::table('movimientos_inventario')
+                ->where('producto_id', $producto->id)->where('bodega_id', $bodegaId)
+                ->where('fecha', '<', $desde . ' 00:00:00')
+                ->orderByDesc('fecha')->orderByDesc('id')->first();
+            $cantidadInicial += (float) ($antesDesde->stock_nuevo ?? 0);
+            $valorInicial += (float) ($antesDesde->stock_nuevo ?? 0) * (float) ($antesDesde->costo_promedio_nuevo ?? 0);
+
+            $antesHasta = DB::table('movimientos_inventario')
+                ->where('producto_id', $producto->id)->where('bodega_id', $bodegaId)
+                ->where('fecha', '<=', $hasta . ' 23:59:59')
+                ->orderByDesc('fecha')->orderByDesc('id')->first();
+            $cantidadFinal += (float) ($antesHasta->stock_nuevo ?? 0);
+            $valorFinal += (float) ($antesHasta->stock_nuevo ?? 0) * (float) ($antesHasta->costo_promedio_nuevo ?? 0);
+        }
+
+        $saldoInicial = [
+            'cantidad' => round($cantidadInicial, 4),
+            'costo_promedio' => $cantidadInicial > 0.0001 ? round($valorInicial / $cantidadInicial, 4) : 0.0,
+            'valor' => round($valorInicial, 2),
+        ];
+        $saldoFinal = [
+            'cantidad' => round($cantidadFinal, 4),
+            'costo_promedio' => $cantidadFinal > 0.0001 ? round($valorFinal / $cantidadFinal, 4) : 0.0,
+            'valor' => round($valorFinal, 2),
+        ];
+
+        $movimientos = DB::table('movimientos_inventario as m')
+            ->leftJoin('documentos as d', 'd.id', '=', 'm.documento_id')
+            ->leftJoin('tipos_documento as td', 'td.id', '=', 'd.tipo_documento_id')
+            ->join('bodegas as b', 'b.id', '=', 'm.bodega_id')
+            ->where('m.producto_id', $producto->id)
+            ->whereBetween('m.fecha', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->orderBy('m.fecha')
+            ->orderBy('m.id')
+            ->select('m.*', 'td.nombre as documento_tipo', 'd.numero', 'b.descripcion as bodega_nombre')
+            ->get();
+
+        return [
+            'producto' => $producto,
+            'bodega' => null,
             'saldo_inicial' => $saldoInicial,
             'movimientos' => $movimientos,
             'saldo_final' => $saldoFinal,

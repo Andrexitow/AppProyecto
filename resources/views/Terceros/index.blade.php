@@ -473,6 +473,23 @@
                     <label>Dirección</label>
                     <input type="text" name="direccion">
                 </div>
+                <div class="tc-field">
+                    <label>Ciudad</label>
+                    <input type="text" name="ciudad" placeholder="Ej: Bogotá D.C.">
+                </div>
+                <div class="tc-field">
+                    <label>Código CIIU</label>
+                    <input type="text" name="codigo_ciiu" placeholder="Ej: 5611">
+                </div>
+                <div class="tc-field" style="grid-column:1/-1;">
+                    <label>Régimen Tributario</label>
+                    <select name="regimen_tributario">
+                        <option value="">Sin definir</option>
+                        @foreach (\App\Models\Tercero::REGIMENES_TRIBUTARIOS as $valor => $etiqueta)
+                            <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
 
             <label class="tc-check"><input id="tc-activo" type="checkbox" checked> Tercero activo</label>

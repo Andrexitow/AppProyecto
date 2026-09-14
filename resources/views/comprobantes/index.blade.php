@@ -908,10 +908,7 @@
                         <th onclick="sortTablaCP('tipo')" data-col="tipo">
                             Tipo <span class="sort-icon">↕</span>
                         </th>
-                        <th onclick="sortTablaCP('prefijo')" data-col="prefijo">
-                            Pref <span class="sort-icon">↕</span>
-                        </th>
-                        <th onclick="sortTablaCP('numero')" data-col="numero" style="width:80px;">
+                        <th onclick="sortTablaCP('numero')" data-col="numero" style="width:110px;">
                             N° <span class="sort-icon">↕</span>
                         </th>
                         <th onclick="sortTablaCP('fecha')" data-col="fecha">
@@ -931,7 +928,7 @@
                 </thead>
                 <tbody id="tbody-comprobantes">
                     <tr>
-                        <td colspan="11">
+                        <td colspan="10">
                             <div class="spinner-cell">
                                 <div class="spinner"></div>
                                 Cargando comprobantes…
@@ -1256,7 +1253,7 @@
 
         CP.filtradas = CP.datos.filter(function(c) {
             if (buscar) {
-                var hay = (c.prefijo + c.numero + (c.observaciones || '') + (c.usuario || ''))
+                var hay = ((c.numero || '') + (c.observaciones || '') + (c.usuario || ''))
                     .toLowerCase().includes(buscar);
                 if (!hay) return false;
             }
@@ -1330,7 +1327,7 @@
             ' de ' + total + ' registros';
 
         if (pagina.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11">' +
+            tbody.innerHTML = '<tr><td colspan="10">' +
                 '<div class="spinner-cell">📭 No se encontraron comprobantes</div></td></tr>';
             renderPaginacionCP(total);
             return;
@@ -1360,22 +1357,21 @@
             btnEdit = (!c.manual || anulado) ? '' : btnEdit;
             var btnRev = (!c.manual || anulado) ? '' :
                 '<button class="act-btn rev" data-tip="Anular" ' +
-                'onclick="anularComprobante(' + c.id + ',\'' + esc(c.prefijo) + c.numero + '\')">🚫</button>';
+                'onclick="anularComprobante(' + c.id + ',\'' + esc(c.numero) + '\')">🚫</button>';
 
             var btnRestaurar = (anulado && c.manual) ?
                 '<button class="act-btn edit" data-tip="Revertir anulación" ' +
-                'onclick="revertirAnulacionCP(' + c.id + ',\'' + esc(c.prefijo) + c.numero +
+                'onclick="revertirAnulacionCP(' + c.id + ',\'' + esc(c.numero) +
                 '\')">↩️</button>' :
                 '';
             var btnDel = (!c.manual || anulado) ? '' : '<button class="act-btn del" data-tip="Eliminar" ' +
-                'onclick="eliminarComprobante(' + c.id + ',\'' + esc(c.prefijo) + c.numero +
+                'onclick="eliminarComprobante(' + c.id + ',\'' + esc(c.numero) +
                 '\')">🗑️</button>';
 
             return '<tr class="' + trCls + '" data-id="' + c.id + '">' +
                 '<td><input type="checkbox" class="chk-row chk-item-cp" ' + chked +
                 ' onchange="toggleSeleccionCP(' + c.id + ',this)"></td>' +
                 '<td>' + badgeTipo + '</td>' +
-                '<td><span class="td-mono">' + esc(c.prefijo) + '</span></td>' +
                 '<td><span class="td-num">' + esc(c.numero) + '</span></td>' +
                 '<td>' + fmtFechaCP(c.fecha) + '</td>' +
                 '<td class="td-obs" title="' + esc(c.observaciones || '') + '">' +
@@ -1446,7 +1442,7 @@
 
     function mostrarSpinnerCP() {
         document.getElementById('tbody-comprobantes').innerHTML =
-            '<tr><td colspan="11"><div class="spinner-cell">' +
+            '<tr><td colspan="10"><div class="spinner-cell">' +
             '<div class="spinner"></div>Cargando comprobantes…</div></td></tr>';
     }
 
@@ -1571,7 +1567,7 @@
         CP.comprobanteActual = c;
 
         document.getElementById('cp-vf-title').textContent =
-            'Comprobante ' + (c.prefijo || '') + (c.numero || '');
+            'Comprobante ' + (c.numero || '');
 
         document.getElementById('cp-vf-sub').textContent =
             'Fecha: ' + fmtFechaCP(c.fecha);
@@ -1600,7 +1596,7 @@
 
 
                 document.getElementById('cp-vf-title').textContent =
-                    'Comprobante ' + (c.prefijo || '') + (c.numero || '');
+                    'Comprobante ' + (c.numero || '');
 
                 document.getElementById('cp-vf-sub').textContent =
                     'Fecha: ' + fmtFechaCP(c.fecha);
@@ -1716,7 +1712,7 @@
                 return x.id === id;
             });
             if (c) {
-                document.getElementById('cp-mf-title').textContent = 'Editar Comprobante ' + c.prefijo + c.numero;
+                document.getElementById('cp-mf-title').textContent = 'Editar Comprobante ' + c.numero;
                 document.getElementById('cp-mf-sub').textContent = 'Modifique los campos necesarios';
                 document.getElementById('cp-mf-tipo').value = c.tipo || '';
                 document.getElementById('cp-mf-prefijo').value = c.prefijo;
@@ -1759,7 +1755,7 @@
                 CP.editandoId = id;
                 CP.modoModal = 'editar';
                 CP.items = data.items || [];
-                document.getElementById('cp-mf-title').textContent = 'Editar Comprobante ' + data.prefijo + data.numero;
+                document.getElementById('cp-mf-title').textContent = 'Editar Comprobante ' + data.numero;
                 document.getElementById('cp-mf-sub').textContent = 'Modifique los movimientos antes de guardarlo';
                 document.getElementById('cp-mf-tipo').value = data.tipo || '';
                 document.getElementById('cp-mf-prefijo').value = data.prefijo || '';

@@ -724,6 +724,66 @@ window.setInterval(function () {
 window.metodoSeleccionado = 'efectivo';
 window._subtotalVenta = 0;
 window._propinaValor = 0;
+window._pagosMixtos = [];
+
+// ============================================================
+// PAGO MIXTO — desglose por forma de pago (efectivo/tarjeta/etc.)
+// ============================================================
+// Antes 'mixto' se enviaba al servidor sin este desglose y se contabilizaba
+// todo como si hubiera sido efectivo. Ahora el cajero declara exactamente
+// cuánto fue de cada forma, y el total debe cuadrar con la venta.
+var METODOS_MIXTO = [
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'tarjeta', label: 'Tarjeta' },
+    { value: 'transferencia', label: 'Transferencia' },
+    { value: 'nequi', label: 'Nequi' },
+    { value: 'daviplata', label: 'Daviplata' },
+];
+
+window.agregarPagoMixto = function () {
+    window._pagosMixtos.push({ metodo_pago: 'efectivo', valor: 0, referencia: '' });
+    renderPagosMixtos();
+};
+
+window.eliminarPagoMixto = function (idx) {
+    window._pagosMixtos.splice(idx, 1);
+    renderPagosMixtos();
+};
+
+window.pagoMixtoChange = function (idx, campo, valor) {
+    if (!window._pagosMixtos[idx]) return;
+    window._pagosMixtos[idx][campo] = campo === 'valor' ? (Number(valor) || 0) : valor;
+    renderPagosMixtos();
+};
+
+function totalVentaConPropina() {
+    return (window._subtotalVenta || 0) + (window._propinaValor || 0);
+}
+
+function renderPagosMixtos() {
+    var box = document.getElementById('filas-pago-mixto');
+    var resumen = document.getElementById('mixto-resumen');
+    if (!box) return;
+
+    box.innerHTML = window._pagosMixtos.map(function (p, idx) {
+        var opciones = METODOS_MIXTO.map(function (m) {
+            return '<option value="' + m.value + '"' + (p.metodo_pago === m.value ? ' selected' : '') + '>' + m.label + '</option>';
+        }).join('');
+        return '<div class="flex gap-2 items-center">' +
+            '<select onchange="pagoMixtoChange(' + idx + ',\'metodo_pago\',this.value)" class="modal-input-dark" style="flex:1;padding:8px 10px;font-size:10.5px;">' + opciones + '</select>' +
+            '<input type="number" min="0" step="0.01" value="' + (p.valor || 0) + '" oninput="pagoMixtoChange(' + idx + ',\'valor\',this.value)" placeholder="Valor" class="modal-input-dark" style="flex:1;padding:8px 10px;font-size:10.5px;">' +
+            '<button type="button" onclick="eliminarPagoMixto(' + idx + ')" style="border:0;background:transparent;color:#f87171;font-size:16px;cursor:pointer;">✕</button>' +
+            '</div>';
+    }).join('');
+
+    if (resumen) {
+        var suma = window._pagosMixtos.reduce(function (a, p) { return a + (Number(p.valor) || 0); }, 0);
+        var total = totalVentaConPropina();
+        var cuadra = Math.abs(suma - total) < 1;
+        resumen.style.color = cuadra ? '#4ade80' : '#f87171';
+        resumen.innerText = 'Formas de pago: $' + suma.toLocaleString('es-CO') + ' de $' + total.toLocaleString('es-CO');
+    }
+}
 
 function limpiarCamposPagoAdicionales() {
     var referenciaTarjeta = document.getElementById('ref_tarjeta');
@@ -735,6 +795,10 @@ function limpiarCamposPagoAdicionales() {
     if (referenciaTransferencia) referenciaTransferencia.value = '';
     if (tipoTarjeta) tipoTarjeta.selectedIndex = 0;
     if (bancoDestino) bancoDestino.selectedIndex = 0;
+
+    window._pagosMixtos = [];
+    var panelMixto = document.getElementById('campos-mixto');
+    if (panelMixto) panelMixto.classList.add('hidden');
 }
 
 window.abrirModalPago = function () {
@@ -861,12 +925,14 @@ window.seleccionarMetodo = function (metodo) {
     // Control de visibilidad de campos extra
     const panelTarjeta = document.getElementById('campos-tarjeta');
     const panelTransfer = document.getElementById('campos-transferencia');
+    const panelMixto = document.getElementById('campos-mixto');
     const wrapperRecibido = document.getElementById('wrapper-recibido');
     const avisoCredito = document.getElementById('aviso-credito-cliente');
 
     // Resetear vistas
     panelTarjeta.classList.add('hidden');
     panelTransfer.classList.add('hidden');
+    if (panelMixto) panelMixto.classList.add('hidden');
     if (avisoCredito) avisoCredito.classList.add('hidden');
 
     if (metodo === 'tarjeta') {
@@ -880,6 +946,16 @@ window.seleccionarMetodo = function (metodo) {
         // Una venta a crédito no puede quedar a nombre del "Consumidor Final" (id 1).
         var esClienteReal = window.clienteSeleccionado && Number(window.clienteSeleccionado.id) > 1;
         if (avisoCredito) avisoCredito.classList.toggle('hidden', !!esClienteReal);
+    } else if (metodo === 'mixto') {
+        wrapperRecibido.style.opacity = '0.3';
+        if (panelMixto) panelMixto.classList.remove('hidden');
+        // Arranca con 2 filas (efectivo + tarjeta) para no obligar a agregar
+        // manualmente la primera vez; el cajero ajusta método y valor.
+        window._pagosMixtos = [
+            { metodo_pago: 'efectivo', valor: 0, referencia: '' },
+            { metodo_pago: 'tarjeta', valor: 0, referencia: '' },
+        ];
+        renderPagosMixtos();
     } else {
         wrapperRecibido.style.opacity = '1';
     }
@@ -934,6 +1010,20 @@ window.procesarPagoFinal = async function () {
             return;
         }
     }
+    else if (window.metodoSeleccionado === 'mixto') {
+        var pagosValidos = (window._pagosMixtos || []).filter(function (p) { return (Number(p.valor) || 0) > 0; });
+
+        if (pagosValidos.length < 2) {
+            window.notificar('Agrega al menos 2 formas de pago con valor mayor a 0', 'warning');
+            return;
+        }
+
+        var sumaPagos = pagosValidos.reduce(function (a, p) { return a + (Number(p.valor) || 0); }, 0);
+        if (Math.abs(sumaPagos - total) >= 1) {
+            window.notificar('Las formas de pago (' + sumaPagos.toLocaleString('es-CO') + ') deben sumar el total (' + total.toLocaleString('es-CO') + ')', 'error');
+            return;
+        }
+    }
     // Nota: no se bloquea aquí si no hay window.clienteSeleccionado, porque ese
     // estado se resetea al "Enviar pedido" — el servidor valida contra el
     // cliente real que quedó guardado en el pedido y devuelve un error claro
@@ -957,6 +1047,9 @@ window.procesarPagoFinal = async function () {
                 banco_destino: detallesPago.banco_destino,
                 referencia: detallesPago.referencia,
                 cliente_id: (window.clienteSeleccionado && window.clienteSeleccionado.id) || 1,
+                pagos: window.metodoSeleccionado === 'mixto'
+                    ? (window._pagosMixtos || []).filter(function (p) { return (Number(p.valor) || 0) > 0; })
+                    : undefined,
             })
         });
 
@@ -1193,14 +1286,17 @@ function mostrarToastCierre(icon, estado, diferencia, color) {
 // }
 
 // ============================================================
-// MOVIMIENTO CAJA — tipo único con selector
+// MOVIMIENTO CAJA — tipo único con selector, concepto de catálogo
+// y tercero (para egresos, con impresión de comprobante para firma)
 // ============================================================
 window._tipoMovimiento = 'ingreso'; // default
+window._terceroMovimiento = null; // {id, nombre, documento} — quien recibe el dinero en un egreso
 
 window.abrirModalMovimiento = function () {
     seleccionarTipoMovimiento('ingreso');
     document.getElementById('mov_monto').value = '';
-    document.getElementById('mov_concepto').value = '';
+    document.getElementById('mov_nota').value = '';
+    quitarTerceroMovimiento();
     document.getElementById('modalMovimientoCaja').classList.add('show');
 };
 
@@ -1225,25 +1321,64 @@ window.seleccionarTipoMovimiento = function (tipo) {
         btnIngreso.style.borderColor = '#283347';
         btnIngreso.style.color = '#475569';
     }
+
+    const wrapTercero = document.getElementById('mov-tercero-wrap');
+    if (tipo === 'egreso') {
+        wrapTercero.classList.remove('hidden');
+    } else {
+        wrapTercero.classList.add('hidden');
+        quitarTerceroMovimiento();
+    }
+
+    cargarConceptosMovimiento(tipo);
 };
+
+function cargarConceptosMovimiento(tipoUi) {
+    const backendTipo = tipoUi === 'egreso' ? 'salida' : 'ingreso';
+    const select = document.getElementById('mov_concepto_id');
+    const valorPrevio = select.value;
+    select.innerHTML = '<option value="">Cargando conceptos...</option>';
+
+    fetch('/conceptos-caja/opciones?tipo=' + backendTipo, { headers: { Accept: 'application/json' } })
+        .then(r => r.json())
+        .then(res => {
+            const conceptos = res.data || [];
+            if (!conceptos.length) {
+                select.innerHTML = '<option value="">Sin conceptos configurados</option>';
+                return;
+            }
+            select.innerHTML = '<option value="">Selecciona un concepto...</option>' +
+                conceptos.map(c => '<option value="' + c.id + '">' + String(c.nombre).replace(/</g, '&lt;') + '</option>').join('');
+            if (conceptos.some(c => String(c.id) === valorPrevio)) {
+                select.value = valorPrevio;
+            }
+        })
+        .catch(() => { select.innerHTML = '<option value="">Error al cargar conceptos</option>'; });
+}
 
 window.cerrarModalMovimiento = function () {
     document.getElementById('modalMovimientoCaja').classList.remove('show');
     document.getElementById('mov_monto').value = '';
-    document.getElementById('mov_concepto').value = '';
+    document.getElementById('mov_nota').value = '';
 };
 
 window.guardarMovimiento = function () {
-    const tipo = window._tipoMovimiento;
+    const tipoUi = window._tipoMovimiento;
+    const tipo = tipoUi === 'egreso' ? 'salida' : 'ingreso';
     const monto = document.getElementById('mov_monto').value;
-    const concepto = document.getElementById('mov_concepto').value;
+    const conceptoId = document.getElementById('mov_concepto_id').value;
+    const nota = document.getElementById('mov_nota').value;
 
     if (!monto || parseFloat(monto) <= 0) {
         window.notificar('Ingresa un monto válido', 'warning');
         return;
     }
-    if (!concepto.trim()) {
-        window.notificar('Escribe el concepto del movimiento', 'warning');
+    if (!conceptoId) {
+        window.notificar('Selecciona el concepto del movimiento', 'warning');
+        return;
+    }
+    if (tipo === 'salida' && !window._terceroMovimiento) {
+        window.notificar('Selecciona quién recibe el dinero', 'warning');
         return;
     }
 
@@ -1253,21 +1388,213 @@ window.guardarMovimiento = function () {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
         },
-        body: JSON.stringify({ tipo, monto, concepto })
-    })
-        .then(r => r.json())
-        .then(res => {
-            if (res.success) {
-                window.notificar(
-                    (tipo === 'ingreso' ? 'Ingreso' : 'Egreso') + ' registrado: $' + parseFloat(monto).toLocaleString('es-CO'),
-                    tipo === 'ingreso' ? 'success' : 'warning'
-                );
-                cerrarModalMovimiento();
-            } else {
-                window.notificar('Error: ' + res.message, 'error');
-            }
+        body: JSON.stringify({
+            tipo,
+            monto,
+            concepto_caja_id: conceptoId,
+            nota: nota,
+            tercero_id: window._terceroMovimiento ? window._terceroMovimiento.id : null
         })
-        .catch(() => window.notificar('Error de conexión', 'error'));
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok || !d.success) {
+                throw new Error(d.errors ? Object.values(d.errors).flat().join(', ') : (d.message || 'No se pudo registrar el movimiento'));
+            }
+            let msg = (tipo === 'ingreso' ? 'Ingreso' : 'Egreso') + ' registrado: $' + parseFloat(monto).toLocaleString('es-CO');
+            if (tipo === 'salida') {
+                msg += d.comprobante_impreso ? ' — comprobante enviado a imprimir.' : ' — caja sin impresora, no se imprimió comprobante.';
+            }
+            window.notificar(msg, tipo === 'ingreso' ? 'success' : 'warning');
+            cerrarModalMovimiento();
+        })
+        .catch(e => window.notificar('Error: ' + e.message, 'error'));
+};
+
+// ---- Tercero del movimiento (buscar / seleccionar / crear inline) --------
+
+window.quitarTerceroMovimiento = function () {
+    window._terceroMovimiento = null;
+    const sel = document.getElementById('mov-tercero-seleccionado');
+    sel.classList.add('hidden');
+    sel.classList.remove('flex');
+    document.getElementById('mov-btn-buscar-tercero').classList.remove('hidden');
+};
+
+window.abrirBuscadorTerceroMovimiento = function () {
+    document.getElementById('mov-buscar-tercero-input').value = '';
+    document.getElementById('mov-lista-terceros').innerHTML =
+        '<p class="text-[10px] text-slate-600 text-center py-6 font-bold uppercase tracking-widest">Escribe al menos 2 caracteres...</p>';
+    document.getElementById('modalTerceroMovimiento').classList.add('show');
+    setTimeout(() => document.getElementById('mov-buscar-tercero-input').focus(), 100);
+};
+
+window.cerrarBuscadorTerceroMovimiento = function () {
+    document.getElementById('modalTerceroMovimiento').classList.remove('show');
+};
+
+function buscarTercerosMovimiento(q) {
+    fetch('/pedidos/terceros/buscar?query=' + encodeURIComponent(q), { headers: { Accept: 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+            const lista = document.getElementById('mov-lista-terceros');
+            if (!data.length) {
+                lista.innerHTML = '<p class="text-[10px] text-slate-600 text-center py-6 font-bold uppercase">Sin resultados</p>';
+                return;
+            }
+            lista.innerHTML = data.map(function (t) {
+                const nombre = t.tipo === 'persona' ? (t.nombre + ' ' + (t.apellido || '')).trim() : (t.razon_social || '');
+                const doc = t.tipo === 'persona' ? (t.cedula || '') : (t.nit || '');
+                const iniciales = nombre.substring(0, 2).toUpperCase();
+                return (
+                    '<button onclick="seleccionarTerceroMovimiento(' + t.id + ', \'' +
+                    nombre.replace(/'/g, "\\'") + '\', \'' + doc + '\')" ' +
+                    'class="w-full flex items-center gap-3 p-3 rounded-lg transition-all text-left mb-1" ' +
+                    'style="background:#1a2235; border:0.5px solid #283347;">' +
+                    '<div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black" ' +
+                    'style="background:#2d4faa; color:#93c5fd;">' + iniciales + '</div>' +
+                    '<div class="flex-1 min-w-0">' +
+                    '<p class="text-[11px] font-bold text-white truncate">' + nombre + '</p>' +
+                    '<p class="text-[9px] text-slate-500">' + (doc || 'Sin documento') +
+                    (t.celular ? ' · ' + t.celular : '') + '</p>' +
+                    '</div></button>'
+                );
+            }).join('');
+        })
+        .catch(() => {
+            document.getElementById('mov-lista-terceros').innerHTML =
+                '<p class="text-[10px] text-red-500 text-center py-4 font-bold uppercase">Error al buscar</p>';
+        });
+}
+
+window.seleccionarTerceroMovimiento = function (id, nombre, documento) {
+    window._terceroMovimiento = { id: id, nombre: nombre, documento: documento };
+    document.getElementById('mov-tercero-nombre').textContent = nombre;
+    document.getElementById('mov-tercero-doc').textContent = documento || 'Sin documento';
+    const sel = document.getElementById('mov-tercero-seleccionado');
+    sel.classList.remove('hidden');
+    sel.classList.add('flex');
+    document.getElementById('mov-btn-buscar-tercero').classList.add('hidden');
+    cerrarCrearTerceroInline();
+    cerrarBuscadorTerceroMovimiento();
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    const inputBuscarTerceroMov = document.getElementById('mov-buscar-tercero-input');
+    if (!inputBuscarTerceroMov) return;
+
+    inputBuscarTerceroMov.addEventListener('input', function () {
+        clearTimeout(window._terceroMovTimer);
+        const q = this.value.trim();
+        if (q.length < 2) {
+            document.getElementById('mov-lista-terceros').innerHTML =
+                '<p class="text-[10px] text-slate-600 text-center py-4 font-bold uppercase">Escribe al menos 2 caracteres...</p>';
+            return;
+        }
+        document.getElementById('mov-lista-terceros').innerHTML =
+            '<p class="text-[10px] text-slate-500 text-center py-4 font-bold uppercase">Buscando...</p>';
+        window._terceroMovTimer = setTimeout(function () { buscarTercerosMovimiento(q); }, 350);
+    });
+});
+
+// ---- Crear tercero inline (cuando no existe en la búsqueda) --------------
+
+window._tipoTerceroInline = 'persona';
+
+window.abrirCrearTerceroInline = function () {
+    seleccionarTipoTerceroInline('persona');
+    ['ct_nombre', 'ct_apellido', 'ct_cedula', 'ct_razon_social', 'ct_nit', 'ct_celular', 'ct_email', 'ct_direccion', 'ct_ciudad'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+
+    // Si ya escribió algo numérico en el buscador, lo sugerimos como documento
+    const q = document.getElementById('mov-buscar-tercero-input').value.trim();
+    if (q && /^\d+$/.test(q)) {
+        document.getElementById('ct_cedula').value = q;
+        document.getElementById('ct_nit').value = q;
+    }
+
+    document.getElementById('modalCrearTerceroMovimiento').classList.add('show');
+};
+
+window.cerrarCrearTerceroInline = function () {
+    document.getElementById('modalCrearTerceroMovimiento').classList.remove('show');
+};
+
+window.seleccionarTipoTerceroInline = function (tipo) {
+    window._tipoTerceroInline = tipo;
+    const btnP = document.getElementById('ct-btn-persona');
+    const btnE = document.getElementById('ct-btn-empresa');
+    const camposP = document.getElementById('ct-campos-persona');
+    const camposE = document.getElementById('ct-campos-empresa');
+
+    if (tipo === 'persona') {
+        btnP.style.background = '#1a2d50'; btnP.style.borderColor = '#2d4a7a'; btnP.style.color = '#93c5fd';
+        btnE.style.background = '#1a2235'; btnE.style.borderColor = '#283347'; btnE.style.color = '#475569';
+        camposP.classList.remove('hidden');
+        camposE.classList.add('hidden');
+    } else {
+        btnE.style.background = '#1a2d50'; btnE.style.borderColor = '#2d4a7a'; btnE.style.color = '#93c5fd';
+        btnP.style.background = '#1a2235'; btnP.style.borderColor = '#283347'; btnP.style.color = '#475569';
+        camposE.classList.remove('hidden');
+        camposP.classList.add('hidden');
+    }
+};
+
+window.guardarTerceroInlineMovimiento = function () {
+    const tipo = window._tipoTerceroInline;
+    const payload = {
+        tipo: tipo,
+        celular: document.getElementById('ct_celular').value.trim(),
+        email: document.getElementById('ct_email').value.trim(),
+        direccion: document.getElementById('ct_direccion').value.trim(),
+        ciudad: document.getElementById('ct_ciudad').value.trim()
+    };
+
+    if (tipo === 'persona') {
+        payload.nombre = document.getElementById('ct_nombre').value.trim();
+        payload.apellido = document.getElementById('ct_apellido').value.trim();
+        payload.cedula = document.getElementById('ct_cedula').value.trim();
+        if (!payload.nombre || !payload.apellido) {
+            window.notificar('Nombres y apellidos son obligatorios', 'warning');
+            return;
+        }
+    } else {
+        payload.razon_social = document.getElementById('ct_razon_social').value.trim();
+        payload.nit = document.getElementById('ct_nit').value.trim();
+        if (!payload.razon_social) {
+            window.notificar('La razón social es obligatoria', 'warning');
+            return;
+        }
+    }
+
+    if (!payload.celular) {
+        window.notificar('El celular es obligatorio', 'warning');
+        return;
+    }
+
+    fetch('/pedidos/terceros', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json().then(d => ({ ok: r.ok, d })))
+        .then(({ ok, d }) => {
+            if (!ok) {
+                throw new Error(d.errors ? Object.values(d.errors).flat().join(', ') : (d.message || 'No se pudo crear el tercero'));
+            }
+            const t = d.data;
+            const nombre = tipo === 'persona' ? (t.nombre + ' ' + (t.apellido || '')).trim() : t.razon_social;
+            const doc = tipo === 'persona' ? t.cedula : t.nit;
+            window.notificar('Tercero creado: ' + nombre, 'success');
+            seleccionarTerceroMovimiento(t.id, nombre, doc || '');
+        })
+        .catch(e => window.notificar('Error: ' + e.message, 'error'));
 };
 
 // ============================================================

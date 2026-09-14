@@ -34,6 +34,15 @@ class Factura extends Model
         ,'estado_pago'
         ,'total_pagado'
         ,'saldo_pendiente'
+        ,'cufe'
+        ,'numero_proveedor'
+        ,'xml_url'
+        ,'pdf_url'
+        ,'qr_texto'
+        ,'estado_dian'
+        ,'mensaje_dian'
+        ,'intentos_dian'
+        ,'fecha_transmision_dian'
     ];
 
     /**
@@ -81,5 +90,17 @@ class Factura extends Model
     public function pagosCliente()
     {
         return $this->hasMany(PagoClienteAplicacion::class);
+    }
+
+    /** Desglose de formas de pago cuando metodo_pago = 'mixto'. */
+    public function pagos()
+    {
+        return $this->hasMany(FacturaPago::class);
+    }
+
+    /** Notas crédito/débito emitidas contra esta factura. */
+    public function notas()
+    {
+        return $this->hasMany(NotaFactura::class);
     }
 }

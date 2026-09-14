@@ -19,7 +19,19 @@ class Tercero extends Model
         'email',
         'celular',
         'direccion',
+        'ciudad',
+        'regimen_tributario',
+        'codigo_ciiu',
         'estado'
+    ];
+
+    /** Valores válidos para régimen_tributario (exógena DIAN, Formato 1001). */
+    public const REGIMENES_TRIBUTARIOS = [
+        'no_responsable_iva' => 'No responsable de IVA',
+        'responsable_iva' => 'Responsable de IVA',
+        'gran_contribuyente' => 'Gran Contribuyente',
+        'autorretenedor' => 'Autorretenedor',
+        'regimen_simple' => 'Régimen Simple de Tributación',
     ];
 
     // =========================================
@@ -40,5 +52,20 @@ class Tercero extends Model
         return $this->tipo === 'persona'
             ? "{$this->nombre} {$this->apellido}"
             : $this->razon_social;
+    }
+
+    /**
+     * Deja una identificación (NIT o cédula) en solo dígitos, sin el guion
+     * ni el DV — formato que exige Factus (y cualquier otro proveedor DIAN).
+     * Antes esto solo se aplicaba al enviar la factura; el dato guardado en
+     * `terceros` seguía como el usuario lo hubiera escrito (con puntos,
+     * espacios o el DV pegado), así que otros reportes que leyeran el NIT
+     * directo heredaban esa inconsistencia.
+     */
+    public static function soloDigitos(string $identificacion): string
+    {
+        $limpio = preg_replace('/[^\d-]/', '', $identificacion);
+
+        return explode('-', $limpio)[0];
     }
 }

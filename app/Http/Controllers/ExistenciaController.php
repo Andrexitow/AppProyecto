@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bodega;
+use App\Models\Impresora;
+use App\Services\PrintService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -53,5 +55,31 @@ class ExistenciaController extends Controller
             // Esto devolverá el error real en lugar de un simple "500"
             return response()->json(['message' => 'Error en controlador: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Encola el reporte de existencias (ya formateado como texto de ticket
+     * por el frontend) hacia una impresora de red concreta — el agente local
+     * instalado en el negocio es quien realmente lo envía por IP, igual que
+     * hace con las comandas de cocina/barra.
+     */
+    public function imprimirRed(Request $request, PrintService $printService)
+    {
+        $datos = $request->validate([
+            'impresora_id' => 'required|exists:impresoras,id',
+            'contenido' => 'required|string',
+        ]);
+
+        $impresora = Impresora::where('activa', true)->findOrFail($datos['impresora_id']);
+        $resultado = $printService->imprimirInventario($datos['contenido'], $impresora);
+
+        if ($resultado['status'] !== 'success') {
+            return response()->json(['message' => $resultado['message'] ?? 'No se pudo encolar el reporte.'], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Reporte enviado a la cola de \"{$impresora->nombre}\". Se imprimirá en unos segundos.",
+        ]);
     }
 }

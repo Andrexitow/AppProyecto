@@ -68,6 +68,7 @@
             <p class="sec-title">💰 Cuentas por Cobrar</p>
             <p class="sec-subtitle">Ventas a crédito, abonos y saldos de clientes</p>
         </div>
+        <button class="btn-outline" onclick="abrirProvisionCartera()">🛡️ Provisión de cartera</button>
     </div>
 
     <div class="metrics-row" id="cxc-metrics"></div>
@@ -99,6 +100,33 @@
             </table>
         </div>
         <div class="pagination-bar" id="cxc-paginacion" style="display:none;"></div>
+    </div>
+</div>
+
+{{-- MODAL PROVISIÓN DE CARTERA --}}
+<div id="modal-provision-cxc" style="display:none;" class="modal-backdrop">
+    <div class="modal-box" style="max-width:640px;">
+        <div class="modal-head">
+            <div><p class="modal-head-title">Provisión de Cartera</p><p class="modal-head-sub">Deterioro por antigüedad de cartera vencida (0% / 10% / 20% / 50% / 100%)</p></div>
+            <button onclick="cerrarProvisionCartera()" style="border:0;background:transparent;font-size:20px;cursor:pointer;">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="co-grid" style="margin-bottom:14px;">
+                <div class="co-field"><label>Fecha de corte</label><input id="prov-fecha" type="date"></div>
+                <div class="co-field" style="display:flex;align-items:flex-end;"><button class="btn-outline" style="width:100%;" onclick="calcularProvisionCartera()">🔄 Calcular</button></div>
+            </div>
+            <div id="prov-resumen" style="font-size:12.5px;color:#374151;"></div>
+            <div class="table-scroll" style="margin-top:10px;max-height:260px;overflow-y:auto;">
+                <table class="cxc-tbl" style="font-size:12px;">
+                    <thead><tr><th>Factura</th><th>Cliente</th><th>Días mora</th><th style="text-align:right;">Saldo</th><th style="text-align:right;">%</th><th style="text-align:right;">Provisión</th></tr></thead>
+                    <tbody id="prov-detalle"><tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:16px;">Presione "Calcular"</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-outline" onclick="cerrarProvisionCartera()">Cerrar</button>
+            <button class="btn-primary" id="btn-prov-contabilizar" onclick="contabilizarProvisionCartera()" disabled>💾 Contabilizar Ajuste</button>
+        </div>
     </div>
 </div>
 
@@ -257,4 +285,50 @@
         if (typeof mostrarNotificacion === 'function') { mostrarNotificacion(msg, tipo === 'error' ? 'error' : 'success'); return; }
         window.alert(msg);
     }
+
+    /* ── Provisión de cartera ── */
+    var PROV = { ajuste: null };
+
+    window.abrirProvisionCartera = function () {
+        document.getElementById('prov-fecha').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('prov-resumen').innerHTML = '';
+        document.getElementById('prov-detalle').innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:16px;">Presione "Calcular"</td></tr>';
+        document.getElementById('btn-prov-contabilizar').disabled = true;
+        document.getElementById('modal-provision-cxc').style.display = 'flex';
+    };
+    window.cerrarProvisionCartera = function () { document.getElementById('modal-provision-cxc').style.display = 'none'; };
+
+    window.calcularProvisionCartera = function () {
+        var fecha = document.getElementById('prov-fecha').value;
+        fetch('/cuentas-por-cobrar/provision/calculo?fecha=' + fecha, { headers: hdrsCxc() }).then(function (r) { return r.json(); }).then(function (d) {
+            var ajuste = d.total_provision_requerida - d.provision_actual;
+            PROV.ajuste = ajuste;
+            document.getElementById('prov-resumen').innerHTML =
+                'Cartera total a crédito: <b>' + fmtMoneyCxc(d.total_cartera) + '</b> · ' +
+                'Provisión requerida: <b>' + fmtMoneyCxc(d.total_provision_requerida) + '</b> · ' +
+                'Provisión actual: <b>' + fmtMoneyCxc(d.provision_actual) + '</b> · ' +
+                'Ajuste a contabilizar: <b style="color:' + (ajuste > 0 ? '#DC2626' : (ajuste < 0 ? '#059669' : '#374151')) + '">' + fmtMoneyCxc(ajuste) + '</b>';
+
+            document.getElementById('prov-detalle').innerHTML = d.detalle.length ? d.detalle.map(function (f) {
+                return '<tr><td><span class="td-mono">' + escCxc(f.factura) + '</span></td><td>' + escCxc(f.cliente) + '</td>' +
+                    '<td>' + f.dias_mora + '</td><td class="td-money">' + fmtMoneyCxc(f.saldo) + '</td>' +
+                    '<td style="text-align:right;">' + f.porcentaje + '%</td><td class="td-money">' + fmtMoneyCxc(f.provision) + '</td></tr>';
+            }).join('') : '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:16px;">Sin cartera vencida que provisionar</td></tr>';
+
+            document.getElementById('btn-prov-contabilizar').disabled = Math.abs(ajuste) < 0.01;
+        }).catch(function () { notifCxc('No fue posible calcular la provisión.', 'error'); });
+    };
+
+    window.contabilizarProvisionCartera = function () {
+        var fecha = document.getElementById('prov-fecha').value;
+        fetch('/cuentas-por-cobrar/provision/contabilizar', {
+            method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, hdrsCxc()), body: JSON.stringify({ fecha: fecha }),
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (r) {
+                if (!r.ok) throw new Error(r.data.message || 'No se pudo contabilizar la provisión.');
+                notifCxc(r.data.message, 'success');
+                cerrarProvisionCartera();
+            })
+            .catch(function (e) { notifCxc(e.message, 'error'); });
+    };
 </script>

@@ -51,5 +51,6 @@ class DatabaseSeeder extends Seeder
         $this->command->call('app:asignar-integraciones');
 
         $this->call(MetodoPagoContableSeeder::class);
+        $this->call(ConceptoCajaSeeder::class);
     }
 }

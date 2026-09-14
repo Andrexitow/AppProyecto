@@ -15,7 +15,15 @@ class AuthController extends Controller
         if (Auth::check()) {
             return redirect('/');
         }
-        return view('auth.login');
+
+        // Evita que el navegador sirva esta página desde su caché (botón
+        // "atrás" o bfcache) tras un logout: si eso pasara, el formulario
+        // traería un _token de una sesión ya invalidada y el login
+        // terminaría en "419 Page Expired" en vez de iniciar sesión.
+        return response(view('auth.login'))->withHeaders([
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+        ]);
     }
 
     public function login(Request $request)

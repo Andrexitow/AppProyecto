@@ -10,7 +10,12 @@ use App\Http\Controllers\{
     CompraController,
     CompraAvanzadaController,
     CuentaPorCobrarController,
+    CuentaPorPagarController,
     TesoreriaController,
+    ActivoFijoController,
+    SaldoInicialController,
+    NominaController,
+    ConciliacionBancariaController,
     PeriodoContableController,
     DocumentoController,
     CierreCajaController,
@@ -24,8 +29,13 @@ use App\Http\Controllers\{
     ExistenciaController,
     FacturacionController,
     FacturaController,
+    NotaFacturaController,
     GrupomenuController,
     ImpresoraController,
+    PrefijoController,
+    ConceptoCajaController,
+    ConfiguracionEmisorController,
+    VentaProductoController,
     InformeContableController,
     KardexController,
     LogActividadController,
@@ -65,14 +75,28 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/logs/data', [LogActividadController::class, 'data'])
         ->middleware('role:Administrador');
 
+    // Todo lo operativo del POS quedaba solo detrás de "auth": cualquier
+    // usuario autenticado (p. ej. Contabilidad) podía invocar estas acciones
+    // por URL directa aunque no viera el menú de facturación. index() ya
+    // validaba el rol manualmente, pero las acciones no.
     Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
-    Route::post('/mesas/{id}/bloquear', [FacturacionController::class, 'bloquearMesa']);
-    Route::post('/mesas/{id}/liberar', [FacturacionController::class, 'liberarMesa']);
-    Route::get('/mesas/actualizar', [FacturacionController::class, 'obtenerEstadoMesas']);
-    Route::post('/pedidos/guardar', [FacturacionController::class, 'guardarPedido']);
-    Route::post('/pedidos/cliente', [FacturacionController::class, 'actualizarClientePedido']);
-    Route::get('/pedidos/mesa/{mesaId}/pendiente', [FacturacionController::class, 'obtenerPedidoPendiente']);
-    Route::post('/pedidos/eliminar-item', [FacturacionController::class, 'eliminarItemPedido']);
+    Route::post('/mesas/{id}/bloquear', [FacturacionController::class, 'bloquearMesa'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/mesas/{id}/liberar', [FacturacionController::class, 'liberarMesa'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::get('/mesas/actualizar', [FacturacionController::class, 'obtenerEstadoMesas'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/pedidos/guardar', [FacturacionController::class, 'guardarPedido'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/pedidos/cliente', [FacturacionController::class, 'actualizarClientePedido'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::get('/pedidos/mesa/{mesaId}/pendiente', [FacturacionController::class, 'obtenerPedidoPendiente'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/pedidos/eliminar-item', [FacturacionController::class, 'eliminarItemPedido'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/pedidos/guardar-movimiento', [FacturacionController::class, 'guardarMovimiento'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::get('/conceptos-caja/opciones', [ConceptoCajaController::class, 'opciones'])->middleware('role:Mesero,Administrador,Cajero');
+
+    // Búsqueda/creación de terceros desde el POS (cajero/mesero): mismos
+    // métodos que el módulo de Terceros, pero sin exigir rol Administrador/
+    // Contabilidad — se usan tanto para el cliente de la venta como para
+    // el tercero que recibe una salida de caja.
+    Route::get('/pedidos/terceros/buscar', [TerceroController::class, 'buscar'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::get('/pedidos/terceros/buscar-doc', [TerceroController::class, 'buscarPorDocumento'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/pedidos/terceros', [TerceroController::class, 'store'])->middleware('role:Mesero,Administrador,Cajero');
 
     Route::get('/cocina', [CocinaController::class, 'index'])->middleware('role:Cocina,Administrador')->name('cocina.index');
     Route::get('/cocina/comandas', [CocinaController::class, 'comandas'])->middleware('role:Cocina,Administrador');
@@ -87,7 +111,10 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/facturas/{id}', [FacturaController::class, 'show'])->middleware('role:Administrador,Contabilidad');
     Route::post('/facturas/{id}/anular', [FacturaController::class, 'anular'])->middleware('role:Administrador');
     Route::post('/facturas/{id}/revertir', [FacturaController::class, 'revertirAnulacion'])->middleware('role:Administrador');
+    Route::post('/facturas/{id}/reintentar-dian', [FacturaController::class, 'reintentarDian'])->middleware('role:Administrador');
     Route::post('/facturas/{id}/imprimir', [FacturaController::class, 'imprimir'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/facturas/{factura}/notas', [NotaFacturaController::class, 'index'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/facturas/{factura}/notas', [NotaFacturaController::class, 'store'])->middleware('role:Administrador');
 
     Route::get('/views/comprobantes', [ComprobanteController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('comprobantes.index');
     Route::get('/comprobantes', [ComprobanteController::class, 'data'])->middleware('role:Administrador,Contabilidad');
@@ -109,6 +136,9 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/informes-contables/libro-auxiliar', [InformeContableController::class, 'libroAuxiliar'])->middleware('role:Administrador,Contabilidad');
     Route::get('/informes-contables/estado-resultados', [InformeContableController::class, 'estadoResultados'])->middleware('role:Administrador,Contabilidad');
     Route::get('/informes-contables/balance-general', [InformeContableController::class, 'balanceGeneral'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/informes-contables/iva-periodo', [InformeContableController::class, 'ivaPeriodo'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/informes-contables/retenciones', [InformeContableController::class, 'retenciones'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/informes-contables/indicadores', [InformeContableController::class, 'indicadores'])->middleware('role:Administrador,Contabilidad');
 
     Route::get('/views/kardex', [KardexController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('kardex.index');
     Route::get('/kardex/bodegas', [KardexController::class, 'bodegas'])->middleware('role:Administrador,Contabilidad');
@@ -121,6 +151,14 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/cuentas-por-cobrar/resumen', [CuentaPorCobrarController::class, 'resumen'])->middleware('role:Administrador,Contabilidad');
     Route::get('/cuentas-por-cobrar/{factura}', [CuentaPorCobrarController::class, 'show'])->middleware('role:Administrador,Contabilidad');
     Route::post('/cuentas-por-cobrar/{factura}/abonos', [CuentaPorCobrarController::class, 'registrarAbono'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/cuentas-por-cobrar/provision/calculo', [CuentaPorCobrarController::class, 'provisionCalculo'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/cuentas-por-cobrar/provision/contabilizar', [CuentaPorCobrarController::class, 'provisionContabilizar'])->middleware('role:Administrador,Contabilidad');
+
+    Route::get('/views/cuentas-por-pagar', [CuentaPorPagarController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('cuentas-por-pagar.index');
+    Route::get('/cuentas-por-pagar', [CuentaPorPagarController::class, 'data'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/cuentas-por-pagar/resumen', [CuentaPorPagarController::class, 'resumen'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/cuentas-por-pagar/{compra}', [CuentaPorPagarController::class, 'show'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/cuentas-por-pagar/{compra}/abonos', [CuentaPorPagarController::class, 'registrarAbono'])->middleware('role:Administrador,Contabilidad');
 
     Route::get('/views/tesoreria', [TesoreriaController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('tesoreria.index');
     Route::get('/tesoreria/cuentas', [TesoreriaController::class, 'cuentas'])->middleware('role:Administrador,Contabilidad');
@@ -129,6 +167,37 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::post('/tesoreria/ingresos', [TesoreriaController::class, 'registrarIngreso'])->middleware('role:Administrador,Contabilidad');
     Route::post('/tesoreria/egresos', [TesoreriaController::class, 'registrarEgreso'])->middleware('role:Administrador,Contabilidad');
     Route::post('/tesoreria/transferencias', [TesoreriaController::class, 'registrarTransferencia'])->middleware('role:Administrador,Contabilidad');
+
+    Route::get('/conciliacion-bancaria/resumen', [ConciliacionBancariaController::class, 'resumen'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/conciliacion-bancaria/lineas', [ConciliacionBancariaController::class, 'storeLinea'])->middleware('role:Administrador,Contabilidad');
+    Route::delete('/conciliacion-bancaria/lineas/{linea}', [ConciliacionBancariaController::class, 'destroyLinea'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/conciliacion-bancaria/lineas/{linea}/conciliar', [ConciliacionBancariaController::class, 'conciliar'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/conciliacion-bancaria/lineas/{linea}/desconciliar', [ConciliacionBancariaController::class, 'desconciliar'])->middleware('role:Administrador,Contabilidad');
+
+    Route::get('/views/activos-fijos', [ActivoFijoController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('activos-fijos.index');
+    Route::get('/activos-fijos', [ActivoFijoController::class, 'data'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/activos-fijos/cuentas-contrapartida', [ActivoFijoController::class, 'cuentasContrapartida'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/activos-fijos', [ActivoFijoController::class, 'store'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/activos-fijos/depreciar', [ActivoFijoController::class, 'depreciar'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/activos-fijos/{activoFijo}', [ActivoFijoController::class, 'show'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/activos-fijos/{activoFijo}/baja', [ActivoFijoController::class, 'baja'])->middleware('role:Administrador,Contabilidad');
+
+    Route::get('/views/saldos-iniciales', [SaldoInicialController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('saldos-iniciales.index');
+    Route::get('/saldos-iniciales/cuentas', [SaldoInicialController::class, 'cuentas'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/saldos-iniciales/historial', [SaldoInicialController::class, 'historial'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/saldos-iniciales', [SaldoInicialController::class, 'store'])->middleware('role:Administrador,Contabilidad');
+
+    Route::get('/views/nomina', [NominaController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('nomina.index');
+    Route::get('/nomina/empleados', [NominaController::class, 'empleados'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/nomina/empleados', [NominaController::class, 'storeEmpleado'])->middleware('role:Administrador,Contabilidad');
+    Route::put('/nomina/empleados/{empleado}', [NominaController::class, 'updateEmpleado'])->middleware('role:Administrador,Contabilidad');
+    Route::put('/nomina/empleados/{empleado}/estado', [NominaController::class, 'cambiarEstadoEmpleado'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/nomina/parametros', [NominaController::class, 'parametros'])->middleware('role:Administrador,Contabilidad');
+    Route::put('/nomina/parametros', [NominaController::class, 'updateParametros'])->middleware('role:Administrador');
+    Route::get('/nomina/liquidaciones', [NominaController::class, 'liquidaciones'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/nomina/liquidaciones', [NominaController::class, 'liquidar'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/nomina/liquidaciones/{liquidacion}', [NominaController::class, 'show'])->middleware('role:Administrador,Contabilidad');
+    Route::post('/nomina/liquidaciones/{liquidacion}/anular', [NominaController::class, 'anularLiquidacion'])->middleware('role:Administrador,Contabilidad');
 
     Route::get('/views/periodos-contables', [PeriodoContableController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('periodos-contables.index');
     Route::get('/periodos-contables', [PeriodoContableController::class, 'data'])->middleware('role:Administrador,Contabilidad');
@@ -173,10 +242,12 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/bodegas', [FacturaController::class, 'catalogoBodegas']);
     Route::get('/productos', [FacturaController::class, 'catalogoProductos']);
 
-    Route::post('/pedidos/imprimir-inventario-pos', [FacturacionController::class, 'imprimirInventarioPos']);
-    Route::post('/pedidos/procesar-cierre-caja', [FacturacionController::class, 'procesarCierreCaja']);
+    Route::post('/pedidos/imprimir-inventario-pos', [FacturacionController::class, 'imprimirInventarioPos'])->middleware('role:Administrador,Cajero');
+    Route::post('/pedidos/procesar-cierre-caja', [FacturacionController::class, 'procesarCierreCaja'])->middleware('role:Administrador,Cajero');
 
-    Route::post('/pedidos/cerrar-mesa', [FacturacionController::class, 'cerrarMesa'])->name('pedidos.cerrar');
+    // cerrarMesa ya valida el rol adentro (Administrador/Cajero, sin Mesero);
+    // el middleware es una segunda barrera para no depender solo de eso.
+    Route::post('/pedidos/cerrar-mesa', [FacturacionController::class, 'cerrarMesa'])->name('pedidos.cerrar')->middleware('role:Administrador,Cajero');
 
     // Productos
     Route::get('/views/productos', [ProductoController::class, 'index'])->middleware('role:Administrador')->name('productos.index');
@@ -216,6 +287,7 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     // Existencias
     Route::get('/views/existencias', [ExistenciaController::class, 'index'])->middleware('role:Administrador')->name('existencias.index');
     Route::get('/existencias/data', [ExistenciaController::class, 'data'])->middleware('role:Administrador')->name('existencias.data');
+    Route::post('/existencias/imprimir-red', [ExistenciaController::class, 'imprimirRed'])->middleware('role:Administrador');
 
     // Traslados entre bodegas
     Route::get('/views/traslados-bodega', [TrasladoBodegaController::class, 'index'])->middleware('role:Administrador')->name('traslados-bodega.index');
@@ -261,6 +333,31 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::put('/cajas/{id}', [CajaController::class, 'update'])->middleware('role:Administrador');
 
     Route::get('/views/impresoras', [ImpresoraController::class, 'index'])->middleware('role:Administrador')->name('impresoras.index');
+
+    Route::get('/views/prefijos', [PrefijoController::class, 'index'])->middleware('role:Administrador')->name('prefijos.index');
+    Route::get('/prefijos', [PrefijoController::class, 'data'])->middleware('role:Administrador');
+    Route::get('/prefijos/opciones', [PrefijoController::class, 'opciones'])->middleware('role:Administrador');
+    Route::post('/prefijos', [PrefijoController::class, 'store'])->middleware('role:Administrador');
+    Route::put('/prefijos/{prefijo}', [PrefijoController::class, 'update'])->middleware('role:Administrador');
+    Route::put('/prefijos/{prefijo}/estado', [PrefijoController::class, 'cambiarEstado'])->middleware('role:Administrador');
+    Route::delete('/prefijos/{prefijo}', [PrefijoController::class, 'destroy'])->middleware('role:Administrador');
+
+    Route::get('/views/conceptos-caja', [ConceptoCajaController::class, 'index'])->middleware('role:Administrador')->name('conceptos-caja.index');
+    Route::get('/conceptos-caja', [ConceptoCajaController::class, 'data'])->middleware('role:Administrador');
+    Route::post('/conceptos-caja', [ConceptoCajaController::class, 'store'])->middleware('role:Administrador');
+    Route::put('/conceptos-caja/{conceptoCaja}', [ConceptoCajaController::class, 'update'])->middleware('role:Administrador');
+    Route::put('/conceptos-caja/{conceptoCaja}/estado', [ConceptoCajaController::class, 'cambiarEstado'])->middleware('role:Administrador');
+    Route::delete('/conceptos-caja/{conceptoCaja}', [ConceptoCajaController::class, 'destroy'])->middleware('role:Administrador');
+
+    Route::get('/views/configuracion-emisor', [ConfiguracionEmisorController::class, 'index'])->middleware('role:Administrador')->name('configuracion-emisor.index');
+    Route::get('/configuracion-emisor/datos', [ConfiguracionEmisorController::class, 'show'])->middleware('role:Administrador');
+    Route::put('/configuracion-emisor', [ConfiguracionEmisorController::class, 'update'])->middleware('role:Administrador');
+
+    Route::get('/views/venta-productos', [VentaProductoController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('venta-productos.index');
+    Route::get('/venta-productos/filtros', [VentaProductoController::class, 'filtros'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/venta-productos/reporte', [VentaProductoController::class, 'reporte'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/views/propinas-vendedor', [VentaProductoController::class, 'propinas'])->middleware('role:Administrador,Contabilidad')->name('propinas-vendedor.index');
+    Route::get('/propinas-vendedor/reporte', [VentaProductoController::class, 'reportePropinas'])->middleware('role:Administrador,Contabilidad');
 
 
     // // Rutas de API para el CRUD (estas SÍ usan sesión de navegador, son del panel admin)

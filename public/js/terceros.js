@@ -287,7 +287,7 @@ window.editarTercero = function (id) {
             const form = document.getElementById('formTercero');
             window.terceroEditandoId = id;
             form.querySelector(`input[name="tipo"][value="${data.tipo}"]`).checked = true;
-            ['nombre', 'apellido', 'cedula', 'razon_social', 'nit', 'email', 'celular', 'direccion'].forEach(campo => {
+            ['nombre', 'apellido', 'cedula', 'razon_social', 'nit', 'email', 'celular', 'direccion', 'ciudad', 'regimen_tributario', 'codigo_ciiu'].forEach(campo => {
                 form.elements[campo].value = data[campo] || '';
             });
             const chkActivo = document.getElementById('tc-activo');
