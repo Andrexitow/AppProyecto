@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png"
         href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
     <title>Nexora | Historial de Cocina</title>
+    @include('partials.pwa-head')
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap"
         rel="stylesheet">
@@ -619,6 +620,7 @@
         });
         cargar();
     </script>
+    @include('partials.pwa-register')
 </body>
 
 </html>

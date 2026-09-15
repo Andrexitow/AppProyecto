@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
     <title>Nexora | POS Terminal</title>
+    @include('partials.pwa-head')
     <script src="https://cdn.tailwindcss.com"></script>
 
     <link rel="stylesheet"
@@ -1297,6 +1298,7 @@
             }, 350);
         });
     </script>
+    @include('partials.pwa-register')
 
 </body>
 

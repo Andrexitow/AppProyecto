@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" type="image/png">
     <title>{{ $title ?? 'Iniciar sesión — Nexora' }}</title>
+    @include('partials.pwa-head')
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -744,6 +745,7 @@
             requestAnimationFrame(step);
         })();
     </script>
+    @include('partials.pwa-register')
 </body>
 
 </html>

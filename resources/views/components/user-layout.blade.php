@@ -7,6 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
     <title>Nexora | Panel administrativo</title>
+    @include('partials.pwa-head')
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     {{-- <link href="{{ asset('css/app.css') }}" rel="stylesheet"> --}}
@@ -734,6 +735,7 @@
             modal.classList.add('hidden');
         }
     </script>
+    @include('partials.pwa-register')
 
 </body>
 
