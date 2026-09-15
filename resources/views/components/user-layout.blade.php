@@ -442,7 +442,7 @@
                 <div class="nav-section-label">Catálogo e inventario</div>
                 <button class="nav-item" onclick="loadViewAndClose('productos')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Productos</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('grupos')"><span class="nav-item-icon">🏷️</span><span class="nav-item-label">Grupos de menú</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('categorias_pos')"><span class="nav-item-icon">🗂️</span><span class="nav-item-label">Categorías POS</span></button>
+                {{-- <button class="nav-item" onclick="loadViewAndClose('categorias_pos')"><span class="nav-item-icon">🗂️</span><span class="nav-item-label">Categorías POS</span></button> --}}
                 <button class="nav-item" onclick="loadViewAndClose('bodegas')"><span class="nav-item-icon">🏭</span><span class="nav-item-label">Bodegas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('existencias')"><span class="nav-item-icon">📋</span><span class="nav-item-label">Existencias</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('consumos')"><span class="nav-item-icon">🥣</span><span class="nav-item-label">Consumos</span></button>
