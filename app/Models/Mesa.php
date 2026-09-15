@@ -10,7 +10,11 @@ class Mesa extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['zona_id', 'numero', 'capacidad', 'estado'];
+    protected $fillable = ['zona_id', 'numero', 'capacidad', 'estado', 'bloqueada_por', 'bloqueada_at'];
+
+    protected $casts = [
+        'bloqueada_at' => 'datetime',
+    ];
 
     // Una mesa pertenece a una zona
     public function zona()
@@ -22,5 +26,11 @@ class Mesa extends Model
     {
         // Una mesa puede tener muchos pedidos a lo largo del tiempo
         return $this->hasMany(Pedido::class);
+    }
+
+    /** Quién la tomó mientras arma el pedido (antes de que exista un Pedido real). */
+    public function bloqueadaPor()
+    {
+        return $this->belongsTo(User::class, 'bloqueada_por');
     }
 }

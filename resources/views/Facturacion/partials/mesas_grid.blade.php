@@ -2,6 +2,7 @@
     @php
         $pedidoActivo = $mesa->pedidos->where('estado', 'pendiente')->first();
         $esMia = $pedidoActivo && $pedidoActivo->user_id === Auth::id();
+        $esMiaSeleccionada = $mesa->estado === 'seleccionada' && $mesa->bloqueada_por === Auth::id();
         $esAdmin = Auth::user()->rol->nombre === 'Administrador';
         $esCajero = Auth::user()->rol->nombre === 'Cajero';
         $esCajeroOAdmin = $esCajero || $esAdmin;
@@ -58,6 +59,12 @@
         @if ($esMia)
             <div class="absolute -top-2 -right-2 bg-white text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full shadow-lg z-10">
                 TU MESA
+            </div>
+
+        {{-- ETIQUETA: la seleccionaste tú, todavía sin pedido enviado --}}
+        @elseif ($esMiaSeleccionada)
+            <div class="absolute -top-2 -right-2 bg-amber-400 text-amber-900 text-[10px] font-black px-3 py-1 rounded-full shadow-lg z-10">
+                TU SELECCIÓN
             </div>
 
         {{-- ETIQUETA: cajero/admin ve el nombre del mesero de su caja --}}

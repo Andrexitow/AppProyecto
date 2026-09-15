@@ -22,6 +22,7 @@
         .counter { background:var(--ink); color:#fff; padding:10px 14px; border-radius:10px; font:13px "DM Mono",monospace; white-space:nowrap; } .counter b { color:var(--lime); }
         .orders { display:grid; grid-template-columns:repeat(auto-fill,minmax(305px,1fr)); gap:18px; align-items:start; }
         .order { border:1px solid var(--line); border-radius:18px; background:var(--card); overflow:hidden; box-shadow:0 8px 23px rgba(44,44,27,.06); animation:enter .32s ease both; }
+        .items li.cancelado { opacity:.62; } .items li.cancelado .qty { background:#f2d7ce; color:#9a301d; } .items li.cancelado .item-name { text-decoration:line-through; text-decoration-color:#b63d26; } .cancel-flag { display:inline-flex; align-items:center; gap:6px; margin-top:5px; padding:3px 7px; border-radius:999px; background:#fee2dc; color:#9a301d; font:10px "DM Mono",monospace; font-weight:600; letter-spacing:.03em; }
         .order-head { padding:16px 17px 14px; border-bottom:1px solid var(--line); background:#f7f2e7; display:flex; justify-content:space-between; gap:10px; }
         .mesa { font-size:21px; font-weight:700; letter-spacing:-.7px; } .zone { color:var(--muted); font-size:12px; margin-top:3px; }
         .time { text-align:right; font:11px "DM Mono",monospace; color:var(--hot); } .time strong { display:block; font:15px "Space Grotesk",sans-serif; color:var(--ink); margin-top:2px; }
@@ -71,7 +72,12 @@
                 return;
             }
             destino.innerHTML = comandas.map(c => {
-                const items = c.items.map(i => '<li><span class="qty">' + escapar(i.cantidad) + 'x</span><div><div class="item-name">' + escapar(i.producto) + '</div>' + (i.observacion ? '<div class="note">NOTA: ' + escapar(i.observacion) + '</div>' : '') + '</div></li>').join('');
+                const items = c.items.map(i => {
+                    // Ítem cancelado después de enviado a cocina: no desaparece,
+                    // queda tachado en su misma comanda con quién lo canceló.
+                    const flag = i.cancelado ? '<div class="cancel-flag">CANCELADO' + (i.cancelado_por ? ' POR ' + escapar(i.cancelado_por).toUpperCase() : '') + '</div>' : '';
+                    return '<li class="' + (i.cancelado ? 'cancelado' : '') + '"><span class="qty">' + escapar(i.cantidad) + 'x</span><div><div class="item-name">' + escapar(i.producto) + '</div>' + (i.observacion ? '<div class="note">NOTA: ' + escapar(i.observacion) + '</div>' : '') + flag + '</div></li>';
+                }).join('');
                 const respaldo = !items && c.contenido_respaldo ? '<pre class="fallback">' + escapar(c.contenido_respaldo) + '</pre>' : '';
                 return '<article class="order" id="comanda-' + c.id + '"><div class="order-head"><div><div class="mesa">Mesa ' + escapar(c.mesa) + '</div><div class="zone">' + escapar(c.zona || c.impresora) + '</div></div><div class="time">EN COCINA<strong>' + tiempoDesde(c.creado_en) + '</strong></div></div><div class="meta"><span>MESERO: ' + escapar(c.mesero) + '</span><span>#' + c.id + '</span></div><ul class="items">' + items + '</ul>' + respaldo + '<button class="finish" onclick="finalizar(' + c.id + ', this)">Pedido finalizado y listo</button></article>';
             }).join('');

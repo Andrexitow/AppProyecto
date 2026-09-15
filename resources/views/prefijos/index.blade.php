@@ -80,7 +80,9 @@
                 <div class="pf-field" style="flex:1;"><label>Vigente hasta</label><input type="date" name="vigencia_hasta"></div>
             </div>
             <div class="pf-field"><label>Clave técnica</label><input type="text" name="clave_tecnica" placeholder="La que te entregue la DIAN/tu proveedor"></div>
-            <div class="pf-field"><label>ID de rango en el proveedor (opcional)</label><input type="number" min="1" name="numbering_range_id_factus" placeholder="Solo si tienes más de un rango activo, ej. en Factus"></div>
+            <div class="pf-field"><label>ID de rango para facturas (opcional)</label><input type="number" min="1" name="numbering_range_id_factus" placeholder="Solo si el proveedor tiene más de un rango de FACTURA activo"></div>
+            <div class="pf-field"><label>ID de rango para notas crédito (opcional)</label><input type="number" min="1" name="numbering_range_id_nota_credito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA CRÉDITO activo"></div>
+            <div class="pf-field"><label>ID de rango para notas débito (opcional)</label><input type="number" min="1" name="numbering_range_id_nota_debito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA DÉBITO activo"></div>
         </form>
         <div class="modal-foot-pf">
             <button class="btn-outline" onclick="cerrarModalPrefijo()">Cancelar</button>
@@ -131,6 +133,8 @@
                 form.vigencia_hasta.value = soloFechaPF(p.vigencia_hasta);
                 form.clave_tecnica.value = p.clave_tecnica || '';
                 form.numbering_range_id_factus.value = p.numbering_range_id_factus || '';
+                form.numbering_range_id_nota_credito_factus.value = p.numbering_range_id_nota_credito_factus || '';
+                form.numbering_range_id_nota_debito_factus.value = p.numbering_range_id_nota_debito_factus || '';
             }
         }
         document.getElementById('modalPrefijo').classList.remove('hidden');

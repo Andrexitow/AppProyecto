@@ -79,6 +79,41 @@
                             d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
                     </svg>
                 </button>
+
+                {{-- "Imprimir inventario" y "Arqueo y cierre" solo vivían en
+                     el nav lateral (pos-nav), que es "hidden md:flex" — en
+                     móvil ese nav entero desaparece y el cajero se quedaba
+                     sin forma de llegar a esas 2 acciones. Este botón "más"
+                     las agrupa para pantallas chicas. --}}
+                <div class="md:hidden relative">
+                    <button onclick="toggleMenuMovilPOS(event)" id="btn-mas-acciones-pos"
+                        class="p-2 rounded-xl border transition-all" style="background:#1a1a2e; border-color:#334155;">
+                        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" stroke-width="2"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 6h.01M12 12h.01M12 18h.01" />
+                        </svg>
+                    </button>
+                    <div id="menu-mas-acciones-pos"
+                        class="hidden absolute right-0 top-11 z-50 w-56 rounded-xl border border-slate-800 bg-[#111827] shadow-2xl overflow-hidden">
+                        <button onclick="cerrarMenuMovilPOS(); imprimirInventarioPOS();"
+                            class="w-full flex items-center gap-2.5 px-3 py-3 text-left text-xs font-bold text-amber-400 hover:bg-amber-500/10 transition-all">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Imprimir inventario
+                        </button>
+                        <button onclick="cerrarMenuMovilPOS(); abrirModalCierre();"
+                            class="w-full flex items-center gap-2.5 px-3 py-3 text-left text-xs font-bold text-violet-400 hover:bg-violet-500/10 transition-all border-t border-slate-800">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            Arqueo y cierre
+                        </button>
+                    </div>
+                </div>
             @endif
             <button onclick="abrirTicketMovil()"
                 class="md:hidden relative bg-[#1a2d50] border border-[#2d4a7a] p-2 rounded-xl">
@@ -198,7 +233,7 @@
                 @foreach ($productos as $p)
                     <div class="prod-card animate-fade item-producto" data-nombre="{{ strtolower($p->descripcion) }}"
                         data-catpos="{{ strtolower($p->categoria) }}"
-                        onclick="agregarAlTicket({{ $p->id }}, '{{ addslashes($p->descripcion) }}', {{ $p->precio }})">
+                        onclick="agregarAlTicket({{ $p->id }}, '{{ addslashes($p->descripcion) }}', {{ $p->precio }}, {{ $p->acompanamiento_grupo_id ?? 'null' }})">
 
                         <div class="prod-thumb">
                             @if ($p->categoria == 'Cervezas')
@@ -873,6 +908,32 @@
                     <p class="text-[10px] text-slate-600 text-center py-6 font-bold uppercase tracking-widest">Escribe
                         para buscar...</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- ===================== MODAL ACOMPAÑAMIENTO (reparto libre) ===================== --}}
+    <div id="modalAcompanamientoPos" class="modal-overlay" style="z-index:10005;">
+        <div class="modal-box-dark" style="max-width:440px;">
+            <div class="modal-header-dark">
+                <span class="modal-title-dark" id="acomp-pos-titulo">Elige el acompañamiento</span>
+                <button onclick="cerrarModalAcompanamientoPos()" class="modal-close">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-5">
+                <p class="text-[11px] text-slate-400 mb-3">
+                    Reparte hasta <b id="acomp-pos-max" class="text-white">10</b> unidades entre estas opciones, como quiera el cliente.
+                </p>
+                <div id="acomp-pos-lista" class="custom-scroll space-y-2" style="max-height:280px;overflow-y:auto;"></div>
+                <div class="flex items-center justify-between mt-4 mb-3 text-[11px] font-bold uppercase tracking-widest">
+                    <span class="text-slate-500">Repartido</span>
+                    <span><span id="acomp-pos-total" style="color:#fff;">0</span> / <span id="acomp-pos-max-2">10</span></span>
+                </div>
+                <button onclick="confirmarAcompanamientoPos()" class="w-full py-2.5 rounded-lg font-bold text-[12px] uppercase tracking-wide"
+                    style="background:#2563eb;color:#fff;">Agregar al ticket</button>
             </div>
         </div>
     </div>

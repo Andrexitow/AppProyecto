@@ -72,7 +72,19 @@
         </table>
     </div>
 
-    <div style="padding:10px 14px;border-top:1px solid #F3F4F6;font-size:12px;color:#6B7280;">
-        Mostrando {{ $productos->count() }} producto{{ $productos->count() !== 1 ? 's' : '' }}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid #F3F4F6;font-size:12px;color:#6B7280;flex-wrap:wrap;">
+        @if ($productos instanceof \Illuminate\Contracts\Pagination\Paginator)
+            <span>
+                Mostrando {{ $productos->firstItem() ?? 0 }}–{{ $productos->lastItem() ?? 0 }}
+                de {{ $productos->total() }} producto{{ $productos->total() !== 1 ? 's' : '' }}
+            </span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" class="act-btn" style="width:auto;padding:4px 10px;" onclick="irAPaginaProducto({{ $productos->currentPage() - 1 }})" {{ $productos->onFirstPage() ? 'disabled' : '' }}>‹ Anterior</button>
+                <span>Página {{ $productos->currentPage() }} de {{ $productos->lastPage() }}</span>
+                <button type="button" class="act-btn" style="width:auto;padding:4px 10px;" onclick="irAPaginaProducto({{ $productos->currentPage() + 1 }})" {{ $productos->hasMorePages() ? '' : 'disabled' }}>Siguiente ›</button>
+            </div>
+        @else
+            <span>Mostrando {{ $productos->count() }} producto{{ $productos->count() !== 1 ? 's' : '' }}</span>
+        @endif
     </div>
 </div>

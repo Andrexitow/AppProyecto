@@ -2,32 +2,55 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcompanamientoGrupo;
+use App\Models\Bodega;
 use App\Models\GrupoMenu;
 use App\Models\Impresora;
+use App\Models\IntegracionContable;
 use App\Models\Producto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProductoController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
+    // Productos por página en las tablas paginadas (index y búsqueda admin).
+    public const POR_PAGINA = 50;
+
     public function index()
     {
-        $productos = Producto::with('inventarios')->orderBy('descripcion')->get();
+        $productos = Producto::with('inventarios')
+            ->orderBy('descripcion')
+            ->paginate(self::POR_PAGINA);
 
         $grupos = GrupoMenu::all();
+        $gruposAcompanamiento = AcompanamientoGrupo::orderBy('descripcion')->get(['id', 'descripcion', 'cantidad_maxima']);
+        $integracionesContables = IntegracionContable::where('estado', true)->orderBy('nombre')->get(['id', 'nombre']);
+        $bodegas = Bodega::orderBy('descripcion')->get(['id', 'descripcion']);
 
-        $metricas = [
-            'total' => $productos->count(),
-            'activos' => $productos->where('inactivo', 0)->count(),
-            'inactivos' => $productos->where('inactivo', 1)->count(),
-            'sin_stock' => $productos->filter(fn ($p) => $p->afecta_inventario && $p->inventarios->sum('stock') <= 0)->count(),
-            'valor_inventario' => $productos->sum(fn ($p) => $p->inventarios->sum('stock') * $p->precio),
+        // Las métricas van sobre TODO el catálogo, no solo la página visible.
+        $metricas = $this->calcularMetricas();
+
+        return view('productos.index', compact('productos', 'grupos', 'gruposAcompanamiento', 'integracionesContables', 'bodegas', 'metricas'));
+    }
+
+    /**
+     * Métricas del catálogo completo (independientes de la paginación).
+     */
+    private function calcularMetricas(): array
+    {
+        $todos = Producto::with('inventarios')->get(['id', 'inactivo', 'afecta_inventario', 'precio']);
+
+        return [
+            'total' => $todos->count(),
+            'activos' => $todos->where('inactivo', 0)->count(),
+            'inactivos' => $todos->where('inactivo', 1)->count(),
+            'sin_stock' => $todos->filter(fn ($p) => $p->afecta_inventario && $p->inventarios->sum('stock') <= 0)->count(),
+            'valor_inventario' => $todos->sum(fn ($p) => $p->inventarios->sum('stock') * $p->precio),
         ];
-
-        return view('productos.index', compact('productos', 'grupos', 'metricas'));
     }
 
     /**
@@ -43,33 +66,122 @@ class ProductoController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $this->validarNoMezclarEnsambladoYAcompanamiento($request);
+
+        $datos = $request->validate(array_merge([
             'codigo' => 'required|unique:productos,codigo',
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
             'grupo_menu_id' => 'required|exists:grupo_menus,id',
-            'iva_ventas' => 'nullable|numeric|min:0|max:100', 
-            
-        ]);
+            // Sin esto, cerrarMesa() rechaza CUALQUIER venta de este
+            // producto con "no tiene una integración contable configurada"
+            // — mejor exigirla al crear el producto que descubrirlo en
+            // plena venta.
+            'integracion_contable_id' => 'required|exists:integraciones_contables,id',
+            'iva_ventas' => 'nullable|numeric|min:0|max:100',
+        ], $this->reglasEnsamblado(null), $this->reglasAcompanamiento()));
 
         Producto::create([
             'codigo' => $request->codigo,
             'descripcion' => $request->descripcion,
             'categoria' => $request->categoria,
             'grupo_menu_id' => $request->grupo_menu_id, // Guardamos el grupo
+            'integracion_contable_id' => $request->integracion_contable_id,
             'und_detal' => $request->und_detal,
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,
-            'afecta_inventario' => $request->afecta_inventario,
+            'afecta_inventario' => $this->resolverAfectaInventario($request),
             'iva_ventas' => $request->iva_ventas ?: null,
-            'inactivo' => 0
+            'inactivo' => 0,
+            ...$this->datosEnsamblado($datos),
+            ...$this->datosAcompanamiento($datos),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Producto guardado correctamente'
         ]);
+    }
+
+    /**
+     * "Producto ensamblado" (un insumo, factor fijo) y "acompañamiento"
+     * (varias opciones, reparto libre al comandar) son dos formas distintas
+     * de descontar inventario al vender — no tiene sentido activar las dos
+     * a la vez en el mismo producto.
+     */
+    private function validarNoMezclarEnsambladoYAcompanamiento(Request $request): void
+    {
+        if ($request->boolean('es_ensamblado') && $request->boolean('tiene_acompanamiento')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'tiene_acompanamiento' => 'Un producto no puede ser "ensamblado" y tener "acompañamiento" a la vez — elige solo una opción.',
+            ]);
+        }
+    }
+
+    /**
+     * Reglas de validación para "Insertar acompañamiento": si viene
+     * marcado, el grupo es obligatorio (sin él no hay de dónde repartir
+     * unidades al comandar).
+     */
+    private function reglasAcompanamiento(): array
+    {
+        return [
+            'tiene_acompanamiento' => 'nullable|in:0,1',
+            'acompanamiento_grupo_id' => 'nullable|required_if:tiene_acompanamiento,1|exists:acompanamiento_grupos,id',
+        ];
+    }
+
+    private function datosAcompanamiento(array $datos): array
+    {
+        $tieneAcompanamiento = (bool) ($datos['tiene_acompanamiento'] ?? false);
+
+        return [
+            'acompanamiento_grupo_id' => $tieneAcompanamiento ? $datos['acompanamiento_grupo_id'] : null,
+        ];
+    }
+
+    /**
+     * Reglas de validación para el apartado "Producto ensamblado". Cuando
+     * es_ensamblado viene marcado, producto_base_id y factor_consumo pasan
+     * a ser obligatorios — sin esto no hay forma de saber qué ni cuánto
+     * descontar cuando se venda.
+     */
+    private function reglasEnsamblado(?int $id): array
+    {
+        $reglasBase = ['nullable', 'required_if:es_ensamblado,1', 'exists:productos,id'];
+        if ($id) {
+            // Un producto no puede ser su propio insumo base.
+            $reglasBase[] = Rule::notIn([$id]);
+        }
+
+        return [
+            'es_ensamblado' => 'nullable|in:0,1',
+            'producto_base_id' => $reglasBase,
+            'factor_consumo' => 'nullable|required_if:es_ensamblado,1|numeric|min:0.01',
+            // Opcional: si el insumo real vive en una bodega distinta a la
+            // de la caja que vende (ej. la carne de una hamburguesa vendida
+            // en Discoteca vive en la bodega de Cocina) — ver
+            // FacturacionController::resolverDescuentosInventario().
+            'bodega_origen_id' => 'nullable|exists:bodegas,id',
+        ];
+    }
+
+    /**
+     * Normaliza los campos de ensamble ya validados para pasarlos a
+     * Producto::create()/update(): si no quedó marcado como ensamblado, se
+     * limpian base y factor para no dejar basura a medias.
+     */
+    private function datosEnsamblado(array $datos): array
+    {
+        $esEnsamblado = (bool) ($datos['es_ensamblado'] ?? false);
+
+        return [
+            'es_ensamblado' => $esEnsamblado,
+            'producto_base_id' => $esEnsamblado ? $datos['producto_base_id'] : null,
+            'factor_consumo' => $esEnsamblado ? $datos['factor_consumo'] : null,
+            'bodega_origen_id' => $esEnsamblado ? ($datos['bodega_origen_id'] ?? null) : null,
+        ];
     }
 
     public function buscar(Request $request)
@@ -101,7 +213,11 @@ class ProductoController extends Controller
      */
     public function edit($id)
     {
-        $producto = Producto::findOrFail($id);
+        $producto = Producto::with([
+            'productoBase:id,codigo,descripcion',
+            'acompanamientoGrupo:id,descripcion,cantidad_maxima',
+            'integracionContable:id,nombre',
+        ])->findOrFail($id);
 
         return response()->json($producto);
     }
@@ -113,31 +229,57 @@ class ProductoController extends Controller
     {
         $producto = Producto::findOrFail($id);
 
-        $request->validate([
+        $this->validarNoMezclarEnsambladoYAcompanamiento($request);
+
+        $datos = $request->validate(array_merge([
             'codigo' => 'required|unique:productos,codigo,' . $id,
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
             'grupo_menu_id' => 'required|exists:grupo_menus,id',
+            'integracion_contable_id' => 'required|exists:integraciones_contables,id',
             'iva_ventas' => 'nullable|numeric|min:0|max:100'
-        ]);
+        ], $this->reglasEnsamblado((int) $id), $this->reglasAcompanamiento()));
 
         $producto->update([
             'codigo' => $request->codigo,
             'descripcion' => $request->descripcion,
             'categoria' => $request->categoria,
             'grupo_menu_id' => $request->grupo_menu_id, // Actualizamos el grupo
+            'integracion_contable_id' => $request->integracion_contable_id,
             'und_detal' => $request->und_detal,
             'precio' => $request->precio,
             'caracteristicas' => $request->caracteristicas,
-            'afecta_inventario' => $request->afecta_inventario,
-            'iva_ventas' => $request->iva_ventas ?: null
+            'afecta_inventario' => $this->resolverAfectaInventario($request),
+            'iva_ventas' => $request->iva_ventas ?: null,
+            ...$this->datosEnsamblado($datos),
+            ...$this->datosAcompanamiento($datos),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Producto actualizado correctamente'
         ]);
+    }
+
+    /**
+     * Un producto ensamblado o con acompañamiento (ej. "Cubetazo Águila")
+     * NUNCA lleva su propio stock: lo que de verdad se descuenta es su
+     * insumo real (ver resolverDescuentosInventario() en
+     * FacturacionController). Si además queda marcado "Afecta inventario",
+     * el sistema le crea una fila de inventario propia y — peor — un
+     * movimiento de kardex "fantasma" cada vez que se vende (esto ya
+     * pasó con productos reales: CUBETAZO AGUILA y CUBETAZO MIX quedaron
+     * con afecta_inventario=1 por error). Se fuerza a false acá para que
+     * no vuelva a colarse, sin importar lo que llegue del formulario.
+     */
+    private function resolverAfectaInventario(Request $request): bool
+    {
+        if ($request->boolean('es_ensamblado') || $request->boolean('tiene_acompanamiento')) {
+            return false;
+        }
+
+        return $request->boolean('afecta_inventario');
     }
 
     public function cambiarEstado($id)
@@ -206,7 +348,8 @@ class ProductoController extends Controller
             }))
             ->when($estado !== null && $estado !== '', fn ($q) => $q->where('inactivo', $estado))
             ->orderBy('descripcion')
-            ->get();
+            ->paginate(self::POR_PAGINA)
+            ->withQueryString();
 
         return view('Productos.partials.tabla', compact('productos'));
     }

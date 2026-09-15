@@ -17,6 +17,7 @@ window.guardarProducto = function () {
     const descripcion = formData.get('descripcion')?.trim();
     const precio = formData.get('precio')?.trim();
     const grupo_menu_id = formData.get('grupo_menu_id'); // <--- NUEVO CAMPO
+    const integracion_contable_id = formData.get('integracion_contable_id');
     const afecta = formData.get('afecta_inventario');
 
     let errores = [];
@@ -25,7 +26,21 @@ window.guardarProducto = function () {
     if (!descripcion) errores.push('La descripción es obligatoria.');
     if (!precio || Number(precio) < 0) errores.push('Ingrese un precio válido.');
     if (!grupo_menu_id) errores.push('Seleccione un Grupo de Menú (Destino).'); // <--- VALIDACIÓN
+    if (!integracion_contable_id) errores.push('Seleccione la Integración Contable (pestaña Impuestos y Precios) — sin esto no se podrá vender el producto.');
     if (afecta === null || afecta === '') errores.push('Seleccione si afecta inventario.');
+
+    if (document.getElementById('prod_es_ensamblado')?.checked) {
+        if (!formData.get('producto_base_id')) errores.push('Seleccione el producto base (insumo) del ensamble.');
+        const factor = formData.get('factor_consumo');
+        if (!factor || Number(factor) <= 0) errores.push('Indique cuántas unidades del insumo consume una unidad vendida.');
+        if (document.getElementById('prod_usar_bodega_origen')?.checked && !document.getElementById('prod_bodega_origen_id')?.value) {
+            errores.push('Seleccione la bodega de origen del insumo, o desmarque la casilla.');
+        }
+    }
+
+    if (document.getElementById('prod_tiene_acompanamiento')?.checked && !formData.get('acompanamiento_grupo_id')) {
+        errores.push('Seleccione el grupo de acompañamiento.');
+    }
 
     if (errores.length > 0) {
         mostrarNotificacion(errores.join('\n'), 'error');
@@ -67,11 +82,124 @@ window.guardarProducto = function () {
             mostrarNotificacion(data.message || 'Producto guardado', 'success');
             form.reset();
             document.getElementById('producto_id').value = '';
+            document.getElementById('prod_base_seleccionado').textContent = '';
+            toggleEnsambleProducto();
+            toggleAcompanamientoProducto();
             switchProductoTab('info');
             closeModalProducto();
             loadView('productos');
         })
         .catch(err => console.error('Error guardarProducto:', err));
+};
+
+// ══════════════════════════
+// PRODUCTO ENSAMBLADO (tab "Ensamble")
+// ══════════════════════════
+window.toggleEnsambleProducto = function () {
+    const marcado = document.getElementById('prod_es_ensamblado')?.checked;
+    const campos = document.getElementById('prod_ensamble_campos');
+    if (!campos) return;
+
+    if (marcado) {
+        campos.classList.remove('hidden');
+        campos.style.display = 'contents';
+        // No tiene sentido ser ensamblado Y tener acompañamiento a la vez.
+        const acomp = document.getElementById('prod_tiene_acompanamiento');
+        if (acomp && acomp.checked) { acomp.checked = false; toggleAcompanamientoProducto(); }
+    } else {
+        campos.classList.add('hidden');
+        campos.style.display = 'none';
+        // Si se desmarca, no debe quedar un insumo/factor "fantasma" guardado.
+        document.getElementById('prod_base_id').value = '';
+        document.getElementById('buscarProductoBase').value = '';
+        document.getElementById('prod_base_seleccionado').textContent = '';
+        document.getElementById('prod_factor_consumo').value = '';
+        document.getElementById('prod_usar_bodega_origen').checked = false;
+        toggleBodegaOrigenProducto();
+    }
+};
+
+// Bodega de origen del insumo (ej. la carne vive en Cocina, no en la
+// bodega de la caja que vende la hamburguesa) — ver
+// FacturacionController::resolverDescuentosInventario().
+window.toggleBodegaOrigenProducto = function () {
+    const marcado = document.getElementById('prod_usar_bodega_origen')?.checked;
+    const campo = document.getElementById('prod_bodega_origen_campo');
+    const select = document.getElementById('prod_bodega_origen_id');
+    if (!campo || !select) return;
+
+    if (marcado) {
+        campo.classList.remove('hidden');
+        select.disabled = false;
+    } else {
+        campo.classList.add('hidden');
+        select.disabled = true; // disabled: FormData no lo envía, no queda un valor fantasma.
+        select.value = '';
+    }
+};
+
+// ══════════════════════════
+// ACOMPAÑAMIENTO (mezcla a elegir, tab "Ensamble")
+// ══════════════════════════
+window.toggleAcompanamientoProducto = function () {
+    const marcado = document.getElementById('prod_tiene_acompanamiento')?.checked;
+    const campos = document.getElementById('prod_acompanamiento_campos');
+    if (!campos) return;
+
+    if (marcado) {
+        campos.classList.remove('hidden');
+        // No tiene sentido tener acompañamiento Y ser ensamblado a la vez.
+        const ensamble = document.getElementById('prod_es_ensamblado');
+        if (ensamble && ensamble.checked) { ensamble.checked = false; toggleEnsambleProducto(); }
+    } else {
+        campos.classList.add('hidden');
+        document.getElementById('prod_acompanamiento_grupo_id').value = '';
+    }
+};
+
+window.ejecutarBusquedaProductoBase = debounce(function () {
+    const query = document.getElementById('buscarProductoBase')?.value.trim();
+    const contenedor = document.getElementById('resultadosProductoBase');
+    const idActual = document.getElementById('producto_id')?.value;
+
+    if (!query || query.length < 2 || !contenedor) {
+        if (contenedor) contenedor.classList.add('hidden');
+        return;
+    }
+
+    fetch(`/productos/buscar?query=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            // Un producto no puede ser su propio insumo base.
+            const opciones = data.filter(p => String(p.id) !== String(idActual));
+            let html = '';
+
+            if (opciones.length === 0) {
+                html = '<div class="p-3 text-gray-400 text-sm">No se encontraron productos</div>';
+            } else {
+                opciones.forEach(p => {
+                    const descripcion = (p.descripcion || '').replace(/'/g, "\\'");
+                    const codigo = p.codigo ?? '-';
+                    html += `
+                        <div onclick="seleccionarProductoBase(${p.id}, '${descripcion}')"
+                            style="display:flex;gap:10px;padding:9px 12px;cursor:pointer;border-bottom:1px solid #F3F4F6;font-size:12.5px;"
+                            onmouseover="this.style.background='#F5F3FF'" onmouseout="this.style.background='transparent'">
+                            <span style="font-family:'IBM Plex Mono',monospace;color:#7C3AED;width:80px;flex-shrink:0;">${codigo}</span>
+                            <span style="color:#374151;">${p.descripcion}</span>
+                        </div>`;
+                });
+            }
+
+            contenedor.innerHTML = html;
+            contenedor.classList.remove('hidden');
+        });
+}, 300);
+
+window.seleccionarProductoBase = function (id, descripcion) {
+    document.getElementById('prod_base_id').value = id;
+    document.getElementById('buscarProductoBase').value = '';
+    document.getElementById('prod_base_seleccionado').textContent = '✓ Insumo seleccionado: ' + descripcion;
+    document.getElementById('resultadosProductoBase').classList.add('hidden');
 };
 
 window.editarProducto = function (id) {
@@ -86,12 +214,36 @@ window.editarProducto = function (id) {
             document.querySelector('[name="precio"]').value = data.precio;
             document.querySelector('[name="caracteristicas"]').value = data.caracteristicas ?? '';
             document.querySelector('[name="iva_ventas"]').value = data.iva_ventas ?? '';
+            document.querySelector('[name="integracion_contable_id"]').value = data.integracion_contable_id ?? '';
+            // Sin esto el <select> se quedaba con lo que haya seleccionado
+            // por defecto (siempre "Sí", la primera <option>) en vez de lo
+            // que el producto tiene guardado de verdad.
+            document.querySelector('[name="afecta_inventario"]').value = data.afecta_inventario ? '1' : '0';
 
             // ASIGNAR EL GRUPO DE MENU
             const selectGrupo = document.querySelector('[name="grupo_menu_id"]');
             if (selectGrupo) {
                 selectGrupo.value = data.grupo_menu_id ?? '';
             }
+
+            // ENSAMBLE
+            document.getElementById('prod_es_ensamblado').checked = !!data.es_ensamblado;
+            document.getElementById('prod_base_id').value = data.producto_base_id ?? '';
+            document.getElementById('prod_factor_consumo').value = data.factor_consumo ?? '';
+            document.getElementById('buscarProductoBase').value = '';
+            document.getElementById('prod_base_seleccionado').textContent = data.producto_base
+                ? '✓ Insumo seleccionado: ' + data.producto_base.descripcion
+                : '';
+            document.getElementById('prod_usar_bodega_origen').checked = !!data.bodega_origen_id;
+            document.getElementById('prod_bodega_origen_id').value = data.bodega_origen_id ?? '';
+            toggleEnsambleProducto();
+            toggleBodegaOrigenProducto();
+
+            // ACOMPAÑAMIENTO
+            document.getElementById('prod_tiene_acompanamiento').checked = !!data.acompanamiento_grupo_id;
+            document.getElementById('prod_acompanamiento_grupo_id').value = data.acompanamiento_grupo_id ?? '';
+            toggleAcompanamientoProducto();
+
             switchProductoTab('info');
             openModalProducto();
         })
@@ -249,15 +401,28 @@ window.eliminarProducto = function (id) {
     document.getElementById('prod_' + id)?.remove();
 };
 
-window.filtrarProducto = debounce(function () {
+// Página actual de la tabla de productos. Cambia un filtro -> vuelve a la 1.
+let paginaProducto = 1;
 
+window.filtrarProducto = debounce(function () {
+    paginaProducto = 1;
+    cargarTablaProductos();
+}, 300);
+
+window.irAPaginaProducto = function (pagina) {
+    if (pagina < 1) return;
+    paginaProducto = pagina;
+    cargarTablaProductos();
+};
+
+function cargarTablaProductos() {
     const texto = document.getElementById('buscarTablaProducto')?.value.trim() || '';
     const estado = document.getElementById('filtroEstadoProducto')?.value ?? '';
     const tabla = document.getElementById('tablaProductos');
 
     if (!tabla) return;
 
-    const params = new URLSearchParams({ texto, estado });
+    const params = new URLSearchParams({ texto, estado, page: paginaProducto });
 
     fetch(`/productos/buscar-admin?${params.toString()}`, {
         headers: {
@@ -272,8 +437,7 @@ window.filtrarProducto = debounce(function () {
             console.error('Error filtrando productos:', error);
             mostrarNotificacion('Error al buscar productos', 'error');
         });
-
-}, 300);
+}
 
 window.switchProductoTab = function (tab) {
     document.querySelectorAll('.producto-tab-panel').forEach(panel => panel.classList.add('hidden'));

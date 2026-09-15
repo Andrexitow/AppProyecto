@@ -20,9 +20,18 @@ class Tercero extends Model
         'celular',
         'direccion',
         'ciudad',
+        // Código DANE/DIVIPOLA del municipio — Factus lo exige para
+        // cualquier cliente que no sea "Consumidor Final" (ver migración
+        // add_codigo_municipio_a_terceros_table). Tabla oficial:
+        // https://www.dane.gov.co/index.php/estadisticas-por-tema/organizacion-territorial/divipola-codigos-municipios
+        'codigo_municipio',
         'regimen_tributario',
         'codigo_ciiu',
-        'estado'
+        'estado',
+        // Plazo de pago pactado para ventas a crédito con este cliente. Si
+        // se deja vacío, la venta usa la política general por defecto (ver
+        // FacturacionController::DIAS_CREDITO_POR_DEFECTO).
+        'dias_credito',
     ];
 
     /** Valores válidos para régimen_tributario (exógena DIAN, Formato 1001). */

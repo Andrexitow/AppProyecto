@@ -2,13 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{
+    AcompanamientoController,
     AuthController,
     AjusteController,
     BodegaController,
     CajaController,
     CategoriaPosController,
-    CompraController,
     CompraAvanzadaController,
+    ConsumoController,
     CuentaPorCobrarController,
     CuentaPorPagarController,
     TesoreriaController,
@@ -32,6 +33,7 @@ use App\Http\Controllers\{
     NotaFacturaController,
     GrupomenuController,
     ImpresoraController,
+    MesaController,
     PrefijoController,
     ConceptoCajaController,
     ConfiguracionEmisorController,
@@ -111,10 +113,21 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/facturas/{id}', [FacturaController::class, 'show'])->middleware('role:Administrador,Contabilidad');
     Route::post('/facturas/{id}/anular', [FacturaController::class, 'anular'])->middleware('role:Administrador');
     Route::post('/facturas/{id}/revertir', [FacturaController::class, 'revertirAnulacion'])->middleware('role:Administrador');
-    Route::post('/facturas/{id}/reintentar-dian', [FacturaController::class, 'reintentarDian'])->middleware('role:Administrador');
+    Route::post('/facturas/{id}/reintentar-dian', [FacturaController::class, 'reintentarDian'])->middleware('role:Administrador', 'plan:pro');
     Route::post('/facturas/{id}/imprimir', [FacturaController::class, 'imprimir'])->middleware('role:Administrador,Contabilidad');
-    Route::get('/facturas/{factura}/notas', [NotaFacturaController::class, 'index'])->middleware('role:Administrador,Contabilidad');
-    Route::post('/facturas/{factura}/notas', [NotaFacturaController::class, 'store'])->middleware('role:Administrador');
+    Route::get('/facturas/{factura}/notas', [NotaFacturaController::class, 'index'])->middleware('role:Administrador,Contabilidad', 'plan:pro');
+    Route::post('/facturas/{factura}/notas', [NotaFacturaController::class, 'store'])->middleware('role:Administrador', 'plan:pro');
+
+    // Kardex: incluido en Básico (inventario y costeo promedio).
+    Route::get('/views/kardex', [KardexController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('kardex.index');
+    Route::get('/kardex/bodegas', [KardexController::class, 'bodegas'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/kardex/productos', [KardexController::class, 'productos'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/kardex/movimientos', [KardexController::class, 'movimientos'])->middleware('role:Administrador,Contabilidad');
+    Route::get('/kardex/valorizacion', [KardexController::class, 'valorizacion'])->middleware('role:Administrador,Contabilidad');
+
+    // ─── Módulos exclusivos del plan Pro: contabilidad, nómina, activos
+    // fijos, tesorería, cuentas por cobrar/pagar y compras ───
+    Route::middleware('plan:pro')->group(function () {
 
     Route::get('/views/comprobantes', [ComprobanteController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('comprobantes.index');
     Route::get('/comprobantes', [ComprobanteController::class, 'data'])->middleware('role:Administrador,Contabilidad');
@@ -139,12 +152,6 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/informes-contables/iva-periodo', [InformeContableController::class, 'ivaPeriodo'])->middleware('role:Administrador,Contabilidad');
     Route::get('/informes-contables/retenciones', [InformeContableController::class, 'retenciones'])->middleware('role:Administrador,Contabilidad');
     Route::get('/informes-contables/indicadores', [InformeContableController::class, 'indicadores'])->middleware('role:Administrador,Contabilidad');
-
-    Route::get('/views/kardex', [KardexController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('kardex.index');
-    Route::get('/kardex/bodegas', [KardexController::class, 'bodegas'])->middleware('role:Administrador,Contabilidad');
-    Route::get('/kardex/productos', [KardexController::class, 'productos'])->middleware('role:Administrador,Contabilidad');
-    Route::get('/kardex/movimientos', [KardexController::class, 'movimientos'])->middleware('role:Administrador,Contabilidad');
-    Route::get('/kardex/valorizacion', [KardexController::class, 'valorizacion'])->middleware('role:Administrador,Contabilidad');
 
     Route::get('/views/cuentas-por-cobrar', [CuentaPorCobrarController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('cuentas-por-cobrar.index');
     Route::get('/cuentas-por-cobrar', [CuentaPorCobrarController::class, 'data'])->middleware('role:Administrador,Contabilidad');
@@ -237,6 +244,8 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::post('/metodos-pago-contables', [MetodoPagoContableController::class, 'store'])->middleware('role:Administrador');
     Route::put('/metodos-pago-contables/{metodoPagoContable}', [MetodoPagoContableController::class, 'update'])->middleware('role:Administrador');
 
+    }); // fin grupo plan:pro (contabilidad)
+
     Route::get('/terceros', [FacturaController::class, 'catalogoTerceros']);
     Route::get('/cajas', [FacturaController::class, 'catalogoCajas']);
     Route::get('/bodegas', [FacturaController::class, 'catalogoBodegas']);
@@ -267,6 +276,16 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::put('/bodegas/{id}', [BodegaController::class, 'update'])->middleware('role:Administrador');
     Route::delete('/bodegas/{id}', [BodegaController::class, 'destroy'])->middleware('role:Administrador');
 
+    // Mesas y Zonas — el piso que llena la pantalla de Comandar
+    Route::get('/views/mesas', [MesaController::class, 'index'])->middleware('role:Administrador')->name('mesas.index');
+    Route::post('/zonas', [MesaController::class, 'storeZona'])->middleware('role:Administrador');
+    Route::put('/zonas/{zona}', [MesaController::class, 'updateZona'])->middleware('role:Administrador');
+    Route::delete('/zonas/{zona}', [MesaController::class, 'destroyZona'])->middleware('role:Administrador');
+    Route::post('/mesas-admin', [MesaController::class, 'storeMesa'])->middleware('role:Administrador');
+    Route::put('/mesas-admin/{mesa}', [MesaController::class, 'updateMesa'])->middleware('role:Administrador');
+    Route::post('/mesas-admin/{mesa}/restablecer', [MesaController::class, 'resetMesa'])->middleware('role:Administrador');
+    Route::delete('/mesas-admin/{mesa}', [MesaController::class, 'destroyMesa'])->middleware('role:Administrador');
+
     // Ajustes
     Route::get('/views/ajustes', [AjusteController::class, 'index'])->middleware('role:Administrador')->name('ajustes.index');
     Route::get('/ajustes/siguiente-numero', [AjusteController::class, 'siguienteNumero'])->middleware('role:Administrador');
@@ -289,6 +308,29 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::get('/existencias/data', [ExistenciaController::class, 'data'])->middleware('role:Administrador')->name('existencias.data');
     Route::post('/existencias/imprimir-red', [ExistenciaController::class, 'imprimirRed'])->middleware('role:Administrador');
 
+    // Consumos de materia prima (productos ensamblados) — Básico: es
+    // inventario/costos, no contabilidad formal. Mismo alcance de rol que
+    // Existencias, su vecino en "Catálogo e inventario" del menú.
+    Route::get('/views/consumos', [ConsumoController::class, 'index'])->middleware('role:Administrador')->name('consumos.index');
+    Route::get('/consumos/{consumo}', [ConsumoController::class, 'show'])->middleware('role:Administrador');
+    // Consumos 'no_registrado' (faltó stock de un insumo al momento de la
+    // venta): el administrador ajusta cantidad/elimina la línea y registra.
+    Route::put('/consumos/detalles/{detalle}', [ConsumoController::class, 'actualizarDetalle'])->middleware('role:Administrador');
+    Route::delete('/consumos/detalles/{detalle}', [ConsumoController::class, 'eliminarDetalle'])->middleware('role:Administrador');
+    Route::post('/consumos/{consumo}/registrar', [ConsumoController::class, 'registrar'])->middleware('role:Administrador');
+
+    // Acompañamientos (grupos de productos elegibles para combos/mezclas,
+    // ej. "Servicio de Cubetazo"). Se gestionan desde Administrador; las
+    // opciones también se consultan desde el POS (role Mesero/Cajero) al
+    // comandar un producto ligado a un grupo.
+    Route::get('/views/acompanamientos', [AcompanamientoController::class, 'index'])->middleware('role:Administrador')->name('acompanamientos.index');
+    Route::post('/acompanamientos', [AcompanamientoController::class, 'store'])->middleware('role:Administrador');
+    Route::put('/acompanamientos/{acompanamiento}', [AcompanamientoController::class, 'update'])->middleware('role:Administrador');
+    Route::delete('/acompanamientos/{acompanamiento}', [AcompanamientoController::class, 'destroy'])->middleware('role:Administrador');
+    Route::get('/acompanamientos/{acompanamiento}/opciones', [AcompanamientoController::class, 'opciones'])->middleware('role:Mesero,Administrador,Cajero');
+    Route::post('/acompanamientos/{acompanamiento}/opciones', [AcompanamientoController::class, 'agregarOpcion'])->middleware('role:Administrador');
+    Route::delete('/acompanamientos/{acompanamiento}/opciones/{producto}', [AcompanamientoController::class, 'quitarOpcion'])->middleware('role:Administrador');
+
     // Traslados entre bodegas
     Route::get('/views/traslados-bodega', [TrasladoBodegaController::class, 'index'])->middleware('role:Administrador')->name('traslados-bodega.index');
     Route::get('/traslados-bodega', [TrasladoBodegaController::class, 'data'])->middleware('role:Administrador');
@@ -310,6 +352,9 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::put('/roles/{id}', [UsuarioController::class, 'updateRole'])->middleware('role:Administrador');
 
     Route::get('/views/cajas', [CajaController::class, 'index'])->middleware('role:Administrador')->name('cajas.index');
+
+    // Compras (Pro): CxP y contabilización de compras.
+    Route::middleware('plan:pro')->group(function () {
     Route::get('/views/compras', [CompraAvanzadaController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('compras.index');
     Route::get('/compras', [CompraAvanzadaController::class, 'data'])->middleware('role:Administrador,Contabilidad');
     Route::get('/compras/siguiente-consecutivo', [CompraAvanzadaController::class, 'siguienteConsecutivo'])->middleware('role:Administrador,Contabilidad');
@@ -321,6 +366,8 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::post('/compras/{compra}/anular', [CompraAvanzadaController::class, 'anular'])->middleware('role:Administrador,Contabilidad');
     Route::post('/compras/{compra}/revertir', [CompraAvanzadaController::class, 'revertir'])->middleware('role:Administrador,Contabilidad');
     Route::post('/compras/{compra}/pagos', [CompraAvanzadaController::class, 'registrarPago'])->middleware('role:Administrador,Contabilidad');
+    }); // fin grupo plan:pro (compras)
+
     Route::get('/views/cierres-caja', [CierreCajaController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('cierres-caja.index');
     Route::get('/cierres-caja/data', [CierreCajaController::class, 'data'])->middleware('role:Administrador,Contabilidad');
     Route::post('/cajas/store', [CajaController::class, 'store'])->middleware('role:Administrador')->name('cajas.store');
@@ -427,6 +474,9 @@ Route::prefix('agente')->middleware('auth.agente')->group(function () {
         return response()->json(['ok' => true]);
     });
 });
+    // Documentos: ledger contable genérico (Pro).
+    Route::middleware('plan:pro')->group(function () {
     Route::get('/views/documentos', [DocumentoController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('documentos.index');
     Route::get('/documentos', [DocumentoController::class, 'data'])->middleware('role:Administrador,Contabilidad');
     Route::get('/documentos/{documento}', [DocumentoController::class, 'show'])->middleware('role:Administrador,Contabilidad');
+    }); // fin grupo plan:pro (documentos)

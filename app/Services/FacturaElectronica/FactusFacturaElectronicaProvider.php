@@ -25,11 +25,15 @@ use Illuminate\Support\Facades\Http;
  *   (sin clasificar) — Nexora no tiene hoy un catálogo de unidades/UNSPSC
  *   por producto. Ajustar si un producto puntual lo necesita.
  * - Solo se mapea IVA (tax code "01"). ico_ventas/imp_saludable de Producto
- *   no se envían todavía.
+ *   no se envían todavía — si algún producto del documento los tiene
+ *   configurados, verificarImpuestosSoportados() rechaza la transmisión en
+ *   vez de mandar una factura fiscal incompleta en silencio.
  * - Un cliente real (no "Consumidor Final") necesita municipality_code
- *   (código DANE) — Tercero no lo tiene todavía. Es opcional según Factus
- *   (no debería bloquear la transmisión), pero deja el dato geográfico
- *   incompleto en la factura de un cliente real.
+ *   (código DANE) — confirmado contra el sandbox real (2026-09-14) que
+ *   Factus SÍ lo exige (rechaza con 422 si falta), a pesar de que la
+ *   documentación no lo marcaba como obligatorio. Tercero::codigo_municipio
+ *   lo guarda; verificarClienteCompleto() rechaza la transmisión con un
+ *   mensaje claro si un cliente real no lo tiene configurado.
  * - codigoMedioPago() es un mapeo simplificado del catálogo DIAN de medios
  *   de pago; revísalo si tu operación necesita distinguir tarjeta débito de
  *   crédito, o un medio no cubierto aquí.
@@ -49,6 +53,14 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
     {
         $factura->loadMissing('detalles.producto', 'cliente', 'caja', 'pagos');
 
+        if ($error = $this->verificarImpuestosSoportados($factura->detalles)) {
+            return $error;
+        }
+
+        if ($error = $this->verificarClienteCompleto($factura->cliente)) {
+            return $error;
+        }
+
         $payload = [
             'reference_code' => $factura->numero_factura,
             'document' => '01',
@@ -61,7 +73,7 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
             'items' => $this->items($factura->detalles),
         ];
 
-        if ($rangoId = $this->numberingRangeId($factura->caja?->prefijo)) {
+        if ($rangoId = $this->numberingRangeId($factura->caja?->prefijo, 'factura')) {
             $payload['numbering_range_id'] = $rangoId;
         }
 
@@ -95,6 +107,14 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
             );
         }
 
+        if ($error = $this->verificarImpuestosSoportados($nota->detalles)) {
+            return $error;
+        }
+
+        if ($error = $this->verificarClienteCompleto($factura->cliente)) {
+            return $error;
+        }
+
         $payload = [
             'reference_code' => 'NOTA-' . $nota->id . '-' . $factura->numero_factura,
             'correction_concept_code' => $conceptoCorreccion,
@@ -106,7 +126,8 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
             'items' => $this->items($nota->detalles),
         ];
 
-        if ($rangoId = $this->numberingRangeId($factura->caja?->prefijo)) {
+        $tipoRango = $nota->tipo === 'credito' ? 'nota_credito' : 'nota_debito';
+        if ($rangoId = $this->numberingRangeId($factura->caja?->prefijo, $tipoRango)) {
             $payload['numbering_range_id'] = $rangoId;
         }
 
@@ -142,7 +163,8 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
 
         return new ResultadoFacturaElectronica(
             estado: ($datos['is_validated'] ?? false) ? 'aceptada' : 'enviada',
-            cufe: $datos['cufe'] ?? $documento->cufe,
+            // Ver mismo fallback cufe/cude en enviar().
+            cufe: $datos['cufe'] ?? $datos['cude'] ?? $documento->cufe,
             numeroProveedor: $datos['number'] ?? $documento->numero_proveedor,
             pdfUrl: $datos['links']['public_url'] ?? $documento->pdf_url,
             qrTexto: $datos['links']['qr'] ?? $documento->qr_texto,
@@ -168,6 +190,56 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
      * $valorObjetivo permite forzar el total a repartir (usado por las
      * notas, cuyo total ya excluye la propina de por sí).
      */
+
+    /**
+     * items() solo mapea IVA — si algún producto de este documento tiene
+     * ICO o impuesto saludable configurado, transmitirlo igual dejaría la
+     * representación electrónica incompleta (el cliente vería un total sin
+     * ese impuesto). Mejor rechazar la transmisión con un mensaje claro que
+     * mandar una factura fiscal que no cuadra. Hoy no hay ningún producto
+     * con estos impuestos, así que esto no bloquea nada en la práctica —
+     * pero avisa el día que alguien configure uno mientras Factus esté
+     * habilitado, en vez de fallar en silencio.
+     */
+    private function verificarImpuestosSoportados(Collection $detalles): ?ResultadoFacturaElectronica
+    {
+        $producto = $detalles
+            ->pluck('producto')
+            ->filter()
+            ->first(fn ($producto) => (float) ($producto->ico_ventas ?? 0) > 0 || (float) ($producto->imp_saludable ?? 0) > 0);
+
+        if (!$producto) {
+            return null;
+        }
+
+        return new ResultadoFacturaElectronica(
+            estado: 'error',
+            mensaje: "El producto '{$producto->descripcion}' tiene ICO o impuesto saludable configurado, y hoy no se transmiten a Factus (solo se mapea IVA). Quita esos impuestos del producto o contacta a soporte para completar el mapeo DIAN antes de facturar electrónicamente con él."
+        );
+    }
+
+    /**
+     * Confirmado contra el sandbox real de Factus (2026-09-14): a pesar de
+     * que la documentación no lo marcaba como obligatorio, un cliente que
+     * no sea "Consumidor Final" SIN código de municipio hace que Factus
+     * rechace la factura con 422 "El campo código municipio es
+     * obligatorio." Mejor avisar aquí, antes de gastar la llamada, con un
+     * mensaje que diga exactamente qué falta y dónde arreglarlo.
+     */
+    private function verificarClienteCompleto(?Tercero $cliente): ?ResultadoFacturaElectronica
+    {
+        $esConsumidorFinal = !$cliente || $cliente->id === 1 || !($cliente->nit || $cliente->cedula);
+
+        if ($esConsumidorFinal || filled($cliente->codigo_municipio)) {
+            return null;
+        }
+
+        return new ResultadoFacturaElectronica(
+            estado: 'error',
+            mensaje: "El cliente '{$cliente->nombre_completo}' no tiene código de municipio (DANE) configurado — Factus lo exige para cualquier cliente que no sea Consumidor Final. Complétalo en Terceros antes de facturarle electrónicamente."
+        );
+    }
+
     private function pagosDetalle(Factura $factura, ?float $valorObjetivo = null): array
     {
         $pagos = $this->facturacionContableService->resolverPagos($factura)->values();
@@ -202,11 +274,16 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
             ];
 
             if ($esCredito) {
-                // Factus exige due_date cuando payment_form=2. Nexora no
-                // captura hoy un plazo de crédito por factura — se usa 30
-                // días desde la venta como valor por defecto razonable;
-                // ajustar si el negocio maneja plazos distintos.
-                $linea['due_date'] = $factura->created_at->copy()->addDays(30)->toDateString();
+                // Factus exige due_date cuando payment_form=2. Antes era un
+                // "30 días desde la venta" fijo; ahora se lee el vencimiento
+                // ya fotografiado en la factura (fecha_vencimiento), que
+                // FacturacionController calculó a partir del plazo pactado
+                // con el cliente (Tercero::dias_credito) o la política
+                // general si no tiene uno propio. El fallback a 30 días
+                // solo cubre facturas a crédito emitidas antes de este
+                // cambio, que no tienen fecha_vencimiento guardada.
+                $linea['due_date'] = $factura->fecha_vencimiento?->toDateString()
+                    ?? $factura->created_at->copy()->addDays(\App\Http\Controllers\FacturacionController::DIAS_CREDITO_POR_DEFECTO)->toDateString();
             }
 
             $lineas[] = $linea;
@@ -260,11 +337,14 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
             'legal_organization_code' => $esNit ? '1' : '2',
             'tribute_code' => 'ZZ',
             'country_code' => 'CO',
-            // Faltan municipality_code (código DANE) y responsibilities —
-            // Tercero no los tiene todavía. municipality_code es opcional
-            // según Factus, y responsibilities cae al default R-99-PN si se
-            // omite, así que esto no debería bloquear la transmisión, pero
-            // deja la factura de un cliente real incompleta geográficamente.
+            // Confirmado contra el sandbox real (2026-09-14): a pesar de lo
+            // que decía la documentación, Factus SÍ exige municipality_code
+            // para un cliente real — verificarClienteCompleto() rechaza la
+            // transmisión antes de llegar aquí si falta, así que si llegamos
+            // a este punto ya sabemos que $cliente->codigo_municipio existe.
+            'municipality_code' => $cliente->codigo_municipio,
+            // responsibilities sí cae al default R-99-PN si se omite —
+            // confirmado, no hizo falta para que pasara la validación.
         ], fn ($valor) => $valor !== null);
     }
 
@@ -308,13 +388,27 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
         })->all();
     }
 
-    private function numberingRangeId(?string $codigoPrefijo): ?int
+    /**
+     * Factura, nota crédito y nota débito NO comparten espacio de
+     * numbering_range_id en Factus — confirmado contra el sandbox real
+     * (2026-09-14): la cuenta de prueba tiene dos rangos activos de Nota
+     * Crédito, así que usar ahí el mismo id que Factura (que sí tiene un
+     * único rango) hace que Factus rechace una u otra transmisión según
+     * cuál se haya guardado.
+     */
+    private function numberingRangeId(?string $codigoPrefijo, string $tipoDocumento = 'factura'): ?int
     {
         if (!$codigoPrefijo) {
             return null;
         }
 
-        return Prefijo::where('codigo', $codigoPrefijo)->value('numbering_range_id_factus');
+        $columna = match ($tipoDocumento) {
+            'nota_credito' => 'numbering_range_id_nota_credito_factus',
+            'nota_debito' => 'numbering_range_id_nota_debito_factus',
+            default => 'numbering_range_id_factus',
+        };
+
+        return Prefijo::where('codigo', $codigoPrefijo)->value($columna);
     }
 
     // ── HTTP + autenticación ─────────────────────────────────────────────
@@ -368,7 +462,11 @@ class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
 
         return new ResultadoFacturaElectronica(
             estado: ($datos['is_validated'] ?? false) ? 'aceptada' : 'enviada',
-            cufe: $datos['cufe'] ?? null,
+            // Confirmado contra el sandbox real (2026-09-14): una factura
+            // trae 'cufe', pero una nota crédito/débito NO — Factus la
+            // identifica con 'cude' en su lugar. Sin este fallback, cufe
+            // quedaba vacío en toda nota, aunque se hubiera validado bien.
+            cufe: $datos['cufe'] ?? $datos['cude'] ?? null,
             numeroProveedor: $datos['number'] ?? null,
             pdfUrl: $datos['links']['public_url'] ?? null,
             qrTexto: $datos['links']['qr'] ?? null,

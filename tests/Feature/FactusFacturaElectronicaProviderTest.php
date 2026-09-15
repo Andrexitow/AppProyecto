@@ -286,7 +286,7 @@ class FactusFacturaElectronicaProviderTest extends TestCase
         // aquí también para no disparar por accidente la rama de consumidor
         // final de cliente() (que compara por ese id).
         Tercero::create(['tipo' => 'persona', 'nombre' => 'Consumidor', 'apellido' => 'Final']);
-        $cliente = Tercero::create(['tipo' => 'empresa', 'razon_social' => 'Cliente Real S.A.S', 'nit' => '900.123.456-7']);
+        $cliente = Tercero::create(['tipo' => 'empresa', 'razon_social' => 'Cliente Real S.A.S', 'nit' => '900.123.456-7', 'codigo_municipio' => '11001']);
         $factura = $this->factura(clienteId: $cliente->id);
         app(FactusFacturaElectronicaProvider::class)->emitirFactura($factura);
 
@@ -295,6 +295,40 @@ class FactusFacturaElectronicaProviderTest extends TestCase
             $cliente = $request->data()['customer'];
             return $cliente['identification'] === '900123456' && $cliente['legal_organization_code'] === '1';
         });
+    }
+
+    /**
+     * Confirmado contra el sandbox real de Factus (2026-09-14): una factura
+     * responde con 'cufe', pero una nota crédito/débito responde con 'cude'
+     * en su lugar — sin este fallback, toda nota se guardaba sin CUFE aunque
+     * Factus la hubiera validado bien.
+     */
+    public function test_una_nota_credito_valida_usa_cude_como_cufe()
+    {
+        $factura = $this->factura();
+        $factura->update(['numero_proveedor' => 'SETP001']);
+
+        $nota = NotaFactura::create([
+            'factura_id' => $factura->id, 'tipo' => 'credito', 'fecha' => now()->toDateString(),
+            'motivo' => 'Prueba', 'subtotal' => 10000, 'iva' => 1900, 'total' => 11900,
+            'restaura_inventario' => false, 'user_id' => $factura->user_id,
+        ]);
+        NotaFacturaDetalle::create([
+            'nota_factura_id' => $nota->id, 'factura_detalle_id' => $factura->detalles->first()->id,
+            'producto_id' => $factura->detalles->first()->producto_id, 'cantidad' => 1, 'precio_unitario' => 11900, 'subtotal' => 11900,
+        ]);
+
+        Http::fake([
+            'api-sandbox.factus.test/oauth/token' => Http::response(['access_token' => 't', 'expires_in' => 3600], 200),
+            'api-sandbox.factus.test/v2/credit-notes/validate' => Http::response([
+                'data' => ['number' => 'NC001', 'is_validated' => true, 'cude' => 'CUDE-DE-PRUEBA', 'links' => []],
+            ], 201),
+        ]);
+
+        $resultado = app(FactusFacturaElectronicaProvider::class)->emitirNotaCredito($nota->fresh());
+
+        $this->assertEquals('aceptada', $resultado->estado);
+        $this->assertEquals('CUDE-DE-PRUEBA', $resultado->cufe);
     }
 
     public function test_no_emite_nota_credito_si_la_factura_no_tiene_numero_de_proveedor()
@@ -318,5 +352,66 @@ class FactusFacturaElectronicaProviderTest extends TestCase
 
         $this->assertEquals('error', $resultado->estado);
         Http::assertNothingSent();
+    }
+
+    public function test_rechaza_transmitir_si_un_producto_tiene_ico_configurado()
+    {
+        $factura = $this->factura();
+        $factura->detalles->first()->producto->update(['ico_ventas' => 8]);
+
+        Http::fake(); // ninguna llamada debería salir
+
+        $resultado = app(FactusFacturaElectronicaProvider::class)->emitirFactura($factura->fresh());
+
+        $this->assertEquals('error', $resultado->estado);
+        $this->assertStringContainsString('ICO', $resultado->mensaje);
+        Http::assertNothingSent();
+    }
+
+    public function test_rechaza_transmitir_si_un_producto_tiene_impuesto_saludable_configurado()
+    {
+        $factura = $this->factura();
+        $factura->detalles->first()->producto->update(['imp_saludable' => 300]);
+
+        Http::fake();
+
+        $resultado = app(FactusFacturaElectronicaProvider::class)->emitirFactura($factura->fresh());
+
+        $this->assertEquals('error', $resultado->estado);
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Confirmado contra el sandbox real de Factus (2026-09-14): un cliente
+     * real sin código de municipio hace que la API rechace la factura con
+     * 422. Se valida antes de llamar, con un mensaje claro.
+     */
+    public function test_rechaza_transmitir_si_el_cliente_real_no_tiene_codigo_de_municipio()
+    {
+        Tercero::create(['tipo' => 'persona', 'nombre' => 'Consumidor', 'apellido' => 'Final']);
+        $cliente = Tercero::create(['tipo' => 'empresa', 'razon_social' => 'Cliente Sin Municipio S.A.S', 'nit' => '900999888']);
+        $factura = $this->factura(clienteId: $cliente->id);
+
+        Http::fake();
+
+        $resultado = app(FactusFacturaElectronicaProvider::class)->emitirFactura($factura->fresh());
+
+        $this->assertEquals('error', $resultado->estado);
+        $this->assertStringContainsString('código de municipio', $resultado->mensaje);
+        Http::assertNothingSent();
+    }
+
+    public function test_consumidor_final_no_necesita_codigo_de_municipio()
+    {
+        Http::fake([
+            'api-sandbox.factus.test/oauth/token' => Http::response(['access_token' => 't', 'expires_in' => 3600], 200),
+            'api-sandbox.factus.test/v2/bills/validate' => Http::response(['data' => ['number' => 'X', 'cufe' => 'Y', 'is_validated' => true, 'links' => []]], 201),
+        ]);
+
+        $factura = $this->factura(); // sin cliente_id -> Consumidor Final
+
+        $resultado = app(FactusFacturaElectronicaProvider::class)->emitirFactura($factura);
+
+        $this->assertEquals('aceptada', $resultado->estado);
     }
 }

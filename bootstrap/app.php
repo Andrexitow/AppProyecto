@@ -16,6 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auditar' => \App\Http\Middleware\RegistrarActividad::class,
             'permission' => \App\Http\Middleware\RequirePermission::class,
             'role' => \App\Http\Middleware\RequireRole::class,
+            'plan' => \App\Http\Middleware\EnsurePlanPro::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'agente/*',

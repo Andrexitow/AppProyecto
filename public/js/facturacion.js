@@ -87,6 +87,29 @@ window.cerrarTicketMovil = function () {
     if (b) b.classList.remove('open');
 };
 
+// Menú "más acciones" del header móvil (Imprimir inventario / Arqueo y
+// cierre) — en escritorio esas 2 acciones viven en el nav lateral, que se
+// oculta entero en móvil (pos-nav es "hidden md:flex"), así que sin este
+// menú el cajero no tenía cómo llegar a ellas desde el celular.
+window.toggleMenuMovilPOS = function (evento) {
+    if (evento) evento.stopPropagation();
+    var menu = document.getElementById('menu-mas-acciones-pos');
+    if (menu) menu.classList.toggle('hidden');
+};
+
+window.cerrarMenuMovilPOS = function () {
+    var menu = document.getElementById('menu-mas-acciones-pos');
+    if (menu) menu.classList.add('hidden');
+};
+
+document.addEventListener('click', function (evento) {
+    var menu = document.getElementById('menu-mas-acciones-pos');
+    var boton = document.getElementById('btn-mas-acciones-pos');
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (evento.target === boton || boton?.contains(evento.target)) return;
+    if (!menu.contains(evento.target)) menu.classList.add('hidden');
+});
+
 window.actualizarBadgeTicket = function (cantidad) {
     var badge = document.getElementById('ticket-badge');
     if (!badge) return;
@@ -101,12 +124,20 @@ window.actualizarBadgeTicket = function (cantidad) {
 // ============================================================
 // TICKET — AGREGAR
 // ============================================================
-window.agregarAlTicket = function (id, descripcion, precio) {
+window.agregarAlTicket = function (id, descripcion, precio, acompanamientoGrupoId) {
     if (!window.mesaSeleccionadaId) {
         window.notificar('Selecciona una mesa primero', 'warning');
         if (typeof window.abrirSelectorMesas === 'function') {
             setTimeout(function () { window.abrirSelectorMesas(); }, 400);
         }
+        return;
+    }
+
+    // Un producto con acompañamiento (ej. Cubetazo Mix) no se apila con "+1"
+    // como los demás: cada uno necesita su propio reparto, así que primero
+    // se abre el modal y solo al confirmar se agrega como línea nueva.
+    if (acompanamientoGrupoId) {
+        abrirModalAcompanamientoPos(id, descripcion, precio, acompanamientoGrupoId);
         return;
     }
 
@@ -121,6 +152,113 @@ window.agregarAlTicket = function (id, descripcion, precio) {
     renderizarTicket();
     var total = window.ticket.reduce(function (a, i) { return a + i.cantidad; }, 0);
     window.actualizarBadgeTicket(total);
+};
+
+// ============================================================
+// ACOMPAÑAMIENTO — modal de reparto libre (ej. Cubetazo Mix)
+// ============================================================
+var acompPosEstado = { id: null, descripcion: '', precio: 0, grupoId: null, maximo: 0, opciones: [] };
+
+function abrirModalAcompanamientoPos(id, descripcion, precio, grupoId) {
+    fetch('/acompanamientos/' + grupoId + '/opciones')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            acompPosEstado = { id: id, descripcion: descripcion, precio: precio, grupoId: grupoId, maximo: data.grupo.cantidad_maxima, opciones: data.opciones };
+
+            document.getElementById('acomp-pos-titulo').textContent = descripcion;
+            document.getElementById('acomp-pos-max').textContent = data.grupo.cantidad_maxima;
+            document.getElementById('acomp-pos-max-2').textContent = data.grupo.cantidad_maxima;
+
+            var lista = document.getElementById('acomp-pos-lista');
+            if (!data.opciones.length) {
+                lista.innerHTML = '<p class="text-[11px] text-slate-500">Este grupo todavía no tiene productos configurados. Pide a un administrador que los agregue en "Acompañamientos".</p>';
+            } else {
+                lista.innerHTML = data.opciones.map(function (p) {
+                    return '<div class="flex items-center justify-between p-2.5 rounded-lg" style="background:#1a2235;border:0.5px solid #283347;">' +
+                        '<span class="text-[12px] text-white">' + p.descripcion + '</span>' +
+                        '<div class="flex items-center gap-2">' +
+                        '<button onclick="cambiarCantidadAcompPos(' + p.id + ', -1)" class="w-6 h-6 rounded flex items-center justify-center font-bold" style="background:#283347;color:#fff;">−</button>' +
+                        '<span id="acomp-pos-cant-' + p.id + '" class="text-[13px] font-bold w-6 text-center" style="color:#fff;">0</span>' +
+                        '<button onclick="cambiarCantidadAcompPos(' + p.id + ', 1)" class="w-6 h-6 rounded flex items-center justify-center font-bold" style="background:#283347;color:#fff;">+</button>' +
+                        '</div></div>';
+                }).join('');
+            }
+
+            actualizarTotalAcompPos();
+            document.getElementById('modalAcompanamientoPos').classList.add('show');
+        })
+        .catch(function () { window.notificar('No se pudo cargar el acompañamiento', 'error'); });
+}
+
+window.cerrarModalAcompanamientoPos = function () {
+    document.getElementById('modalAcompanamientoPos').classList.remove('show');
+};
+
+window.cambiarCantidadAcompPos = function (productoId, delta) {
+    var span = document.getElementById('acomp-pos-cant-' + productoId);
+    if (!span) return;
+    var actual = parseInt(span.textContent, 10) || 0;
+    var totalActual = sumaAcompPos();
+
+    if (delta > 0 && totalActual >= acompPosEstado.maximo) return; // ya está en el máximo
+    var nuevo = Math.max(0, actual + delta);
+    span.textContent = nuevo;
+    actualizarTotalAcompPos();
+};
+
+function sumaAcompPos() {
+    return acompPosEstado.opciones.reduce(function (acc, p) {
+        var span = document.getElementById('acomp-pos-cant-' + p.id);
+        return acc + (span ? (parseInt(span.textContent, 10) || 0) : 0);
+    }, 0);
+}
+
+function actualizarTotalAcompPos() {
+    var total = sumaAcompPos();
+    var elTotal = document.getElementById('acomp-pos-total');
+    if (elTotal) elTotal.textContent = total;
+}
+
+window.confirmarAcompanamientoPos = function () {
+    var reparto = acompPosEstado.opciones
+        .map(function (p) {
+            var span = document.getElementById('acomp-pos-cant-' + p.id);
+            var cantidad = span ? (parseInt(span.textContent, 10) || 0) : 0;
+            return { producto_id: p.id, cantidad: cantidad };
+        })
+        .filter(function (l) { return l.cantidad > 0; });
+
+    var total = reparto.reduce(function (a, l) { return a + l.cantidad; }, 0);
+
+    if (total < 1) {
+        window.notificar('Elige al menos 1 unidad', 'warning');
+        return;
+    }
+    if (total > acompPosEstado.maximo) {
+        window.notificar('No puedes pasar de ' + acompPosEstado.maximo + ' unidades', 'error');
+        return;
+    }
+
+    var resumen = reparto.map(function (l) {
+        var opcion = acompPosEstado.opciones.find(function (p) { return p.id === l.producto_id; });
+        return l.cantidad + ' ' + (opcion ? opcion.descripcion : '?');
+    }).join(', ');
+
+    window.ticket.push({
+        id: acompPosEstado.id,
+        descripcion: acompPosEstado.descripcion,
+        precio: acompPosEstado.precio,
+        cantidad: 1,
+        observacion: '',
+        existente: false,
+        acompanamiento: reparto,
+        acompanamientoResumen: resumen,
+    });
+
+    renderizarTicket();
+    var totalTicket = window.ticket.reduce(function (a, i) { return a + i.cantidad; }, 0);
+    window.actualizarBadgeTicket(totalTicket);
+    cerrarModalAcompanamientoPos();
 };
 
 // ============================================================
@@ -179,19 +317,27 @@ function renderizarTicket() {
     }
 
     contenedor.innerHTML = window.ticket.map(function (item, index) {
-        var bloqueado = item.existente ? 'opacity-30 cursor-not-allowed pointer-events-none' : '';
-        var disabledAttr = item.existente ? 'disabled' : '';
+        // Un producto con acompañamiento va siempre en cantidad 1 (el
+        // reparto ya define "cuánto hay" dentro de esa unidad) — no se
+        // puede subir con "+", cada mezcla nueva es una línea aparte.
+        var cantidadBloqueada = item.existente || !!item.acompanamiento;
+        var bloqueado = cantidadBloqueada ? 'opacity-30 cursor-not-allowed pointer-events-none' : '';
+        var disabledAttr = cantidadBloqueada ? 'disabled' : '';
         var readonly = item.existente ? 'readonly' : '';
         var borde = item.existente ? 'border-emerald-500/30' : 'border-slate-700/50';
         var tag = item.existente ? '<span class="text-[8px] text-emerald-400 border border-emerald-400 px-1 rounded ml-1">ENVIADO</span>' : '';
         var focusClass = item.existente ? 'opacity-50 cursor-not-allowed' : 'focus:border-indigo-500';
         var nombre = item.descripcion || item.nombre || '';
+        var resumenAcomp = item.acompanamientoResumen
+            ? '<p class="text-[9px] text-amber-400 font-bold mt-0.5">🍹 ' + item.acompanamientoResumen + '</p>'
+            : '';
 
         return (
             '<div class="bg-slate-800/40 p-4 rounded-3xl border ' + borde + ' mb-3">' +
             '<div class="flex justify-between items-start mb-3">' +
             '<div class="flex-1">' +
             '<p class="text-xs font-black text-white uppercase leading-tight">' + nombre + ' ' + tag + '</p>' +
+            resumenAcomp +
             '<p class="text-[10px] text-indigo-400 font-bold">$' + (item.precio * item.cantidad).toLocaleString() + '</p>' +
             '</div>' +
             '<button onclick="window.eliminarDelTicket(' + index + ')" class="text-slate-500 hover:text-red-500 transition-colors">' +
@@ -399,7 +545,8 @@ window.enviarPedido = async function () {
                         descripcion: item.descripcion || item.nombre || '',
                         precio: item.precio,
                         cantidad: item.cantidad,
-                        observacion: item.observacion || ''
+                        observacion: item.observacion || '',
+                        acompanamiento: item.acompanamiento || undefined
                     };
                 })
             })
@@ -498,76 +645,85 @@ window.cargarPedidoExistente = async function (mesaId, nombreMesa) {
 // SUPER CLAVE
 // ============================================================
 window.validarSuperClave = async function () {
-    var clave = document.getElementById('inputSuperClave').value;
+    var input = document.getElementById('inputSuperClave');
+    var clave = input ? input.value : '';
+    var boton = document.querySelector('#modalSuperClave .btn-send');
 
-    if (clave === '1234') {
-        try {
-            var item = window.ticket.find(function (i) { return i.id === window.idProductoAEliminar; });
+    if (!clave) {
+        window.notificar('Ingresa la clave de autorización', 'warning');
+        return;
+    }
 
-            if (item && item.existente) {
-                var res = await fetch('/pedidos/eliminar-item', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        mesa_id: window.mesaSeleccionadaId,
-                        producto_id: window.idProductoAEliminar,
-                        clave: clave
-                    })
-                });
+    if (boton) boton.disabled = true;
 
-                if (!res.ok) throw new Error('Error en servidor');
+    try {
+        var item = window.ticket.find(function (i) { return i.id === window.idProductoAEliminar; });
 
-                var data = await res.json();
+        if (item && item.existente) {
+            var res = await fetch('/pedidos/eliminar-item', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    mesa_id: window.mesaSeleccionadaId,
+                    producto_id: window.idProductoAEliminar,
+                    clave: clave
+                })
+            });
 
-                // ✅ Si el servidor eliminó el pedido completo (era el último item)
-                // limpiar todo en lugar de intentar recargar un pedido que ya no existe
-                if (data.pedido_eliminado) {
-                    window.ticket = [];
-                    window.mesaSeleccionadaId = null;
-                    renderizarTicket();
-                    window.actualizarBadgeTicket(0);
-                    window.clienteSeleccionado = null;
-                    var lA = document.getElementById('mesa-activa-label');
-                    var lM = document.getElementById('mesa-label');
-                    var elCliente = document.getElementById('cliente-nombre-ticket');
-                    if (elCliente) elCliente.textContent = 'Consumidor final';
-                    if (lA) lA.textContent = 'MESA';
-                    if (lM) lM.textContent = 'Mesa: --';
-                    await refrescarMesas();
-                    window.cerrarSuperClave();
-                    window.notificar('Último producto eliminado, mesa liberada', 'success');
-                    return;
-                }
+            var data = await res.json().catch(function () { return {}; });
+            if (!res.ok || data.status !== 'success') {
+                throw new Error(data.message || 'No se pudo autorizar la eliminación');
+            }
 
-            } else {
-                // Item nuevo, solo filtrar local
-                window.ticket = window.ticket.filter(function (i) { return i.id !== window.idProductoAEliminar; });
+            // Si el servidor eliminó el pedido completo, limpiar todo en
+            // lugar de intentar recargar un pedido que ya no existe.
+            if (data.pedido_eliminado) {
+                window.ticket = [];
+                window.mesaSeleccionadaId = null;
                 renderizarTicket();
+                window.actualizarBadgeTicket(0);
+                window.clienteSeleccionado = null;
+                var lA = document.getElementById('mesa-activa-label');
+                var lM = document.getElementById('mesa-label');
+                var elCliente = document.getElementById('cliente-nombre-ticket');
+                if (elCliente) elCliente.textContent = 'Consumidor final';
+                if (lA) lA.textContent = 'MESA';
+                if (lM) lM.textContent = 'Mesa: --';
+                await refrescarMesas();
                 window.cerrarSuperClave();
-                window.notificar('Producto eliminado', 'success');
+                window.notificar('Último producto eliminado, mesa liberada', 'success');
                 return;
             }
 
-            // Quedan más items → recargar desde DB
-            window.clienteSeleccionado = null;
-            var mesaId = window.mesaSeleccionadaId;
-            var nombreMesa = document.getElementById('mesa-activa-label').textContent;
-            var elCliente = document.getElementById('cliente-nombre-ticket');
-            if (elCliente) elCliente.textContent = 'Consumidor final';
+        } else {
+            // Item nuevo, solo filtrar local.
+            window.ticket = window.ticket.filter(function (i) { return i.id !== window.idProductoAEliminar; });
+            renderizarTicket();
             window.cerrarSuperClave();
-            await window.cargarPedidoExistente(mesaId, nombreMesa);
             window.notificar('Producto eliminado', 'success');
-
-        } catch (e) {
-            console.error(e);
-            window.notificar('No se pudo eliminar: ' + e.message, 'error');
+            return;
         }
-    } else {
-        window.notificar('SuperClave incorrecta', 'error');
-        document.getElementById('inputSuperClave').value = '';
+
+        // Quedan más items: recargar desde base de datos.
+        window.clienteSeleccionado = null;
+        var mesaId = window.mesaSeleccionadaId;
+        var nombreMesa = document.getElementById('mesa-activa-label').textContent;
+        var elCliente = document.getElementById('cliente-nombre-ticket');
+        if (elCliente) elCliente.textContent = 'Consumidor final';
+        window.cerrarSuperClave();
+        await window.cargarPedidoExistente(mesaId, nombreMesa);
+        window.notificar('Producto eliminado', 'success');
+
+    } catch (e) {
+        console.error(e);
+        window.notificar('No se pudo eliminar: ' + e.message, 'error');
+        if (input) input.value = '';
+    } finally {
+        if (boton) boton.disabled = false;
     }
 };
 

@@ -43,6 +43,7 @@ class Factura extends Model
         ,'mensaje_dian'
         ,'intentos_dian'
         ,'fecha_transmision_dian'
+        ,'fecha_vencimiento'
     ];
 
     /**
@@ -54,6 +55,7 @@ class Factura extends Model
         'propina'  => 'integer',
         'total'    => 'integer',
         'created_at' => 'datetime',
+        'fecha_vencimiento' => 'date',
     ];
 
     public function detalles()

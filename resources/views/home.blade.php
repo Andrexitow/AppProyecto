@@ -1,6 +1,7 @@
 <x-user-layout>
     @php
         $esAdministrador = (auth()->user()->rol->nombre ?? '') === 'Administrador';
+        $esPlanPro = config('nexora.plan') === 'pro';
         $nombre = explode(' ', auth()->user()->name)[0];
     @endphp
 
@@ -106,10 +107,12 @@
                 <div class="panel-head"><h2>Accesos rápidos</h2><span>Ir a un módulo</span></div>
                 <div class="quick-list">
                     <button class="quick" onclick="loadView('facturas')"><span class="quick-icon">F</span><span><span class="quick-title">Facturas</span><span class="quick-copy">Consulta ventas y documentos</span></span><span class="quick-arrow">›</span></button>
-                    <button class="quick" onclick="loadView('compras')"><span class="quick-icon">C</span><span><span class="quick-title">Compras</span><span class="quick-copy">Registra ingresos de proveedor</span></span><span class="quick-arrow">›</span></button>
-                    <button class="quick" onclick="loadView('comprobantes')"><span class="quick-icon">A</span><span><span class="quick-title">Comprobantes</span><span class="quick-copy">Movimientos y contabilidad</span></span><span class="quick-arrow">›</span></button>
                     @if($esAdministrador)
                         <button class="quick" onclick="loadView('cierres-caja')"><span class="quick-icon">X</span><span><span class="quick-title">Cierres de caja</span><span class="quick-copy">Consulta arqueos realizados</span></span><span class="quick-arrow">›</span></button>
+                    @endif
+                    @if($esPlanPro)
+                        <button class="quick" onclick="loadView('compras')"><span class="quick-icon">C</span><span><span class="quick-title">Compras</span><span class="quick-copy">Registra ingresos de proveedor</span></span><span class="quick-arrow">›</span></button>
+                        <button class="quick" onclick="loadView('comprobantes')"><span class="quick-icon">A</span><span><span class="quick-title">Comprobantes</span><span class="quick-copy">Movimientos y contabilidad</span></span><span class="quick-arrow">›</span></button>
                     @endif
                 </div>
             </aside>

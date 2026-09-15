@@ -72,7 +72,7 @@ class CompraAvanzadaController extends Controller
         return DB::transaction(function () use ($compra) {
             $this->validarStockParaSalida($compra, 'revertir el registro');
             app(CompraContableService::class)->prepararReversion($compra);
-            $this->inventario($compra, -1);
+            app(\App\Services\ReversionInventarioService::class)->ejecutar($compra->documento_id);
             $compra->update(['estado' => 'borrador', 'registrado_at' => null]);
             return response()->json(['success' => true, 'message' => 'Compra revertida a borrador e inventario descontado correctamente.']);
         });
@@ -86,7 +86,7 @@ class CompraAvanzadaController extends Controller
             // quedaba una compra "anulada" con su contabilidad y sus pagos a proveedor
             // activos, igual que hace revertirRegistro() (mismo servicio, mismo efecto).
             app(CompraContableService::class)->prepararReversion($compra);
-            $this->inventario($compra, -1);
+            app(\App\Services\ReversionInventarioService::class)->ejecutar($compra->documento_id);
             $compra->update(['estado' => 'anulada']);
             return response()->json(['success' => true]);
         });

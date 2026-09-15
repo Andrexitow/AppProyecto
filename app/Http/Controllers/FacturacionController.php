@@ -6,17 +6,22 @@ use App\Models\Caja;
 use App\Models\CierreCaja;
 use App\Models\ComandaPendiente;
 use App\Models\ConceptoCaja;
+use App\Models\Consumo;
 use App\Models\DetallePedido;
 use App\Models\Factura;
 use App\Models\Impresora;
 use App\Models\Mesa;
 use App\Models\MovimientoCaja;
 use App\Models\Pedido;
+use App\Models\Prefijo;
 use App\Models\Producto;
+use App\Models\Tercero;
+use App\Models\User;
 use App\Models\Zona;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Services\LegacyDocumentSyncService;
 use App\Services\PrintService;
@@ -29,6 +34,16 @@ use Carbon\Carbon;
 
 class FacturacionController extends Controller
 {
+    /**
+     * Plazo de crédito que se usa cuando el cliente no tiene uno propio
+     * configurado (Tercero::dias_credito). Antes esto era un "30" oculto
+     * solo dentro de FactusFacturaElectronicaProvider; ahora es la política
+     * general explícita, y la factura misma guarda el vencimiento ya
+     * calculado (fecha_vencimiento) en vez de que cada consumidor lo
+     * recalcule por su cuenta.
+     */
+    public const DIAS_CREDITO_POR_DEFECTO = 30;
+
     public function index()
     {
         // 1. Obtenemos el usuario de forma segura
@@ -46,17 +61,14 @@ class FacturacionController extends Controller
             abort(403, 'No tienes acceso a la zona de facturación');
         }
 
-        // LÓGICA DE AUTO-REVERSIÓN
-        Mesa::where('estado', 'seleccionada')
-            ->where('updated_at', '<', now()->subMinutes(2))
-            ->update(['estado' => 'disponible']);
+        $this->liberarMesasVencidas();
 
         // 4. Traer datos para la vista
-        $mesas = Mesa::with(['zona', 'pedidos' => function ($query) {
+        $mesas = $this->mesasVisiblesPara($user)->with(['zona', 'pedidos' => function ($query) {
             $query->where('estado', 'pendiente')->with('user');
         }])->get();
 
-        $zonas    = Zona::all();
+        $zonas    = $this->zonasVisiblesPara($user);
         // 'activo' es una columna heredada que nadie actualiza: el toggle
         // real de ProductoController usa 'inactivo'. Filtrar por 'activo'
         // (siempre 1) dejaba ver en el POS productos que sí se habían
@@ -76,22 +88,178 @@ class FacturacionController extends Controller
         ));
     }
 
-    public function bloquearMesa($id)
+    /**
+     * Un mesero/cajero de Discoteca no debe ver ni poder comandar las
+     * mesas del Restaurante (y viceversa) — antes el POS traía TODAS las
+     * mesas de TODAS las zonas sin importar a qué caja/bodega pertenecía
+     * quien tenía la sesión abierta. Un Administrador sigue viendo todo.
+     *
+     * El "venue" de cada zona lo da zonas.bodega_id (asignado desde
+     * Mesas y Zonas); el del usuario, la bodega de su caja. Una zona sin
+     * bodega asignada todavía, o un usuario sin caja, se deja visible
+     * para todos — mejor mostrar de más en ese caso que dejar el POS
+     * vacío por una configuración a medias.
+     */
+    private function mesasVisiblesPara($user)
     {
-        $mesa = Mesa::findOrFail($id);
+        $query = Mesa::query();
 
-        // Si alguien más ya la cambió de estado en ese milisegundo
-        if ($mesa->estado !== 'disponible') {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'La mesa ya no está disponible'
-            ], 403);
+        if ($user->rol->nombre === 'Administrador') {
+            return $query;
         }
 
-        // Cambiamos a 'seleccionada' (el estado de espera)
-        $mesa->update(['estado' => 'seleccionada']);
+        $bodegaId = $user->caja?->bodega_id;
+        if (!$bodegaId) {
+            return $query;
+        }
 
-        return response()->json(['status' => 'success']);
+        return $query->whereHas('zona', fn ($z) => $z->whereNull('bodega_id')->orWhere('bodega_id', $bodegaId));
+    }
+
+    private function zonasVisiblesPara($user)
+    {
+        if ($user->rol->nombre === 'Administrador') {
+            return Zona::all();
+        }
+
+        $bodegaId = $user->caja?->bodega_id;
+        if (!$bodegaId) {
+            return Zona::all();
+        }
+
+        return Zona::whereNull('bodega_id')->orWhere('bodega_id', $bodegaId)->get();
+    }
+
+    /**
+     * Revierte a 'disponible' las mesas 'seleccionada' hace más de 2
+     * minutos — pero solo si de verdad no tienen un pedido pendiente detrás
+     * (antes esto se asumía por construcción; ahora queda explícito, para
+     * que no importe si algún día otro flujo deja una mesa 'seleccionada'
+     * con un pedido real sin querer).
+     */
+    private function liberarMesasVencidas(): void
+    {
+        Mesa::where('estado', 'seleccionada')
+            ->where('updated_at', '<', now()->subMinutes(2))
+            ->whereDoesntHave('pedidos', fn ($query) => $query->where('estado', 'pendiente'))
+            ->update(['estado' => 'disponible', 'bloqueada_por' => null, 'bloqueada_at' => null]);
+    }
+
+    /**
+     * Para un renglón de venta (DetallePedido), determina qué producto(s)
+     * hay que descontar del inventario y en qué cantidad. Normalmente es
+     * solo el mismo producto vendido, pero hay dos formas de que sea otra
+     * cosa:
+     *
+     *  - "Ensamblado" (ej. Cubetazo Poker, ver Producto::es_ensamblado): se
+     *    descuenta su producto base (Poker) multiplicado por el factor de
+     *    consumo — un único insumo, cantidad fija.
+     *  - "Acompañamiento" (ej. Cubetazo Mix, ver Producto::acompanamiento_grupo_id):
+     *    el mesero repartió libremente el máximo del grupo entre varias
+     *    opciones al comandar (ver DetallePedidoAcompanamiento) — puede ser
+     *    varios insumos distintos, cada uno con su propia cantidad.
+     *
+     * En ambos casos el producto vendido en sí NO carga su propio
+     * inventario. Devuelve una lista de renglones
+     * [Producto $productoADescontar, float $cantidad, bool $esDerivado,
+     * ?int $bodegaOrigenId] (vacía si esta línea no debe afectar
+     * inventario).
+     *
+     * $esDerivado = true significa que la cantidad viene de una RECETA
+     * (ensamblado/acompañamiento), no de una venta directa de ese producto
+     * — eso es lo que permite, más adelante en cerrarMesa(), que un
+     * faltante de stock quede como "consumo pendiente" en vez de bloquear
+     * toda la factura (el dinero ya entró). Una venta DIRECTA nunca se
+     * difiere: si no hay stock, se rechaza como siempre.
+     *
+     * $bodegaOrigenId es la bodega donde vive de verdad el insumo si es
+     * distinta a la de la caja que vendió (ver Producto::bodega_origen_id
+     * — ej. la carne de una hamburguesa vendida en Discoteca vive en la
+     * bodega de Cocina). Null = usar la bodega de la caja, como siempre.
+     */
+    private function resolverDescuentosInventario($detalle): array
+    {
+        $producto = $detalle->producto;
+        if (!$producto) {
+            return [];
+        }
+
+        if ($producto->acompanamiento_grupo_id) {
+            $pares = [];
+            foreach ($detalle->acompanamientos as $reparto) {
+                $elegido = $reparto->producto;
+                if ($elegido && $elegido->afecta_inventario) {
+                    $pares[] = [$elegido, (float) $reparto->cantidad, true, $elegido->bodega_origen_id];
+                }
+            }
+            return $pares;
+        }
+
+        if ($producto->es_ensamblado && $producto->producto_base_id) {
+            $base = $producto->productoBase;
+            if (!$base || !$base->afecta_inventario) {
+                return [];
+            }
+
+            $factor = (float) ($producto->factor_consumo ?? 1);
+
+            return [[$base, (float) $detalle->cantidad * $factor, true, $producto->bodega_origen_id]];
+        }
+
+        if (!$producto->afecta_inventario) {
+            return [];
+        }
+
+        return [[$producto, (float) $detalle->cantidad, false, null]];
+    }
+
+    public function bloquearMesa($id)
+    {
+        $user = Auth::user();
+        $rolNombre = $user?->rol?->nombre;
+
+        if (!in_array($rolNombre, ['Mesero', 'Administrador', 'Cajero'], true)) {
+            return response()->json(['status' => 'error', 'message' => 'No tienes acceso a la zona de facturación.'], 403);
+        }
+
+        return DB::transaction(function () use ($id, $user) {
+            // lockForUpdate() bloquea la fila hasta que esta transacción
+            // termine: si dos meseros piden la misma mesa al mismo tiempo,
+            // el segundo espera, relee el estado ya actualizado por el
+            // primero, y recibe el 403 de "ya no está disponible" — antes
+            // ambos podían leer 'disponible' a la vez y tomarla los dos.
+            $mesa = Mesa::where('id', $id)->lockForUpdate()->first();
+
+            if (!$mesa) {
+                return response()->json(['status' => 'error', 'message' => 'Mesa no encontrada'], 404);
+            }
+
+            // No basta con ocultarla en el listado (mesasVisiblesPara): el
+            // id de la mesa es adivinable/consultable, así que hay que
+            // rechazar aquí también que un mesero/cajero de otra sede la
+            // tome directamente por URL.
+            if (!$this->mesasVisiblesPara($user)->where('id', $mesa->id)->exists()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Esta mesa pertenece a otra sede/zona.',
+                ], 403);
+            }
+
+            if ($mesa->estado !== 'disponible') {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'La mesa ya no está disponible'
+                ], 403);
+            }
+
+            $mesa->update([
+                'estado' => 'seleccionada',
+                'bloqueada_por' => Auth::id(),
+                'bloqueada_at' => now(),
+            ]);
+
+            return response()->json(['status' => 'success']);
+        });
     }
 
     public function liberarMesa($id, Request $request)
@@ -145,9 +313,19 @@ class FacturacionController extends Controller
                         'Pedido #' . $pedido->id
                     );
                 }
+            } elseif ($mesa->bloqueada_por && $mesa->bloqueada_por !== $user->id && $rolNombre !== 'Administrador') {
+                // Sin pedido todavía (solo la tomó para empezar a armar el
+                // pedido): antes cualquiera podía liberar esta reserva
+                // ajena, aunque no hubiera nada más que borrar.
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Esta mesa la tomó otro usuario; no puedes liberarla tú.',
+                ], 403);
             }
 
             $mesa->estado = 'disponible';
+            $mesa->bloqueada_por = null;
+            $mesa->bloqueada_at = null;
             $mesa->save();
 
             return response()->json([
@@ -164,11 +342,12 @@ class FacturacionController extends Controller
 
     public function obtenerEstadoMesas()
     {
-        Mesa::where('estado', 'seleccionada')
-            ->where('updated_at', '<', now()->subMinutes(2))
-            ->update(['estado' => 'disponible']);
+        $this->liberarMesasVencidas();
 
-        $mesas = Mesa::with(['zona', 'pedidos' => function ($query) {
+        // Mismo filtro por venue que index() — si no, el polling automático
+        // de esta pantalla (cada pocos segundos) le devolvía a un mesero de
+        // Discoteca las mesas del Restaurante que index() ya le escondía.
+        $mesas = $this->mesasVisiblesPara(Auth::user())->with(['zona', 'pedidos' => function ($query) {
             $query->where('estado', 'pendiente')->with('user');
         }])->get();
 
@@ -184,6 +363,12 @@ class FacturacionController extends Controller
             'items.*.id' => 'required|integer',
             'items.*.cantidad' => 'required|integer|min:1',
             'items.*.observacion' => 'nullable|string|max:255',
+            // Reparto de acompañamiento (ej. Cubetazo Mix: 4 Poker + 3
+            // Águila + 3 Costeña) — se valida a fondo más abajo, contra las
+            // opciones y el máximo reales del grupo.
+            'items.*.acompanamiento' => 'nullable|array',
+            'items.*.acompanamiento.*.producto_id' => 'required_with:items.*.acompanamiento|integer',
+            'items.*.acompanamiento.*.cantidad' => 'required_with:items.*.acompanamiento|integer|min:1',
         ]);
 
         // El precio y la disponibilidad del producto se resuelven aquí, en
@@ -191,7 +376,7 @@ class FacturacionController extends Controller
         // navegador, así que un usuario autenticado podía manipular el
         // payload y facturar cualquier precio que quisiera.
         $productoIds = collect($request->items)->pluck('id')->unique();
-        $productos = Producto::whereIn('id', $productoIds)->where('inactivo', 0)->get()->keyBy('id');
+        $productos = Producto::whereIn('id', $productoIds)->where('inactivo', 0)->with('acompanamientoGrupo.opciones')->get()->keyBy('id');
 
         $faltantes = $productoIds->diff($productos->keys());
         if ($faltantes->isNotEmpty()) {
@@ -199,6 +384,52 @@ class FacturacionController extends Controller
                 'status' => 'error',
                 'message' => 'Uno o más productos ya no están disponibles. Refresca el catálogo e intenta de nuevo.',
             ], 422);
+        }
+
+        // Un producto con acompañamiento (ej. Cubetazo Mix) trae consigo el
+        // reparto que el mesero eligió en el modal — se valida acá, en el
+        // servidor, contra el máximo y las opciones REALES del grupo (nunca
+        // se confía en lo que mande el navegador).
+        foreach ($request->items as $item) {
+            $producto = $productos->get((int) $item['id']);
+            if (!$producto->acompanamiento_grupo_id) {
+                continue;
+            }
+
+            if ((int) $item['cantidad'] !== 1) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "\"{$producto->descripcion}\" es un producto con acompañamiento: agrégalo como líneas separadas, no aumentes su cantidad.",
+                ], 422);
+            }
+
+            $grupo = $producto->acompanamientoGrupo;
+            $opcionesValidas = $grupo->opciones->pluck('producto_id')->all();
+            $reparto = collect($item['acompanamiento'] ?? []);
+
+            if ($reparto->isEmpty()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Falta el reparto de acompañamiento para \"{$producto->descripcion}\".",
+                ], 422);
+            }
+
+            foreach ($reparto as $linea) {
+                if (!in_array((int) ($linea['producto_id'] ?? 0), $opcionesValidas, true)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Uno de los productos elegidos ya no pertenece al grupo \"{$grupo->descripcion}\". Refresca e intenta de nuevo.",
+                    ], 422);
+                }
+            }
+
+            $totalRepartido = $reparto->sum(fn ($l) => (int) ($l['cantidad'] ?? 0));
+            if ($totalRepartido < 1 || $totalRepartido > $grupo->cantidad_maxima) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "El reparto de \"{$producto->descripcion}\" debe sumar entre 1 y {$grupo->cantidad_maxima} unidades (llegó a {$totalRepartido}).",
+                ], 422);
+            }
         }
 
         try {
@@ -238,6 +469,16 @@ class FacturacionController extends Controller
                     'subtotal' => $subtotalItem,
                     'observacion' => $item['observacion'] ?? null,
                 ]);
+
+                if ($producto->acompanamiento_grupo_id) {
+                    foreach ($item['acompanamiento'] as $linea) {
+                        $detalle->acompanamientos()->create([
+                            'producto_id' => $linea['producto_id'],
+                            'cantidad' => $linea['cantidad'],
+                        ]);
+                    }
+                }
+
                 $itemsNuevosIds[] = $detalle->id;
                 $nuevoSubtotal += $subtotalItem;
             }
@@ -333,7 +574,10 @@ class FacturacionController extends Controller
             return response()->json(['status' => 'error', 'message' => 'No hay pedido'], 404);
         }
 
-        $items = $pedido->detalles->map(function ($detalle) {
+        // Los ítems cancelados (ver eliminarItemPedido) ya no se borran de
+        // la base de datos, así que hay que excluirlos aquí explícitamente
+        // para que no vuelvan a aparecer en el ticket del mesero/cajero.
+        $items = $pedido->detalles->whereNull('cancelado_at')->map(function ($detalle) {
             return [
                 'producto_id'     => $detalle->producto_id,
                 'nombre_producto' => $detalle->producto->descripcion,
@@ -341,7 +585,7 @@ class FacturacionController extends Controller
                 'cantidad'        => $detalle->cantidad,
                 'observacion'     => $detalle->observacion ?? '',
             ];
-        });
+        })->values();
 
         $nombreCliente = 'Consumidor Final';
         if ($pedido->cliente) {
@@ -361,12 +605,23 @@ class FacturacionController extends Controller
 
     public function eliminarItemPedido(Request $request, PrintService $printService)
     {
-        $autorizador = Auth::user();
-        if (!$autorizador || !$autorizador->clave_anulacion || !\Illuminate\Support\Facades\Hash::check((string) $request->clave, $autorizador->clave_anulacion)) {
+        $request->validate([
+            'mesa_id' => ['required', 'exists:mesas,id'],
+            'producto_id' => ['required', 'exists:productos,id'],
+            'clave' => ['required', 'string', 'min:4', 'max:50'],
+        ]);
+
+        $autorizador = $this->resolverAutorizadorAnulacion((string) $request->input('clave'));
+        if (!$autorizador) {
             return response()->json(['status' => 'error', 'message' => 'Clave incorrecta'], 403);
         }
 
-        Log::info('Eliminar item:', $request->all());
+        Log::info('Eliminación de ítem de pedido autorizada', [
+            'mesa_id' => $request->mesa_id,
+            'producto_id' => $request->producto_id,
+            'autorizado_por' => $autorizador->id,
+            'solicitado_por' => Auth::id(),
+        ]);
 
         try {
             $pedido = Pedido::where('mesa_id', $request->mesa_id)
@@ -379,30 +634,36 @@ class FacturacionController extends Controller
 
             $item = $pedido->detalles()
                 ->where('producto_id', $request->producto_id)
+                ->whereNull('cancelado_at')
                 ->first();
 
             if (!$item) {
                 return response()->json(['status' => 'error', 'message' => 'Item no encontrado'], 404);
             }
 
-            // ✅ ENCOLAR COMANDA DE ANULACIÓN ANTES DE ELIMINAR
+            // ✅ ENCOLAR COMANDA DE ANULACIÓN ANTES DE CANCELAR (ticket físico
+            // para cocina, por si el cocinero ya empezó a preparar el plato).
             try {
                 // 🔄 Cambiado a plural 'grupoMenu.impresoras'
                 $producto = $item->producto()->with('grupoMenu.impresoras')->first();
                 $mesa     = Mesa::find($request->mesa_id);
 
-                // Verificamos si existen impresoras asignadas en la relación muchos a muchos
+                // Verificamos si existen impresoras asignadas en la relación muchos a muchos.
+                // unique('id'): el mismo grupo puede tener varias filas hacia
+                // la MISMA impresora (una por punto RESTAURANTE/DISCOTECA/
+                // KARAOKE) — sin deduplicar, esto imprimía y mostraba la
+                // misma anulación 2 o 3 veces ("se multiplica").
                 if ($producto && $producto->grupoMenu && $producto->grupoMenu->impresoras->isNotEmpty()) {
-
-                    // 💡 Tomamos la primera impresora del grupo para enviar la notificación de anulación
-                    foreach ($producto->grupoMenu->impresoras->where('activa', true) as $impresora) {
+                    foreach ($producto->grupoMenu->impresoras->where('activa', true)->unique('id') as $impresora) {
                         $printService->imprimirComandaAnulacion(
                             $mesa,
                             $producto,
                             $item->cantidad,
                             $item->observacion ?? '',
                             $impresora,
-                            $impresora->nombre
+                            $impresora->nombre,
+                            $pedido->id,
+                            $autorizador->name
                         );
                     }
                 }
@@ -413,10 +674,19 @@ class FacturacionController extends Controller
 
             // Restar del total solo lo de este item
             $pedido->decrement('total', $item->subtotal);
-            $item->delete();
 
-            // Solo borrar el pedido si no quedan items
-            $restantes = $pedido->detalles()->count();
+            // No se borra: se marca como cancelado para que Cocina siga
+            // mostrándolo (tachado/deshabilitado) dentro de su misma
+            // comanda, indicando quién lo canceló — ver
+            // CocinaController::comandas().
+            $item->update([
+                'cancelado_at' => now(),
+                'cancelado_por' => $autorizador->id,
+            ]);
+
+            // Solo borrar el pedido si no quedan items activos (todos
+            // cancelados o ya no había más).
+            $restantes = $pedido->detalles()->whereNull('cancelado_at')->count();
             if ($restantes === 0) {
                 $pedido->delete();
                 Mesa::find($request->mesa_id)?->update(['estado' => 'disponible']);
@@ -432,6 +702,32 @@ class FacturacionController extends Controller
             Log::error('Error eliminar item: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Acepta la clave de anulación del usuario que está operando o de un
+     * administrador activo. Así un cajero puede pedir la superclave al
+     * administrador sin compartir la contraseña de inicio de sesión.
+     */
+    private function resolverAutorizadorAnulacion(string $clave): ?User
+    {
+        $actual = Auth::user();
+
+        $candidatos = User::query()
+            ->where('activo', true)
+            ->where(function ($query) use ($actual) {
+                $query->whereHas('rol', fn ($rol) => $rol->where('nombre', 'Administrador'));
+
+                if ($actual) {
+                    $query->orWhere('id', $actual->id);
+                }
+            })
+            ->whereNotNull('clave_anulacion')
+            ->get();
+
+        return $candidatos->first(
+            fn (User $usuario) => Hash::check($clave, $usuario->clave_anulacion)
+        );
     }
 
     /**
@@ -554,7 +850,7 @@ class FacturacionController extends Controller
 
         $pedidos = Pedido::where('mesa_id', $request->mesa_id)
             ->where('estado', 'pendiente')
-            ->with('detalles.producto.integracionContable.procesoContable')
+            ->with('detalles.producto.integracionContable.procesoContable', 'detalles.producto.productoBase', 'detalles.acompanamientos.producto')
             ->get();
 
         if ($pedidos->isEmpty()) {
@@ -567,7 +863,11 @@ class FacturacionController extends Controller
         try {
             DB::beginTransaction();
 
-            $todosLosDetalles = $pedidos->flatMap->detalles;
+            // whereNull('cancelado_at'): un ítem cancelado (eliminarItemPedido)
+            // ya no se borra de la base de datos, solo se marca — así que
+            // hay que excluirlo aquí explícitamente para que no se facture
+            // ni descuente inventario de algo que el cliente no recibió.
+            $todosLosDetalles = $pedidos->flatMap->detalles->whereNull('cancelado_at')->values();
             $clienteId = $pedidos->first()->cliente_id ?? 1;
 
             // Una venta a crédito queda como cuenta por cobrar de un cliente real:
@@ -584,30 +884,95 @@ class FacturacionController extends Controller
                 ], 422);
             }
 
-            // 1. Validar stock — lockForUpdate() bloquea la fila hasta que
-            // esta transacción termine. Sin esto, dos cajeros vendiendo el
-            // último producto en simultáneo podían leer el mismo stock
-            // "suficiente" antes de que cualquiera decrementara, y terminar
-            // ambos vendiendo por debajo de cero (sobreventa silenciosa).
+            // 1. Toda venta debe poder contabilizarse. Antes, un producto sin
+            // integración contable (o con una integración sin proceso
+            // contable válido) no bloqueaba nada: contabilizar() lo saltaba
+            // con un warning en el log y esa parte de la venta quedaba
+            // fuera de la contabilidad sin que nadie se enterara en el
+            // momento — el cajero veía "venta exitosa" igual.
+            $detalleSinIntegracion = $todosLosDetalles->first(
+                fn ($detalle) => !$detalle->producto?->integracionContable || !$detalle->producto->integracionContable->procesoContable
+            );
+
+            if ($detalleSinIntegracion) {
+                DB::rollBack();
+
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => "El producto '{$detalleSinIntegracion->producto->descripcion}' no tiene una integración contable configurada correctamente. Pide a un administrador que la asigne en Productos antes de facturarlo.",
+                ], 422);
+            }
+
+            // 2. Validar stock — agrupado por PRODUCTO A DESCONTAR y con
+            // lockForUpdate(). Antes se validaba línea por línea: si el
+            // mismo producto aparecía en dos líneas del pedido (agregado en
+            // momentos distintos), cada línea comparaba su propia cantidad
+            // contra el stock SIN restar lo que la otra línea ya iba a
+            // consumir — con stock=1 y dos líneas de 1, ambas "pasaban" y
+            // luego se descontaban las dos (stock -1). Agrupar y sumar antes
+            // de comparar cierra eso. lockForUpdate() además bloquea la fila
+            // hasta que esta transacción termine, para que dos cajeros no
+            // lean el mismo stock "suficiente" a la vez.
+            //
+            // "Producto a descontar" no siempre es el producto vendido: si
+            // es un ensamblado (ej. Cubetazo Poker) o tiene acompañamiento
+            // (ej. Cubetazo Mix), lo que de verdad hay que descontar es su
+            // insumo(s) real(es) — ver resolverDescuentosInventario(). Y no
+            // siempre es de la bodega de esta caja: un insumo puede
+            // declarar su propia bodega_origen_id (ej. la carne vive en
+            // Cocina aunque la hamburguesa se venda desde Discoteca).
+            //
+            // Se agrupa por [producto, bodega] en vez de solo producto:
+            // el mismo insumo podría en teoría resolverse contra bodegas
+            // distintas según de dónde venga cada línea.
+            $cantidadPorClave = [];
+            $productoEfectivoPorClave = [];
+            $bodegaPorClave = [];
+            $esPuraDerivadaPorClave = [];
             foreach ($todosLosDetalles as $detalle) {
-                $producto = $detalle->producto;
+                foreach ($this->resolverDescuentosInventario($detalle) as [$productoEfectivo, $cantidad, $esDerivado, $bodegaOrigenId]) {
+                    $bodegaId = $bodegaOrigenId ?? $caja->bodega_id;
+                    $clave = $productoEfectivo->id . ':' . $bodegaId;
 
-                if (!$producto || $producto->afecta_inventario != 1) {
-                    continue;
-                }
-
-                $inventario = DB::table('inventarios')
-                    ->where('producto_id', $producto->id)
-                    ->where('bodega_id', $caja->bodega_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if (!$inventario || $inventario->stock < $detalle->cantidad) {
-                    throw new \Exception("Stock insuficiente para: {$producto->descripcion}");
+                    $productoEfectivoPorClave[$clave] = $productoEfectivo;
+                    $bodegaPorClave[$clave] = $bodegaId;
+                    $cantidadPorClave[$clave] = ($cantidadPorClave[$clave] ?? 0) + $cantidad;
+                    // Solo se puede diferir si TODAS las líneas que aportan a
+                    // esta clave vienen de una receta — si alguna es una
+                    // venta directa de ese producto, no se difiere nunca.
+                    $esPuraDerivadaPorClave[$clave] = ($esPuraDerivadaPorClave[$clave] ?? true) && $esDerivado;
                 }
             }
 
-            // 2. Totales fiscales (una sola fuente de verdad: el service)
+            // Si algún insumo DERIVADO (nunca uno vendido directamente) no
+            // alcanza, la factura de todas formas debe pasar — el dinero ya
+            // entró. En ese caso el Consumo completo de esta venta queda
+            // "no_registrado": NINGÚN insumo derivado se descuenta todavía
+            // (ni siquiera los que sí alcanzaban), hasta que un
+            // administrador ajuste el inventario o elimine la línea
+            // problemática y lo registre manualmente (ver ConsumoController).
+            $consumoPendiente = false;
+
+            foreach ($cantidadPorClave as $clave => $cantidadTotal) {
+                $producto = $productoEfectivoPorClave[$clave];
+                $bodegaId = $bodegaPorClave[$clave];
+
+                $inventario = DB::table('inventarios')
+                    ->where('producto_id', $producto->id)
+                    ->where('bodega_id', $bodegaId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$inventario || $inventario->stock < $cantidadTotal) {
+                    if (!$esPuraDerivadaPorClave[$clave]) {
+                        throw new \Exception("Stock insuficiente para: {$producto->descripcion}");
+                    }
+
+                    $consumoPendiente = true;
+                }
+            }
+
+            // 3. Totales fiscales (una sola fuente de verdad: el service)
             $totales = $facturacionContableService->calcularTotales($todosLosDetalles);
 
             // El total que llega del navegador debe coincidir con lo calculado
@@ -624,37 +989,50 @@ class FacturacionController extends Controller
                 ], 422);
             }
 
-            // 3. Numeración de factura
-            $ultimaFactura = Factura::where('caja_id', $caja->id)
-                ->where('numero_factura', 'LIKE', $caja->prefijo . '-%')
-                ->orderBy('id', 'desc')
-                ->first();
-
-            $nuevoNumero = $ultimaFactura
-                ? intval(explode('-', $ultimaFactura->numero_factura)[1] ?? 0) + 1
-                : 1;
+            // 4. Numeración de factura — consecutivo centralizado por
+            // PREFIJO, no por caja: dos cajas pueden compartir el mismo
+            // prefijo (ya pasa hoy en esta base de datos), así que "última
+            // factura DE ESTA CAJA + 1" podía generar un número que otra
+            // caja con el mismo prefijo ya hubiera usado, sin que hiciera
+            // falta ninguna concurrencia real. Prefijo::siguienteNumero()
+            // usa lockForUpdate(), así que también cierra la carrera entre
+            // dos cajeros facturando al mismo tiempo con el mismo prefijo.
+            $nuevoNumero = Prefijo::siguienteNumero($caja->prefijo);
 
             $numeroFactura = $caja->prefijo . '-' . str_pad($nuevoNumero, 5, '0', STR_PAD_LEFT);
 
-            // 4. Crear factura con subtotal/impuestos correctos
+            // El vencimiento se calcula UNA VEZ, aquí, y queda fotografiado
+            // en la factura — si el plazo del cliente cambia después, esta
+            // factura ya emitida no se ve afectada. dias_credito del
+            // cliente manda; si no está configurado, se usa la política
+            // general (antes esto era un "30" fijo solo dentro del
+            // adaptador de Factus, invisible para el resto del sistema).
+            $fechaVencimiento = null;
+            if ($request->metodo_pago === 'credito') {
+                $diasCredito = Tercero::find($clienteId)?->dias_credito ?? self::DIAS_CREDITO_POR_DEFECTO;
+                $fechaVencimiento = now()->addDays($diasCredito)->toDateString();
+            }
+
+            // 5. Crear factura con subtotal/impuestos correctos
             $factura = Factura::create([
-                'numero_factura'  => $numeroFactura,
-                'mesa_id'         => $request->mesa_id,
-                'user_id'         => auth()->id(),
-                'cliente_id'      => $clienteId,
-                'caja_id'         => $caja->id,
-                'subtotal'        => $totales['base'],
-                'impuestos'       => $totales['iva'],
-                'propina'         => $request->propina ?? 0,
-                'total'           => $request->total,
-                'metodo_pago'     => $request->metodo_pago,
-                'tipo_tarjeta'    => $request->tipo_tarjeta,
-                'banco_destino'   => $request->banco_destino,
-                'referencia_pago' => $request->referencia,
-                'estado'          => 'pagada',
-                'estado_pago'     => $request->metodo_pago === 'credito' ? 'pendiente' : 'pagada',
-                'total_pagado'    => $request->metodo_pago === 'credito' ? 0 : $request->total,
-                'saldo_pendiente' => $request->metodo_pago === 'credito' ? $request->total : 0,
+                'numero_factura'    => $numeroFactura,
+                'mesa_id'           => $request->mesa_id,
+                'user_id'           => auth()->id(),
+                'cliente_id'        => $clienteId,
+                'caja_id'           => $caja->id,
+                'subtotal'          => $totales['base'],
+                'impuestos'         => $totales['iva'],
+                'propina'           => $request->propina ?? 0,
+                'total'             => $request->total,
+                'metodo_pago'       => $request->metodo_pago,
+                'tipo_tarjeta'      => $request->tipo_tarjeta,
+                'banco_destino'     => $request->banco_destino,
+                'referencia_pago'   => $request->referencia,
+                'estado'            => 'pagada',
+                'estado_pago'       => $request->metodo_pago === 'credito' ? 'pendiente' : 'pagada',
+                'total_pagado'      => $request->metodo_pago === 'credito' ? 0 : $request->total,
+                'saldo_pendiente'   => $request->metodo_pago === 'credito' ? $request->total : 0,
+                'fecha_vencimiento' => $fechaVencimiento,
             ]);
 
             if ($request->metodo_pago === 'mixto') {
@@ -667,7 +1045,10 @@ class FacturacionController extends Controller
                 }
             }
 
-            // 5. Detalles + inventario
+            // 6. Detalles + inventario (+ consumo de materia prima si el
+            // producto vendido es un ensamblado o tiene acompañamiento,
+            // ej. Cubetazo Poker / Cubetazo Mix).
+            $lineasConsumo = [];
             foreach ($todosLosDetalles as $detalle) {
                 $factura->detalles()->create([
                     'producto_id'     => $detalle->producto_id,
@@ -676,28 +1057,77 @@ class FacturacionController extends Controller
                     'subtotal'        => $detalle->subtotal,
                 ]);
 
-                if ($detalle->producto && $detalle->producto->afecta_inventario == 1) {
-                    DB::table('inventarios')
-                        ->where('producto_id', $detalle->producto_id)
-                        ->where('bodega_id', $caja->bodega_id)
-                        ->decrement('stock', $detalle->cantidad);
+                $producto = $detalle->producto;
+                $descuentos = $this->resolverDescuentosInventario($detalle);
+                $esConsumoDeInsumo = $producto && ($producto->es_ensamblado || $producto->acompanamiento_grupo_id);
+
+                foreach ($descuentos as [$productoEfectivo, $cantidad, $esDerivado, $bodegaOrigenId]) {
+                    $bodegaId = $bodegaOrigenId ?? $caja->bodega_id;
+
+                    // Si esta factura quedó con algún faltante de insumo
+                    // derivado, NINGÚN insumo derivado se descuenta todavía
+                    // (ver validación arriba) — el Consumo nace
+                    // "no_registrado" y un administrador lo registra
+                    // manualmente después. Una venta directa (no derivada)
+                    // ya pasó la validación estricta, así que sí se
+                    // descuenta de una vez, como siempre.
+                    if (!($esDerivado && $consumoPendiente)) {
+                        DB::table('inventarios')
+                            ->where('producto_id', $productoEfectivo->id)
+                            ->where('bodega_id', $bodegaId)
+                            ->decrement('stock', $cantidad);
+                    }
+
+                    if ($esConsumoDeInsumo) {
+                        $costoUnitario = (float) (DB::table('inventarios')
+                            ->where('producto_id', $productoEfectivo->id)
+                            ->where('bodega_id', $bodegaId)
+                            ->value('costo_promedio') ?? 0);
+
+                        $lineasConsumo[] = [
+                            'producto_base_id' => $productoEfectivo->id,
+                            'producto_ensamblado_id' => $producto->id,
+                            'bodega_id' => $bodegaId,
+                            'cantidad' => $cantidad,
+                            'costo_unitario' => $costoUnitario,
+                            'subtotal' => round($cantidad * $costoUnitario, 2),
+                        ];
+                    }
                 }
             }
 
-            // 6. Cerrar pedidos y liberar mesa
+            if (!empty($lineasConsumo)) {
+                $consumo = Consumo::create([
+                    'numero_factura' => $factura->numero_factura,
+                    'factura_id' => $factura->id,
+                    'fecha' => now()->toDateString(),
+                    'observacion' => 'Consumo de materia prima de venta ' . now()->format('d/m/Y'),
+                    'total' => array_sum(array_column($lineasConsumo, 'subtotal')),
+                    'user_id' => auth()->id(),
+                    'estado' => $consumoPendiente ? 'no_registrado' : 'registrado',
+                    'registrado_por' => $consumoPendiente ? null : auth()->id(),
+                    'registrado_at' => $consumoPendiente ? null : now(),
+                ]);
+
+                foreach ($lineasConsumo as $linea) {
+                    $consumo->detalles()->create($linea);
+                }
+            }
+
+            // 7. Cerrar pedidos y liberar mesa
             app(LegacyDocumentSyncService::class)->factura($factura);
             $pedidos->each->update(['estado' => 'pagado']);
 
             Mesa::where('id', $request->mesa_id)->update(['estado' => 'disponible']);
 
-            // 7. Contabilizar — el controlador NO sabe de IVA, integraciones ni ContabilidadData
+            // 8. Contabilizar — el controlador NO sabe de IVA, integraciones ni ContabilidadData
             $facturacionContableService->contabilizar($factura);
 
-            // 7.1 Facturación electrónica: no hace nada mientras no haya
+            // 8.1 Facturación electrónica: no hace nada mientras no haya
             // proveedor configurado (ver FacturacionElectronicaService).
             $facturacionElectronicaService->encolarFactura($factura);
 
-            // 8. Imprimir
+            // 9. Imprimir
             if ($caja->impresora) {
                 try {
                     $factura->load([
@@ -877,64 +1307,34 @@ class FacturacionController extends Controller
         |--------------------------------------------------------------------------
         */
 
-            $facturas = DB::table('facturas')
-                ->where('user_id', $user->id)
-                ->whereBetween('created_at', [$desde, $hasta])
-                ->orderBy('id')
-                ->get();
-
+            if (!$caja || $hasta->lt($desde)) {
+                return response()->json(['message'=>'Caja o rango de cierre inválido.'], 422);
+            }
+            $facturas = \App\Models\Factura::with('pagos')
+                ->where('caja_id', $caja->id)->where('user_id', $user->id)
+                ->where('estado', 'pagada')->whereBetween('created_at', [$desde, $hasta])->orderBy('id')->get();
             $cantidadFacturas = $facturas->count();
-            $facturaInicial   = $facturas->first();
-            $facturaFinal     = $facturas->last();
-
-            /*
-        |--------------------------------------------------------------------------
-        | VENTAS SIN PROPINA
-        |--------------------------------------------------------------------------
-        */
-
-            $ventas = DB::table('facturas')
-                ->where('user_id', $user->id)
-                ->whereBetween('created_at', [$desde, $hasta])
-                ->selectRaw("
-                SUM(CASE WHEN metodo_pago = 'efectivo'       THEN total - propina ELSE 0 END) as efectivo,
-                SUM(CASE WHEN metodo_pago = 'qr'             THEN total - propina ELSE 0 END) as qr,
-                SUM(CASE WHEN metodo_pago = 'tarjeta'        THEN total - propina ELSE 0 END) as tarjeta,
-                SUM(CASE WHEN metodo_pago = 'transferencia'  THEN total - propina ELSE 0 END) as transferencia,
-                SUM(total - propina) as total_ventas
-            ")
-                ->first();
-
-            /*
-        |--------------------------------------------------------------------------
-        | PROPINAS
-        |--------------------------------------------------------------------------
-        */
-
-            $propinas = DB::table('facturas')
-                ->where('user_id', $user->id)
-                ->whereBetween('created_at', [$desde, $hasta])
-                ->selectRaw("
-                SUM(CASE WHEN metodo_pago = 'efectivo'       THEN propina ELSE 0 END) as efectivo,
-                SUM(CASE WHEN metodo_pago = 'qr'             THEN propina ELSE 0 END) as qr,
-                SUM(CASE WHEN metodo_pago = 'tarjeta'        THEN propina ELSE 0 END) as tarjeta,
-                SUM(CASE WHEN metodo_pago = 'transferencia'  THEN propina ELSE 0 END) as transferencia,
-                SUM(propina) as total_propinas
-            ")
-                ->first();
-
-            /*
-        |--------------------------------------------------------------------------
-        | MOVIMIENTOS DE CAJA
-        |--------------------------------------------------------------------------
-        */
-
-            $movimientos = DB::table('movimientos_caja')
-                ->whereBetween('created_at', [$desde, $hasta])
-                ->get();
-
+            $facturaInicial = $facturas->first();
+            $facturaFinal = $facturas->last();
+            $ventas = (object) ['efectivo'=>0,'qr'=>0,'tarjeta'=>0,'transferencia'=>0,'credito'=>0,'total_ventas'=>0];
+            $propinas = (object) ['efectivo'=>0,'qr'=>0,'tarjeta'=>0,'transferencia'=>0,'credito'=>0,'total_propinas'=>0];
+            foreach ($facturas as $factura) {
+                $restanteVenta = round((float)$factura->total - (float)$factura->propina, 2);
+                $ventas->total_ventas += $restanteVenta;
+                $propinas->total_propinas += (float)$factura->propina;
+                foreach (app(FacturacionContableService::class)->resolverPagos($factura) as $pago) {
+                    $medio = in_array($pago['metodo_pago'], ['nequi','daviplata','qr']) ? 'qr' : $pago['metodo_pago'];
+                    if (!property_exists($ventas,$medio)) continue;
+                    $venta = min($restanteVenta, (float)$pago['valor']);
+                    $ventas->$medio += $venta;
+                    $propinas->$medio += (float)$pago['valor'] - $venta;
+                    $restanteVenta = round($restanteVenta - $venta, 2);
+                }
+            }
+            $movimientos = DB::table('movimientos_caja')->where('user_id', $user->id)
+                ->whereBetween('created_at', [$desde, $hasta])->get();
             $totalEntradas = $movimientos->where('tipo', 'entrada')->sum('valor');
-            $totalSalidas  = $movimientos->where('tipo', 'salida')->sum('valor');
+            $totalSalidas = $movimientos->where('tipo', 'salida')->sum('valor');
 
             /*
         |--------------------------------------------------------------------------
@@ -1142,6 +1542,7 @@ class FacturacionController extends Controller
                 'resumen' => [
                     'ventas' => [
                         'bruta' => (float) ($ventas->total_ventas ?? 0),
+                        'credito' => (float) $ventas->credito,
                         'efectivo' => (float) ($ventas->efectivo ?? 0),
                         'qr' => (float) ($ventas->qr ?? 0),
                         'tarjeta' => (float) ($ventas->tarjeta ?? 0),

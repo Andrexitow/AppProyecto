@@ -88,6 +88,46 @@ class PlantillaContableSeeder extends Seeder
 
         ]);
 
+        // Propina: se contabiliza aparte de la venta, como ingreso propio
+        // (no es precio de ningún producto ni hace parte de la base
+        // gravable). Antes quedaba fuera de la contabilidad por completo —
+        // el efectivo sí entraba a caja, pero no había ningún registro de
+        // cuánta propina se había cobrado. FacturacionContableService::
+        // contabilizarPropina() calcula el sobrante de cada forma de pago
+        // después de cubrir la venta — eso ES la propina, ya repartida por
+        // forma de pago igual que el resto de la factura.
+        $ventaPropina = ProcesoContable::where('codigo', 'VENTA_PROPINA')->firstOrFail();
+        $this->aplicar($ventaPropina, [
+            [
+                'orden' => 1,
+                'tipo_movimiento' => 'DEBITO',
+                'configuracion_clave' => 'CUENTA_CAJA',
+                'origen_valor' => 'CUENTA_CAJA',
+                'descripcion' => 'Propina recibida en efectivo'
+            ],
+            [
+                'orden' => 2,
+                'tipo_movimiento' => 'DEBITO',
+                'configuracion_clave' => 'CUENTA_BANCO',
+                'origen_valor' => 'CUENTA_BANCO',
+                'descripcion' => 'Propina recibida por banco/digital'
+            ],
+            [
+                'orden' => 3,
+                'tipo_movimiento' => 'DEBITO',
+                'configuracion_clave' => 'CUENTA_CLIENTES',
+                'origen_valor' => 'CUENTA_CLIENTES',
+                'descripcion' => 'Propina que queda a crédito del cliente'
+            ],
+            [
+                'orden' => 4,
+                'tipo_movimiento' => 'CREDITO',
+                'configuracion_clave' => 'CUENTA_INGRESO_PROPINAS',
+                'origen_valor' => 'PROPINA',
+                'descripcion' => 'Ingreso por propina'
+            ],
+        ]);
+
         // Nota crédito: reversa una venta (total o parcialmente). Es el
         // espejo exacto de VENTA_CONTADO — mismas cuentas, tipo_movimiento
         // invertido — para que NotaFacturaService pueda reutilizar

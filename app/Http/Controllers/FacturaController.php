@@ -226,33 +226,11 @@ class FacturaController extends Controller
         // (p. ej. período contable cerrado) la formatea automáticamente el
         // manejador de excepciones de Laravel como 422 con sus mensajes.
         DB::transaction(function () use ($factura, $bodegaId, $facturacionContableService) {
-            // Reponer stock de cada producto que afecte inventario
-            $detalles = DB::table('factura_detalles')
-                ->join('productos', 'productos.id', '=', 'factura_detalles.producto_id')
-                ->where('factura_detalles.factura_id', $factura->id)
-                ->where('productos.afecta_inventario', 1)
-                ->select('factura_detalles.producto_id', 'factura_detalles.cantidad')
-                ->get();
-
-            foreach ($detalles as $d) {
-                $inventario = DB::table('inventarios')
-                    ->where('producto_id', $d->producto_id)
-                    ->where('bodega_id', $bodegaId)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($inventario) {
-                    DB::table('inventarios')->where('id', $inventario->id)->increment('stock', $d->cantidad);
-                    continue;
-                }
-
-                DB::table('inventarios')->insert([
-                    'producto_id' => $d->producto_id,
-                    'bodega_id' => $bodegaId,
-                    'stock' => $d->cantidad,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            if ($factura->pagosCliente()->whereHas('pago', fn ($q) => $q->where('estado', 'registrado'))->exists()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['factura'=>'Anule primero los abonos del cliente antes de anular la factura.']);
+            }
+            if ($factura->documento_id) {
+                app(\App\Services\ReversionInventarioService::class)->ejecutar($factura->documento_id);
             }
 
             // Antes esto dejaba el/los comprobantes contables en CONTABILIZADO
@@ -313,36 +291,8 @@ class FacturaController extends Controller
 
         try {
             DB::transaction(function () use ($factura, $facturacionContableService) {
-                $detalles = DB::table('factura_detalles')
-                    ->join('productos', 'productos.id', '=', 'factura_detalles.producto_id')
-                    ->where('factura_detalles.factura_id', $factura->id)
-                    ->where('productos.afecta_inventario', 1)
-                    ->select(
-                        'factura_detalles.producto_id',
-                        'factura_detalles.cantidad',
-                        'productos.descripcion'
-                    )
-                    ->get();
-
-                $bodegaId = DB::table('cajas')->where('id', $factura->caja_id)->value('bodega_id');
-
-                // Validar que haya stock suficiente para volver a descontarlo
-                foreach ($detalles as $d) {
-                    $stockActual = DB::table('inventarios')
-                        ->where('producto_id', $d->producto_id)
-                        ->where('bodega_id', $bodegaId)
-                        ->value('stock');
-
-                    if ($stockActual === null || $stockActual < $d->cantidad) {
-                        throw new \Exception("Stock insuficiente para revertir: {$d->descripcion}");
-                    }
-                }
-
-                foreach ($detalles as $d) {
-                    DB::table('inventarios')
-                        ->where('producto_id', $d->producto_id)
-                        ->where('bodega_id', $bodegaId)
-                        ->decrement('stock', $d->cantidad);
+                if ($factura->documento_id) {
+                    app(\App\Services\ReversionInventarioService::class)->ejecutar($factura->documento_id, true);
                 }
 
                 // Igual que al cerrar la mesa originalmente: 'credito' queda

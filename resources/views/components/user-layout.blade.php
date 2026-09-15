@@ -415,6 +415,8 @@
                 $rolActual = auth()->user()->rol->nombre ?? '';
                 $esAdministrador = $rolActual === 'Administrador';
                 $esContabilidad = $rolActual === 'Contabilidad';
+                // Plan de la instalación (no del usuario): ver config/nexora.php.
+                $esPlanPro = config('nexora.plan') === 'pro';
             @endphp
 
             @if ($esAdministrador || $esContabilidad)
@@ -431,6 +433,7 @@
                 <button class="nav-item" onclick="loadViewAndClose('usuarios')"><span class="nav-item-icon">👤</span><span class="nav-item-label">Cuentas y roles</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('cajas')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cajas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('impresoras')"><span class="nav-item-icon">🖨️</span><span class="nav-item-label">Impresoras</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('mesas')"><span class="nav-item-icon">🍽️</span><span class="nav-item-label">Mesas y Zonas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('prefijos')"><span class="nav-item-icon">🔖</span><span class="nav-item-label">Prefijos</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('conceptos-caja')"><span class="nav-item-icon">💵</span><span class="nav-item-label">Conceptos de Caja</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('configuracion-emisor')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Datos del Emisor</span></button>
@@ -442,6 +445,8 @@
                 <button class="nav-item" onclick="loadViewAndClose('categorias_pos')"><span class="nav-item-icon">🗂️</span><span class="nav-item-label">Categorías POS</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('bodegas')"><span class="nav-item-icon">🏭</span><span class="nav-item-label">Bodegas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('existencias')"><span class="nav-item-icon">📋</span><span class="nav-item-label">Existencias</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('consumos')"><span class="nav-item-icon">🥣</span><span class="nav-item-label">Consumos</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('acompanamientos')"><span class="nav-item-icon">🍹</span><span class="nav-item-label">Acompañamientos</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('traslados-bodega')"><span class="nav-item-icon">↔</span><span class="nav-item-label">Traslados entre bodegas</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('ajustes')"><span class="nav-item-icon">⚙️</span><span class="nav-item-label">Ajustes de inventario</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('logs')"><span class="nav-item-icon">◷</span><span class="nav-item-label">Logs del sistema</span></button>
@@ -452,8 +457,10 @@
 
                 <div class="nav-section-label">Ventas y Compras</div>
                 <button class="nav-item" onclick="loadViewAndClose('facturas')"><span class="nav-item-icon">📄</span><span class="nav-item-label">Facturas</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('compras')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Compras</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('documentos')"><span class="nav-item-icon">▤</span><span class="nav-item-label">Documentos</span></button>
+                @if ($esPlanPro)
+                    <button class="nav-item" onclick="loadViewAndClose('compras')"><span class="nav-item-icon">🛒</span><span class="nav-item-label">Compras</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('documentos')"><span class="nav-item-icon">▤</span><span class="nav-item-label">Documentos</span></button>
+                @endif
 
                 <button class="nav-item" onclick="toggleInformesMenu()">
                     <span class="nav-item-icon">📊</span><span class="nav-item-label">Informes</span>
@@ -464,27 +471,30 @@
                     <button class="nav-item nav-subitem" onclick="loadViewAndClose('propinas-vendedor')"><span class="nav-item-icon">💵</span><span class="nav-item-label">Propinas por Vendedor</span></button>
                 </div>
 
-                <div class="nav-section-label">Comprobantes y Libros</div>
-                <button class="nav-item" onclick="loadViewAndClose('comprobantes')"><span class="nav-item-icon">📊</span><span class="nav-item-label">Comprobantes</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('informes-contables')"><span class="nav-item-icon">📈</span><span class="nav-item-label">Informes contables</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('kardex')"><span class="nav-item-icon">📦</span><span class="nav-item-label">Kardex y costos</span></button>
-
-                <div class="nav-section-label">Cartera y Tesorería</div>
-                <button class="nav-item" onclick="loadViewAndClose('cuentas-por-cobrar')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cuentas por cobrar</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('cuentas-por-pagar')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cuentas por pagar</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('tesoreria')"><span class="nav-item-icon">🏦</span><span class="nav-item-label">Tesorería</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('cierres-caja')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cierres de caja</span></button>
-
-                <div class="nav-section-label">Nómina y Activos</div>
-                <button class="nav-item" onclick="loadViewAndClose('nomina')"><span class="nav-item-icon">🧑‍💼</span><span class="nav-item-label">Nómina</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('activos-fijos')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Activos fijos</span></button>
-
-                <div class="nav-section-label">Configuración Contable</div>
-                <button class="nav-item" onclick="loadViewAndClose('saldos-iniciales')"><span class="nav-item-icon">🚀</span><span class="nav-item-label">Saldos iniciales</span></button>
-                <button class="nav-item" onclick="loadViewAndClose('periodos-contables')"><span class="nav-item-icon">🔒</span><span class="nav-item-label">Períodos contables</span></button>
-                @if ($esAdministrador)<button class="nav-item" onclick="loadViewAndClose('metodos-pago-contables')"><span class="nav-item-icon">⇄</span><span class="nav-item-label">Medios de pago</span></button>@endif
                 <button class="nav-item" onclick="loadViewAndClose('terceros')"><span class="nav-item-icon">👥</span><span class="nav-item-label">Terceros</span></button>
+
+                @if ($esPlanPro)
+                    <div class="nav-section-label">Comprobantes y Libros</div>
+                    <button class="nav-item" onclick="loadViewAndClose('comprobantes')"><span class="nav-item-icon">📊</span><span class="nav-item-label">Comprobantes</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('cuentas-contables')"><span class="nav-item-icon">📒</span><span class="nav-item-label">Plan de cuentas</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('informes-contables')"><span class="nav-item-icon">📈</span><span class="nav-item-label">Informes contables</span></button>
+
+                    <div class="nav-section-label">Cartera y Tesorería</div>
+                    <button class="nav-item" onclick="loadViewAndClose('cuentas-por-cobrar')"><span class="nav-item-icon">💰</span><span class="nav-item-label">Cuentas por cobrar</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('cuentas-por-pagar')"><span class="nav-item-icon">🧾</span><span class="nav-item-label">Cuentas por pagar</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('tesoreria')"><span class="nav-item-icon">🏦</span><span class="nav-item-label">Tesorería</span></button>
+
+                    <div class="nav-section-label">Nómina y Activos</div>
+                    <button class="nav-item" onclick="loadViewAndClose('nomina')"><span class="nav-item-icon">🧑‍💼</span><span class="nav-item-label">Nómina</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('activos-fijos')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Activos fijos</span></button>
+
+                    <div class="nav-section-label">Configuración Contable</div>
+                    <button class="nav-item" onclick="loadViewAndClose('saldos-iniciales')"><span class="nav-item-icon">🚀</span><span class="nav-item-label">Saldos iniciales</span></button>
+                    <button class="nav-item" onclick="loadViewAndClose('periodos-contables')"><span class="nav-item-icon">🔒</span><span class="nav-item-label">Períodos contables</span></button>
+                    @if ($esAdministrador)<button class="nav-item" onclick="loadViewAndClose('metodos-pago-contables')"><span class="nav-item-icon">⇄</span><span class="nav-item-label">Medios de pago</span></button>@endif
+                @endif
             @endif
 
         </nav>
@@ -644,6 +654,8 @@
             facturas: 'Operaciones',
             compras: 'Operaciones',
             existencias: 'Reportes',
+            consumos: 'Reportes',
+            acompanamientos: 'Reportes',
             ajustes: 'Reportes'
         };
 
@@ -661,6 +673,8 @@
             compras: 'Compras',
             documentos: 'Documentos',
             existencias: 'Stock',
+            consumos: 'Consumos',
+            acompanamientos: 'Acompañamientos',
             ajustes: 'Ajustes'
         };
 

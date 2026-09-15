@@ -18,8 +18,13 @@ class DetallePedido extends Model
         'cantidad',
         'precio_unitario',
         'subtotal',
-        'observacion'
-        
+        'observacion',
+        'cancelado_at',
+        'cancelado_por',
+    ];
+
+    protected $casts = [
+        'cancelado_at' => 'datetime',
     ];
 
     // Relación: El detalle pertenece a un pedido
@@ -32,5 +37,20 @@ class DetallePedido extends Model
     public function producto()
     {
         return $this->belongsTo(Producto::class);
+    }
+
+    // Quién autorizó/canceló esta línea después de enviada a cocina (ver
+    // FacturacionController::eliminarItemPedido) — null mientras no esté
+    // cancelada.
+    public function canceladoPor()
+    {
+        return $this->belongsTo(User::class, 'cancelado_por');
+    }
+
+    // Reparto de acompañamiento elegido para esta línea (si el producto
+    // tiene un acompanamiento_grupo_id) — ver DetallePedidoAcompanamiento.
+    public function acompanamientos()
+    {
+        return $this->hasMany(DetallePedidoAcompanamiento::class);
     }
 }

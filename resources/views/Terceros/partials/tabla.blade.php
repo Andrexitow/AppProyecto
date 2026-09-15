@@ -59,4 +59,18 @@
             @endforelse
         </tbody>
     </table>
+
+    @if ($terceros instanceof \Illuminate\Contracts\Pagination\Paginator)
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid #F3F4F6;font-size:12px;color:#6B7280;flex-wrap:wrap;">
+            <span>
+                Mostrando {{ $terceros->firstItem() ?? 0 }}–{{ $terceros->lastItem() ?? 0 }}
+                de {{ $terceros->total() }} tercero{{ $terceros->total() !== 1 ? 's' : '' }}
+            </span>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" class="act-btn" style="width:auto;padding:4px 10px;" onclick="irAPaginaTercero({{ $terceros->currentPage() - 1 }})" {{ $terceros->onFirstPage() ? 'disabled' : '' }}>‹ Anterior</button>
+                <span>Página {{ $terceros->currentPage() }} de {{ $terceros->lastPage() }}</span>
+                <button type="button" class="act-btn" style="width:auto;padding:4px 10px;" onclick="irAPaginaTercero({{ $terceros->currentPage() + 1 }})" {{ $terceros->hasMorePages() ? '' : 'disabled' }}>Siguiente ›</button>
+            </div>
+        </div>
+    @endif
 </div>

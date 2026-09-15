@@ -22,6 +22,13 @@ class CocinaController extends Controller
     {
         $this->autorizar($request);
 
+        // Las comandas 'anulacion' ya NO se muestran como ficha aparte: eso
+        // era lo que hacía que un solo item cancelado apareciera 2 o 3
+        // veces en pantalla (una por cada impresora del grupo). Ahora el
+        // ítem cancelado se marca (DetallePedido::cancelado_at) y sigue
+        // viviendo DENTRO de su comanda original, tachado — ver el mapeo
+        // de items más abajo. La comanda 'anulacion' solo sirve para el
+        // ticket físico del agente de impresión (routes/web.php: /agente).
         $comandas = ComandaPendiente::query()
             ->with(['pedido.mesa.zona', 'pedido.mesero', 'impresora'])
             ->where('tipo', 'comanda')
@@ -31,7 +38,7 @@ class CocinaController extends Controller
             ->get()
             ->map(function (ComandaPendiente $comanda) {
                 $items = DetallePedido::query()
-                    ->with('producto:id,descripcion')
+                    ->with(['producto:id,descripcion', 'canceladoPor:id,name'])
                     ->whereIn('id', $comanda->detalle_ids ?? [])
                     ->orderBy('id')
                     ->get()
@@ -39,6 +46,8 @@ class CocinaController extends Controller
                         'cantidad' => $detalle->cantidad,
                         'producto' => $detalle->producto?->descripcion ?? 'Producto eliminado',
                         'observacion' => $detalle->observacion,
+                        'cancelado' => $detalle->cancelado_at !== null,
+                        'cancelado_por' => $detalle->canceladoPor?->name,
                     ]);
 
                 return [
@@ -99,7 +108,7 @@ class CocinaController extends Controller
             ->values();
 
         $detalles = DetallePedido::query()
-            ->with('producto:id,descripcion')
+            ->with(['producto:id,descripcion', 'canceladoPor:id,name'])
             ->whereIn('id', $detalleIds)
             ->get()
             ->keyBy('id');
@@ -112,6 +121,12 @@ class CocinaController extends Controller
 
             $unidades = 0;
             foreach ($items as $detalle) {
+                // Un ítem cancelado no cuenta como preparado, aunque siga
+                // visible en el historial para trazabilidad.
+                if ($detalle->cancelado_at) {
+                    continue;
+                }
+
                 $cantidad = (float) $detalle->cantidad;
                 $unidades += $cantidad;
                 $clave = $detalle->producto_id ?: 'eliminado-' . $detalle->id;
@@ -136,6 +151,8 @@ class CocinaController extends Controller
                 'items' => $items->map(fn (DetallePedido $detalle) => [
                     'producto' => $detalle->producto?->descripcion ?? 'Producto eliminado',
                     'cantidad' => $detalle->cantidad,
+                    'cancelado' => $detalle->cancelado_at !== null,
+                    'cancelado_por' => $detalle->canceladoPor?->name,
                 ])->values(),
                 'minutos_preparacion' => $comanda->created_at && $comanda->finalizado_at
                     ? $comanda->created_at->diffInMinutes($comanda->finalizado_at)
@@ -169,8 +186,8 @@ class CocinaController extends Controller
             if (!$comanda) {
                 abort(422, 'La comanda ya no existe. Actualiza la pantalla de cocina.');
             }
-            if ($comanda->tipo !== 'comanda' || !in_array($comanda->estado, ['pendiente', 'impreso'], true)) {
-                abort(422, 'Esta comanda ya fue finalizada o no está disponible.');
+            if (!in_array($comanda->tipo, ['comanda', 'anulacion'], true) || !in_array($comanda->estado, ['pendiente', 'impreso'], true)) {
+                abort(422, 'Esta comanda ya fue gestionada o no está disponible.');
             }
 
             $pedido = $comanda->pedido()->with('mesa')->first();
@@ -180,7 +197,7 @@ class CocinaController extends Controller
                 'finalizado_at' => now(),
             ]);
 
-            if ($pedido) {
+            if ($comanda->tipo === 'comanda' && $pedido) {
                 NotificacionPedido::create([
                     'user_id' => $pedido->user_id,
                     'pedido_id' => $pedido->id,
@@ -191,7 +208,7 @@ class CocinaController extends Controller
             }
         });
 
-        return response()->json(['message' => 'Comanda marcada como lista correctamente.']);
+        return response()->json(['message' => 'Comanda actualizada correctamente.']);
     }
 
     private function autorizar(Request $request): void

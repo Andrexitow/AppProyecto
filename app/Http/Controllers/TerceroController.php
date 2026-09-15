@@ -33,8 +33,9 @@ class TerceroController extends Controller
             $query->where('estado', $request->estado);
         }
 
-        // Ordenamos por los más recientes
-        $terceros = $query->orderBy('id', 'desc')->get();
+        // Ordenamos por los más recientes, paginado para no cargar toda
+        // la tabla de una vez cuando hay muchos terceros.
+        $terceros = $query->orderBy('id', 'desc')->paginate(50)->withQueryString();
 
         // Si la petición es AJAX (para el buscador en vivo), devolvemos solo la tabla
         if ($request->ajax()) {
@@ -121,9 +122,13 @@ class TerceroController extends Controller
             'celular' => 'required',
             'direccion' => 'nullable|string',
             'ciudad' => 'nullable|string|max:120',
+            'codigo_municipio' => 'nullable|string|max:10',
             'regimen_tributario' => ['nullable', Rule::in(array_keys(Tercero::REGIMENES_TRIBUTARIOS))],
             'codigo_ciiu' => 'nullable|string|max:10',
             'estado' => 'nullable|boolean',
+            // Plazo de crédito pactado con este cliente; si se deja vacío,
+            // una venta a crédito usa la política general por defecto.
+            'dias_credito' => 'nullable|integer|min:1|max:365',
 
             // persona
             'nombre' => 'required_if:tipo,persona',

@@ -142,6 +142,48 @@ class FacturacionContableServiceTest extends TestCase
     }
 
     /**
+     * Antes, la propina no se contabilizaba en ninguna cuenta: el efectivo
+     * sí entraba a caja, pero no había ningún registro contable de cuánta
+     * propina se había cobrado. Decisión de negocio: la propina es ingreso
+     * del negocio (no del mesero) — se contabiliza aparte, en su propia
+     * cuenta, para no mezclarla con el precio del producto.
+     */
+    public function test_contabiliza_la_propina_como_ingreso_propio_no_como_parte_de_la_venta()
+    {
+        $factura = $this->facturaConProducto(afectaInventario: true, cantidad: 1, costoPromedio: 20000, precioUnitario: 90000);
+        $factura->update(['propina' => 9000, 'total' => 99000]); // 90000 venta + 9000 propina, todo en efectivo
+
+        app(LegacyDocumentSyncService::class)->factura($factura);
+        app(FacturacionContableService::class)->contabilizar($factura->fresh());
+
+        $procesoPropinaId = \App\Models\ProcesoContable::where('codigo', 'VENTA_PROPINA')->value('id');
+        $comprobantePropina = ComprobanteContable::where('documento_origen_id', $factura->id)
+            ->where('proceso_contable_id', $procesoPropinaId)
+            ->where('estado', 'CONTABILIZADO')
+            ->first();
+
+        $this->assertNotNull($comprobantePropina, 'Debe existir un comprobante aparte para la propina.');
+
+        $movs = $comprobantePropina->movimientos;
+        $ingresoPropinas = $movs->firstWhere('cuenta_contable_id', CuentaContable::where('codigo', '413510')->value('id'));
+        $caja = $movs->firstWhere('cuenta_contable_id', CuentaContable::where('codigo', '110505')->value('id'));
+
+        $this->assertNotNull($ingresoPropinas, 'La propina debe ir a la cuenta de Ingreso por Propinas.');
+        $this->assertEquals(9000, (float) $ingresoPropinas->credito);
+        $this->assertEquals(9000, (float) $caja->debito);
+        $this->assertEquals((float) $movs->sum('debito'), (float) $movs->sum('credito'), 'El asiento de propina debe cuadrar.');
+
+        // El comprobante de la VENTA en sí (proceso distinto) sigue
+        // registrando solo el precio del producto, sin la propina mezclada.
+        $procesoVentaId = \App\Models\ProcesoContable::where('codigo', 'VENTA_CONTADO')->value('id');
+        $comprobanteVenta = ComprobanteContable::where('documento_origen_id', $factura->id)
+            ->where('proceso_contable_id', $procesoVentaId)
+            ->firstOrFail();
+        $ventas = $comprobanteVenta->movimientos->firstWhere('cuenta_contable_id', CuentaContable::where('codigo', '413505')->value('id'));
+        $this->assertEqualsWithDelta(round(90000 / 1.19, 2), (float) $ventas->credito, 0.01, 'La venta no debe incluir la propina en su ingreso.');
+    }
+
+    /**
      * Antes, un método de pago sin parametrizar contablemente (cualquier
      * cosa distinta de efectivo/tarjeta/transferencia/nequi/daviplata/
      * credito) caía en Caja por defecto con solo un warning en el log. Ahora

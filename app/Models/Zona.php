@@ -16,4 +16,11 @@ class Zona extends Model
     {
         return $this->hasMany(Mesa::class);
     }
+
+    // La bodega de la que se descuenta inventario / a la que apunta la
+    // impresión de cocina para los pedidos de esta zona (ver punto_impresion).
+    public function bodega()
+    {
+        return $this->belongsTo(Bodega::class);
+    }
 }

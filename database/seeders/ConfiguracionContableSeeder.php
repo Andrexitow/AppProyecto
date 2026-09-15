@@ -47,6 +47,11 @@ class ConfiguracionContableSeeder extends Seeder
             ],
 
             [
+                'clave' => 'CUENTA_INGRESO_PROPINAS',
+                'nombre' => 'Cuenta Ingreso por Propinas'
+            ],
+
+            [
                 'clave' => 'CUENTA_IVA_GENERADO',
                 'nombre' => 'Cuenta IVA Generado'
             ],

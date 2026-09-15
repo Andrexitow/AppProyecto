@@ -35,7 +35,21 @@ class Producto extends Model
         'iva_compras',
         'ico_compras',
         'precio',
-        'inactivo'
+        'inactivo',
+        // Producto ensamblado: al venderse no descuenta su propio
+        // inventario sino el del producto base (ver Consumo).
+        'es_ensamblado',
+        'producto_base_id',
+        'factor_consumo',
+        // Si el insumo real de este ensamblado vive en una bodega distinta
+        // a la de la caja que lo vende (ej. la carne de una hamburguesa
+        // vendida en Discoteca en realidad está en la bodega de Cocina).
+        // Null = se sigue revisando/descontando de la bodega de la caja.
+        'bodega_origen_id',
+        // Acompañamiento: en vez de un solo insumo fijo, el mesero reparte
+        // el máximo del grupo entre varias opciones al comandar (ver
+        // AcompanamientoGrupo).
+        'acompanamiento_grupo_id',
     ];
 
     protected $casts = [
@@ -49,6 +63,8 @@ class Producto extends Model
         'valor_imp_saludable' => 'decimal:2',
         'iva_compras' => 'decimal:2',
         'ico_compras' => 'decimal:2',
+        'es_ensamblado' => 'boolean',
+        'factor_consumo' => 'decimal:2',
     ];
 
     // RELACIÓN CON EL GRUPO (NUEVA)
@@ -68,5 +84,40 @@ class Producto extends Model
             IntegracionContable::class,
             'integracion_contable_id'
         );
+    }
+
+    /**
+     * El insumo real que se descuenta cuando este producto (ensamblado)
+     * se vende. Ej: "Cubetazo Poker" -> producto base "Poker".
+     */
+    public function productoBase()
+    {
+        return $this->belongsTo(Producto::class, 'producto_base_id');
+    }
+
+    /**
+     * Productos ensamblados que usan a este producto como insumo base.
+     */
+    public function productosEnsamblados()
+    {
+        return $this->hasMany(Producto::class, 'producto_base_id');
+    }
+
+    /**
+     * Bodega donde de verdad vive el insumo de este ensamblado, si es
+     * distinta a la de la caja que lo vende (ver bodega_origen_id).
+     */
+    public function bodegaOrigen()
+    {
+        return $this->belongsTo(Bodega::class, 'bodega_origen_id');
+    }
+
+    /**
+     * Grupo de acompañamiento del que este producto reparte unidades al
+     * comandarse (ej. "Cubetazo Mix" -> "Servicio de Cubetazo").
+     */
+    public function acompanamientoGrupo()
+    {
+        return $this->belongsTo(AcompanamientoGrupo::class, 'acompanamiento_grupo_id');
     }
 }

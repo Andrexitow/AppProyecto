@@ -29,6 +29,13 @@ class ProcesoContableSeeder extends Seeder
             ],
 
             [
+                'codigo' => 'VENTA_PROPINA',
+                'nombre' => 'Ingreso por propina en venta POS',
+                'tipo_documento_contable_id' => $tipos['FV'],
+                'estado' => true,
+            ],
+
+            [
                 'codigo' => 'COMPRA',
                 'nombre' => 'Compra',
                 'tipo_documento_contable_id' => $tipos['FC'],

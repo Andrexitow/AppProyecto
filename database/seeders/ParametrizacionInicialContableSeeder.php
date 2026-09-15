@@ -26,6 +26,8 @@ class ParametrizacionInicialContableSeeder extends Seeder
 
             'CUENTA_VENTAS' => '413505',
 
+            'CUENTA_INGRESO_PROPINAS' => '413510',
+
             'CUENTA_IVA_GENERADO' => '240805',
 
             'CUENTA_IVA_DESCONTABLE' => '240810',

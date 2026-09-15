@@ -121,13 +121,82 @@ class FacturacionContableService
 
         $desglose = $this->calcularDesglose($factura->detalles);
         $costosPorIntegracion = $this->calcularCostoPorIntegracion($factura);
-        $pagosPorGrupo = $this->repartirPagosPorGrupo($this->resolverPagos($factura), $desglose);
+        $pagos = $this->resolverPagos($factura);
+        $pagosPorGrupo = $this->repartirPagosPorGrupo($pagos, $desglose);
 
         foreach ($desglose as $integracionId => $grupo) {
             $grupo['costo'] = (float) ($costosPorIntegracion[$integracionId] ?? 0);
             $grupo['pagos'] = $pagosPorGrupo[$integracionId] ?? [];
             $this->procesarGrupo($factura, $grupo);
         }
+
+        $this->contabilizarPropina($factura, $pagos, $pagosPorGrupo);
+    }
+
+    /**
+     * La propina se contabiliza aparte de la venta, como ingreso propio del
+     * negocio (decisión de negocio: no es del mesero hasta que el negocio
+     * se la pague — ver salida de caja con concepto "Pago de propina" y el
+     * tercero/mesero como quien la recibe). Antes quedaba fuera de la
+     * contabilidad por completo: el efectivo sí entraba a caja, pero no
+     * había ningún registro de cuánto se había cobrado en propinas.
+     *
+     * No hay una línea de "propina" en $desglose (no es precio de ningún
+     * producto), así que se calcula por diferencia: resolverPagos() incluye
+     * la propina en el total pagado, pero repartirPagosPorGrupo() solo
+     * consumió de ahí lo que cada grupo de venta necesitaba (base+iva). Lo
+     * que sobra de cada forma de pago, después de cubrir todos los grupos,
+     * es exactamente la propina — ya repartida por forma de pago.
+     */
+    private function contabilizarPropina(Factura $factura, Collection $pagos, array $pagosPorGrupo): void
+    {
+        $propina = round((float) $factura->propina, 2);
+
+        if ($propina <= 0.001) {
+            return;
+        }
+
+        $totalPorClave = [];
+        foreach ($pagos as $pago) {
+            $clave = $this->claveCuentaDePago($pago['metodo_pago']);
+            $totalPorClave[$clave] = ($totalPorClave[$clave] ?? 0) + (float) $pago['valor'];
+        }
+
+        $asignadoPorClave = [];
+        foreach ($pagosPorGrupo as $montos) {
+            foreach ($montos as $clave => $valor) {
+                $asignadoPorClave[$clave] = ($asignadoPorClave[$clave] ?? 0) + $valor;
+            }
+        }
+
+        $sobrantePorClave = [];
+        foreach ($totalPorClave as $clave => $total) {
+            $sobra = round($total - ($asignadoPorClave[$clave] ?? 0), 2);
+            if ($sobra > 0.001) {
+                $sobrantePorClave[$clave] = $sobra;
+            }
+        }
+
+        if (empty($sobrantePorClave)) {
+            // No debería pasar si propina > 0 (implicaría que la venta ni
+            // siquiera cubrió su propio subtotal+iva), pero no hay nada
+            // seguro que contabilizar si pasara — mejor no reventar la venta.
+            Log::warning("Factura {$factura->numero_factura}: hay propina (\${$propina}) pero no se pudo determinar de qué forma de pago salió. No se contabilizó la propina.");
+            return;
+        }
+
+        $this->contabilidadService->procesar(
+            'VENTA_PROPINA',
+            new ContabilidadData(
+                modulo: 'POS',
+                valores: array_merge(['PROPINA' => $propina], $sobrantePorClave),
+                terceroId: $factura->cliente_id,
+                usuarioId: $factura->user_id,
+                documento: $factura->numero_factura,
+                documentoId: $factura->id,
+                observacion: "Propina venta POS {$factura->numero_factura}",
+            )
+        );
     }
 
     /**
@@ -237,11 +306,10 @@ class FacturacionContableService
         }
 
         return MovimientoInventario::where('documento_id', $factura->documento_id)
-            ->where('tipo', 'SALIDA')
             ->with('producto')
             ->get()
             ->groupBy(fn ($movimiento) => $movimiento->producto?->integracion_contable_id)
-            ->map(fn (Collection $grupo) => (float) $grupo->sum('valor_movimiento'));
+            ->map(fn (Collection $grupo) => (float) $grupo->sum(fn ($m) => ($m->tipo === 'SALIDA' ? 1 : -1) * $m->valor_movimiento));
     }
 
     private function procesarGrupo(Factura $factura, array $grupo): void

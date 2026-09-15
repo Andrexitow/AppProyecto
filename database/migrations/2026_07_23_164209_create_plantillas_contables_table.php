@@ -28,14 +28,14 @@ return new class extends Migration
             // Clave de la configuración
             $table->string('configuracion_clave');
 
-            // De dónde sale el valor. Las 3 CUENTA_* se agregaron para que
-            // FacturacionContableService reparta el ingreso de una venta entre
-            // Caja/Banco/Clientes (ver migración add_cuentas_pago_a_origen_valor_
-            // plantillas_contables, que hace el ALTER equivalente en MySQL ya
-            // migrado; aquí también se agregan para que un `migrate:fresh` o el
-            // SQLite de los tests, que hornea el enum como CHECK al crear la
-            // tabla, reflejen el esquema final sin depender del orden de
-            // migraciones).
+            // De dónde sale el valor. Las 3 CUENTA_* y PROPINA se agregaron
+            // después de creada esta tabla (ver migraciones
+            // add_cuentas_pago_a_origen_valor_plantillas_contables y
+            // add_propina_a_origen_valor_plantillas_contables, que hacen el
+            // ALTER equivalente en MySQL ya migrado; aquí también se
+            // agregan para que un `migrate:fresh` o el SQLite de los tests,
+            // que hornea el enum como CHECK al crear la tabla, reflejen el
+            // esquema final sin depender del orden de migraciones).
             $table->enum('origen_valor',[
                 'TOTAL',
                 'SUBTOTAL',
@@ -46,7 +46,8 @@ return new class extends Migration
                 'VALOR_FIJO',
                 'CUENTA_CAJA',
                 'CUENTA_BANCO',
-                'CUENTA_CLIENTES'
+                'CUENTA_CLIENTES',
+                'PROPINA'
             ]);
 
             // Solo si origen_valor = VALOR_FIJO

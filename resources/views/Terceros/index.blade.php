@@ -478,8 +478,16 @@
                     <input type="text" name="ciudad" placeholder="Ej: Bogotá D.C.">
                 </div>
                 <div class="tc-field">
+                    <label>Código municipio (DANE)</label>
+                    <input type="text" name="codigo_municipio" placeholder="Ej: 11001 (Bogotá)" maxlength="10">
+                </div>
+                <div class="tc-field">
                     <label>Código CIIU</label>
                     <input type="text" name="codigo_ciiu" placeholder="Ej: 5611">
+                </div>
+                <div class="tc-field">
+                    <label>Días de crédito</label>
+                    <input type="number" name="dias_credito" min="1" max="365" placeholder="Ej: 30 (vacío = política general)">
                 </div>
                 <div class="tc-field" style="grid-column:1/-1;">
                     <label>Régimen Tributario</label>
@@ -505,6 +513,9 @@
 <script>
     function tokenTC() { return document.querySelector('meta[name="csrf-token"]')?.content; }
 
+    // Página actual de la tabla de terceros. Cambia un filtro -> vuelve a la 1.
+    var paginaTercero = 1;
+
     function cargarTablaTerceros() {
         var buscar = document.getElementById('tc-buscar').value.trim();
         var tipo = document.getElementById('tc-tipo').value;
@@ -513,7 +524,7 @@
 
         contenedor.innerHTML = '<div class="table-scroll"><div class="spinner-cell"><div class="spinner"></div>Cargando terceros…</div></div>';
 
-        var params = new URLSearchParams({ search: buscar, tipo: tipo, estado: estado });
+        var params = new URLSearchParams({ search: buscar, tipo: tipo, estado: estado, page: paginaTercero });
 
         fetch('/views/terceros?' + params.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
             .then(function (r) { return r.text(); })
@@ -523,9 +534,19 @@
             });
     }
 
-    window.filtrarTerceros = debounce(cargarTablaTerceros, 300);
+    window.filtrarTerceros = debounce(function () {
+        paginaTercero = 1;
+        cargarTablaTerceros();
+    }, 300);
+
+    window.irAPaginaTercero = function (pagina) {
+        if (pagina < 1) return;
+        paginaTercero = pagina;
+        cargarTablaTerceros();
+    };
 
     function limpiarFiltrosTerceros() {
+        paginaTercero = 1;
         document.getElementById('tc-buscar').value = '';
         document.getElementById('tc-tipo').value = '';
         document.getElementById('tc-estado').value = '';

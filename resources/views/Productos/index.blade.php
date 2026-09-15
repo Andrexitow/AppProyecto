@@ -389,7 +389,7 @@
             <p class="sec-title">📦 Catálogo de Productos</p>
             <p class="sec-subtitle">Gestión de productos, precios e impuestos del punto de venta</p>
         </div>
-        <button class="btn-primary" onclick="switchProductoTab('info'); document.getElementById('formProducto').reset(); document.getElementById('producto_id').value=''; openModalProducto();">
+        <button class="btn-primary" onclick="switchProductoTab('info'); document.getElementById('formProducto').reset(); document.getElementById('producto_id').value=''; document.getElementById('prod_base_seleccionado').textContent=''; toggleEnsambleProducto(); toggleAcompanamientoProducto(); openModalProducto();">
             ＋ Nuevo Producto
         </button>
     </div>
@@ -472,6 +472,10 @@
                 class="producto-tab px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
                 Impuestos y Precios
             </button>
+            <button type="button" onclick="switchProductoTab('ensamble')" data-tab="ensamble"
+                class="producto-tab px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+                Ensamble
+            </button>
         </div>
 
         <form id="formProducto" class="modal-body-prod">
@@ -544,6 +548,108 @@
                         <option value="5">5%</option>
                         <option value="19">19%</option>
                     </select>
+                </div>
+
+                <div class="prod-field" style="grid-column:1/-1;">
+                    <label>Integración Contable</label>
+                    <select name="integracion_contable_id">
+                        <option value="">Seleccione…</option>
+                        @foreach ($integracionesContables as $ic)
+                            <option value="{{ $ic->id }}">{{ $ic->nombre }}</option>
+                        @endforeach
+                    </select>
+                    <p style="font-size:11px;color:#9CA3AF;margin-top:4px;">
+                        Obligatorio: sin esto, el sistema rechaza cualquier venta de este producto al cerrar la
+                        mesa. Define en qué categoría contable cae (Cervezas, Licores, Comida, etc.).
+                    </p>
+                </div>
+              </div>
+            </div>
+
+            {{-- HOJA 3: ENSAMBLE --}}
+            <div id="tab-ensamble" class="producto-tab-panel hidden">
+              <div class="prod-grid">
+                <div class="prod-field" style="grid-column:1/-1;">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                        <input type="checkbox" name="es_ensamblado" id="prod_es_ensamblado" value="1"
+                            onchange="toggleEnsambleProducto()" style="width:16px;height:16px;">
+                        Producto ensamblado
+                    </label>
+                    <p style="font-size:11.5px;color:#9CA3AF;margin-top:4px;">
+                        Márcalo si este producto se arma a partir de otro (ej: un "Cubetazo Poker" que en realidad
+                        descuenta varias unidades de "Poker" del inventario). Este producto NO llevará su propio
+                        inventario — se descuenta el del producto base.
+                    </p>
+                </div>
+
+                <div id="prod_ensamble_campos" class="hidden" style="grid-column:1/-1;display:contents;">
+                    <div class="prod-field aj-autocomplete" style="grid-column:1/-1;position:relative;">
+                        <label>Producto base (insumo real)</label>
+                        <input type="text" id="buscarProductoBase" autocomplete="off"
+                            oninput="ejecutarBusquedaProductoBase()"
+                            placeholder="Buscar por nombre o código…">
+                        <input type="hidden" name="producto_base_id" id="prod_base_id">
+                        <div id="resultadosProductoBase"
+                            class="aj-results floating hidden"
+                            style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #E5E7EB;border-radius:8px;box-shadow:0 8px 20px -6px rgba(0,0,0,.15);max-height:220px;overflow-y:auto;z-index:20;"></div>
+                        <div id="prod_base_seleccionado" style="margin-top:6px;font-size:12.5px;color:#1D4ED8;font-weight:600;"></div>
+                    </div>
+
+                    <div class="prod-field">
+                        <label>Cantidad consumida por unidad vendida</label>
+                        <input type="number" name="factor_consumo" id="prod_factor_consumo" step="0.01" min="0.01" placeholder="Ej: 6">
+                        <p style="font-size:11px;color:#9CA3AF;margin-top:4px;">Ej: si un Cubetazo trae 6 Poker, aquí va 6.</p>
+                    </div>
+
+                    <div class="prod-field" style="grid-column:1/-1;">
+                        <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                            <input type="checkbox" id="prod_usar_bodega_origen" onchange="toggleBodegaOrigenProducto()" style="width:16px;height:16px;">
+                            Descontar de una bodega de origen específica
+                        </label>
+                        <p style="font-size:11.5px;color:#9CA3AF;margin-top:4px;">
+                            Márcalo si el insumo real vive en OTRA bodega distinta a la de la caja que vende este
+                            producto (ej. la carne de una hamburguesa vendida en la caja de Discoteca en realidad
+                            está en la bodega de Cocina). Sin marcar, se sigue revisando/descontando de la bodega
+                            de la caja, como siempre.
+                        </p>
+                        <div id="prod_bodega_origen_campo" class="hidden" style="margin-top:8px;">
+                            <select name="bodega_origen_id" id="prod_bodega_origen_id">
+                                <option value="">Selecciona la bodega de origen…</option>
+                                @foreach ($bodegas as $b)
+                                    <option value="{{ $b->id }}">{{ $b->descripcion }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="grid-column:1/-1;border-top:1px dashed #E5E7EB;margin:6px 0 2px;padding-top:14px;">
+                    <label style="display:flex;align-items:center;gap:8px;font-weight:600;">
+                        <input type="checkbox" name="tiene_acompanamiento" id="prod_tiene_acompanamiento" value="1"
+                            onchange="toggleAcompanamientoProducto()" style="width:16px;height:16px;">
+                        Insertar acompañamiento (mezcla a elegir)
+                    </label>
+                    <p style="font-size:11.5px;color:#9CA3AF;margin-top:4px;">
+                        Para combos donde el mesero reparte varias unidades entre distintas opciones al comandar
+                        (ej. "Cubetazo Mix" = hasta 10 unidades entre Poker/Águila/Costeña, a elección del cliente).
+                        Este producto se vende siempre a su propio precio fijo — la mezcla solo decide qué se
+                        descuenta del inventario. No se puede combinar con "Producto ensamblado".
+                    </p>
+                </div>
+
+                <div id="prod_acompanamiento_campos" class="hidden" style="grid-column:1/-1;">
+                    <div class="prod-field" style="grid-column:1/-1;">
+                        <label>Grupo de acompañamiento</label>
+                        <select name="acompanamiento_grupo_id" id="prod_acompanamiento_grupo_id">
+                            <option value="">Seleccione…</option>
+                            @foreach ($gruposAcompanamiento as $ga)
+                                <option value="{{ $ga->id }}">{{ $ga->descripcion }} (hasta {{ $ga->cantidad_maxima }} und.)</option>
+                            @endforeach
+                        </select>
+                        <p style="font-size:11px;color:#9CA3AF;margin-top:4px;">
+                            ¿No existe el grupo todavía? Créalo primero en "Acompañamientos" en el menú.
+                        </p>
+                    </div>
                 </div>
               </div>
             </div>

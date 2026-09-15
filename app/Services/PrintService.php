@@ -168,7 +168,7 @@ class PrintService
     /**
      * Comanda de anulación (cuando se elimina un item ya enviado)
      */
-    public function imprimirComandaAnulacion($mesa, $producto, $cantidad, $observacion, $impresora, $nombreDestino)
+    public function imprimirComandaAnulacion($mesa, $producto, $cantidad, $observacion, $impresora, $nombreDestino, ?int $pedidoId = null, ?string $canceladoPor = null)
     {
         try {
             $txt = "";
@@ -182,11 +182,25 @@ class PrintService
             if (!empty($observacion)) {
                 $txt .= "   NOTA: " . $observacion . "\n";
             }
+            if ($canceladoPor) {
+                $txt .= "CANCELADO POR: " . strtoupper($canceladoPor) . "\n";
+            }
             $txt .= str_repeat("-", 42) . "\n";
             $txt .= "DESTINO: " . strtoupper($nombreDestino) . "\n";
             $txt .= "\n\n\n";
 
-            $this->encolar('anulacion', $impresora->id, $txt);
+            // Este ticket de papel es solo un aviso adicional (por si el
+            // cocinero ya empezó a preparar el plato). La vista en pantalla
+            // de Cocina ya NO depende de este registro: ahora tacha el
+            // ítem directamente en su comanda original — ver
+            // CocinaController::comandas() y DetallePedido::cancelado_at.
+            $this->encolar('anulacion', $impresora->id, $txt, $pedidoId, null, [
+                'mesa' => $mesa->numero ?? $mesa->nombre ?? 'S/N',
+                'producto' => $producto->descripcion,
+                'cantidad' => $cantidad,
+                'observacion' => $observacion ?: null,
+                'cancelado_por' => $canceladoPor,
+            ]);
         } catch (\Exception $e) {
             Log::error("Error encolando anulación: " . $e->getMessage());
         }

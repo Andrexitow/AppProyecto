@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Compra;
+use App\Models\Consumo;
 use App\Models\Documento;
 use App\Models\Factura;
 use App\Models\TipoDocumento;
@@ -22,15 +23,15 @@ class LegacyDocumentSyncService
 
     public function compra(Compra $compra): Documento
     {
-        if ($compra->documento_id) {
-            return Documento::findOrFail($compra->documento_id);
-        }
+        $existente = $compra->documento_id ? Documento::findOrFail($compra->documento_id) : null;
+        if ($existente && $existente->estado !== 'anulado') return $existente;
 
         $usuario = $compra->user_id ?: User::query()->value('id');
         $compra->loadMissing('detalles.producto');
         $tipo = TipoDocumento::where('codigo', 'COMPRA')->firstOrFail();
 
-        $doc = Documento::create([
+        $doc = $existente ?? new Documento();
+        $doc->fill([
             'tipo_documento_id' => $tipo->id,
             'prefijo' => $compra->prefijo,
             'numero' => $compra->numero_factura,
@@ -49,7 +50,13 @@ class LegacyDocumentSyncService
             'registrado_at' => $compra->registrado_at ?: now(),
             'registrado_por' => $usuario,
             'referencia_externa' => 'COMPRA:' . $compra->id,
-        ]);
+        ])->save();
+
+        $saldos = [];
+        foreach ($compra->detalles->groupBy(fn ($d) => $d->producto_id.':'.$d->bodega_id) as $clave => $lineas) {
+            $linea = $lineas->first();
+            $saldos[$clave] = (float) DB::table('inventarios')->where(['producto_id'=>$linea->producto_id,'bodega_id'=>$linea->bodega_id])->value('stock') - (float)$lineas->sum('cantidad');
+        }
 
         foreach ($compra->detalles as $linea) {
             $detalle = $doc->detalles()->create([
@@ -65,7 +72,9 @@ class LegacyDocumentSyncService
                 'bodega_destino_id' => $linea->bodega_id,
             ]);
 
-            $stock = (float) DB::table('inventarios')->where(['producto_id' => $linea->producto_id, 'bodega_id' => $linea->bodega_id])->value('stock');
+            $clave = $linea->producto_id.':'.$linea->bodega_id;
+            $stock = $saldos[$clave] + (float)$linea->cantidad;
+            $saldos[$clave] = $stock;
             $this->kardex->registrar(
                 $doc->id,
                 $detalle->id,
@@ -116,6 +125,17 @@ class LegacyDocumentSyncService
             'referencia_externa' => 'FACTURA:' . $factura->id,
         ]);
 
+        $pendientes = [];
+        foreach ($factura->detalles as $linea) {
+            if ($linea->producto?->afecta_inventario && $factura->caja?->bodega_id) {
+                $clave = $linea->producto_id.':'.$factura->caja->bodega_id;
+                $pendientes[$clave] = ($pendientes[$clave] ?? 0) + (float)$linea->cantidad;
+            }
+        }
+        foreach (Consumo::where('factura_id',$factura->id)->where('estado','registrado')->with('detalles')->get()->flatMap->detalles as $linea) {
+            $clave = $linea->producto_base_id.':'.$linea->bodega_id;
+            $pendientes[$clave] = ($pendientes[$clave] ?? 0) + (float)$linea->cantidad;
+        }
         foreach ($factura->detalles as $linea) {
             $detalle = $doc->detalles()->create([
                 'producto_id' => $linea->producto_id,
@@ -134,7 +154,9 @@ class LegacyDocumentSyncService
             // con movimientos de kardex fantasma y una fila de inventarios creada de la
             // nada en 0, aunque el stock real de ese producto nunca se tocó.
             if ($factura->caja?->bodega_id && $linea->producto?->afecta_inventario == 1) {
-                $stock = (float) DB::table('inventarios')->where(['producto_id' => $linea->producto_id, 'bodega_id' => $factura->caja->bodega_id])->value('stock');
+                $clave = $linea->producto_id.':'.$factura->caja->bodega_id;
+                $pendientes[$clave] -= (float)$linea->cantidad;
+                $stock = (float) DB::table('inventarios')->where(['producto_id' => $linea->producto_id, 'bodega_id' => $factura->caja->bodega_id])->value('stock') + $pendientes[$clave];
                 $this->kardex->registrar(
                     $doc->id,
                     $detalle->id,
@@ -148,6 +170,75 @@ class LegacyDocumentSyncService
                     $factura->user_id,
                     $factura->created_at
                 );
+            }
+        }
+
+        // Un producto ensamblado o con acompañamiento (ej. "Cubetazo Águila")
+        // tiene afecta_inventario=false — el que de verdad se descuenta es su
+        // insumo real (Águila), y ese descuento ya quedó registrado en
+        // Consumo/ConsumoDetalle por FacturacionController::cerrarMesa().
+        // Sin este bloque esas ventas generaban Consumo pero NUNCA dejaban
+        // rastro en el kardex: el stock del insumo bajaba de verdad, pero
+        // ningún MovimientoInventario lo explicaba.
+        //
+        // Un Consumo 'no_registrado' (falta de stock de algún insumo, ver
+        // cerrarMesa()) NO mueve inventario todavía — nada que kardexear
+        // hasta que un administrador lo registre manualmente (ver
+        // ConsumoController::registrar(), que llama a este mismo kardex).
+        //
+        // Cada línea guarda su propia bodega (Producto::bodega_origen_id
+        // puede ser distinta a la de la caja que vendió, ej. la carne de
+        // una hamburguesa vendida en Discoteca vive en Cocina), así que se
+        // agrupa por [insumo, bodega] y no solo por insumo.
+        $detallesPorInsumoYBodega = Consumo::where('factura_id', $factura->id)
+            ->where('estado', 'registrado')
+            ->with('detalles')
+            ->get()
+            ->flatMap->detalles
+            ->groupBy(fn ($detalle) => $detalle->producto_base_id . ':' . $detalle->bodega_id);
+
+        foreach ($detallesPorInsumoYBodega as $clave => $lineas) {
+            [$productoId, $bodegaId] = explode(':', $clave);
+            $productoId = (int) $productoId;
+            $bodegaId = (int) $bodegaId;
+
+            // Si la factura tiene 2+ líneas del mismo insumo (ej. dos rondas
+            // de "Cubetazo Águila" en el mismo pedido), no se puede leer el
+            // stock actual para cada una por separado: como ya bajó de
+            // verdad ANTES de llegar aquí, las dos leerían el mismo stock
+            // final y mostrarían un stock_anterior idéntico y equivocado.
+            // Se reconstruye la secuencia real hacia atrás, partiendo del
+            // stock actual (que ya refleja TODAS las líneas).
+            $stockActual = (float) DB::table('inventarios')
+                ->where(['producto_id' => $productoId, 'bodega_id' => $bodegaId])
+                ->value('stock');
+
+            // El stock ANTES de esta factura es el actual más todo lo que
+            // ella descontó de este insumo; desde ahí se recorren las
+            // líneas en orden y se va bajando, para que cada una quede con
+            // su propio par anterior/nuevo correcto.
+            $stockAntesDeLaFactura = $stockActual + (float) $lineas->sum('cantidad');
+
+            $stockAnterior = $stockAntesDeLaFactura;
+            foreach ($lineas as $consumoDetalle) {
+                $cantidad = (float) $consumoDetalle->cantidad;
+                $stockNuevo = $stockAnterior - $cantidad;
+
+                $this->kardex->registrar(
+                    $doc->id,
+                    null,
+                    $productoId,
+                    $bodegaId,
+                    'SALIDA',
+                    $cantidad,
+                    $stockAnterior,
+                    $stockNuevo,
+                    null,
+                    $factura->user_id,
+                    $factura->created_at
+                );
+
+                $stockAnterior = $stockNuevo;
             }
         }
 

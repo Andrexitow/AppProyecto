@@ -87,8 +87,13 @@ class PrefijoController extends Controller
             'vigencia_hasta' => ['nullable', 'date', 'after_or_equal:vigencia_desde'],
             'clave_tecnica' => ['nullable', 'string', 'max:100'],
             // Solo si el proveedor (p. ej. Factus) tiene más de un rango
-            // activo — si se deja vacío, el proveedor usa su único rango.
+            // activo para ESE tipo de documento — si se deja vacío, el
+            // proveedor usa su único rango. Factura/nota crédito/nota
+            // débito no comparten espacio de rangos (confirmado contra el
+            // sandbox real de Factus), por eso son 3 campos separados.
             'numbering_range_id_factus' => ['nullable', 'integer', 'min:1'],
+            'numbering_range_id_nota_credito_factus' => ['nullable', 'integer', 'min:1'],
+            'numbering_range_id_nota_debito_factus' => ['nullable', 'integer', 'min:1'],
         ]);
     }
 }
