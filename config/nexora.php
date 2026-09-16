@@ -24,4 +24,21 @@ return [
 
     'plan' => env('NEXORA_PLAN', 'pro'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Cierre de sesión por inactividad
+    |--------------------------------------------------------------------------
+    |
+    | Desde que la app quedó accesible por internet (antes solo se llegaba
+    | estando en la red del local), un mesero/cajero podía dejar la sesión
+    | abierta y seguir comandando desde la casa. Estos minutos son el límite
+    | de inactividad (sin ninguna petición al servidor) antes de forzar el
+    | cierre de sesión — más corto para roles operativos que para
+    | Administrador/Contabilidad, que suelen trabajar más tiempo seguido.
+    |
+    */
+
+    'inactividad_operativos_minutos' => (int) env('INACTIVIDAD_OPERATIVOS_MINUTOS', 15),
+    'inactividad_admin_minutos' => (int) env('INACTIVIDAD_ADMIN_MINUTOS', 60),
+
 ];

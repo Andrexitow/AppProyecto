@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png"
-        href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+        href="{{ asset_v('imgs/nexora-logo.png') }}">
     <title>Nexora | Historial de Cocina</title>
     @include('partials.pwa-head')
     <link
@@ -455,7 +455,7 @@
     <header class="top">
         <div class="brand">
             <div class="brand-mark"><img
-                    src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}"
+                    src="{{ asset_v('imgs/nexora-logo.png') }}"
                     alt="Nexora"></div>
             <div>
                 <p class="eyebrow">Nexora / Produccion</p>

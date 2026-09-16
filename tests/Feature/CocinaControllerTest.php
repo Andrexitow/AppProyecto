@@ -120,4 +120,69 @@ class CocinaControllerTest extends TestCase
         $this->assertTrue($lineaMexicana['cancelado']);
         $this->assertSame('Admin Test', $lineaMexicana['cancelado_por']);
     }
+
+    /**
+     * Si el agente de impresión no logra conectar con la impresora física
+     * (apagada, sin papel, sin red local), marca la comanda 'error' — pero
+     * eso NO debe esconder el pedido de la cocina: antes desaparecía para
+     * siempre (ni pantalla, ni Historial, ni se podía finalizar) aunque la
+     * venta sí se hubiera hecho de verdad.
+     */
+    public function test_una_comanda_con_error_de_impresion_sigue_visible_y_se_puede_finalizar(): void
+    {
+        $bodega = Bodega::create(['descripcion' => 'Bodega Test']);
+        $zona = Zona::create(['nombre' => 'Zona Test', 'bodega_id' => $bodega->id]);
+        $mesa = Mesa::create(['zona_id' => $zona->id, 'numero' => 'M-9', 'capacidad' => 4, 'estado' => 'ocupada']);
+
+        $rolMesero = Roles::firstOrCreate(['nombre' => 'Mesero'], ['descripcion' => 'Test']);
+        $mesero = User::create(['name' => 'Mesero Test', 'username' => 'mesero-error-test', 'password' => bcrypt('secret'), 'rol_id' => $rolMesero->id, 'activo' => true]);
+
+        Tercero::firstOrCreate(['id' => 1], ['tipo' => 'persona', 'nombre' => 'Consumidor', 'apellido' => 'Final', 'celular' => '0000000000']);
+        $pedido = Pedido::create(['mesa_id' => $mesa->id, 'user_id' => $mesero->id, 'total' => 0, 'cliente_id' => 1, 'estado' => 'pendiente']);
+
+        $producto = Producto::create(['codigo' => 'PE1', 'descripcion' => 'Hamburguesa', 'und_detal' => 'UND', 'precio' => 10000, 'inactivo' => 0]);
+        $item = DetallePedido::create(['pedido_id' => $pedido->id, 'producto_id' => $producto->id, 'cantidad' => 1, 'precio_unitario' => 10000, 'subtotal' => 10000]);
+
+        $impresora = $this->impresoraCocina();
+        $comanda = ComandaPendiente::create([
+            'pedido_id' => $pedido->id,
+            'tipo' => 'comanda',
+            'impresora_id' => $impresora->id,
+            'contenido' => 'ORDEN DE PISO',
+            'detalle_ids' => [$item->id],
+            'estado' => 'error',
+            'error_mensaje' => 'Impresora sin papel',
+        ]);
+
+        $chef = $this->chef();
+
+        $respuesta = $this->actingAs($chef)
+            ->getJson('/cocina/comandas')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.error_impresion', true)
+            ->assertJsonPath('data.0.error_mensaje', 'Impresora sin papel');
+
+        $this->assertSame('Hamburguesa', $respuesta->json('data.0.items.0.producto'));
+
+        $this->actingAs($chef)
+            ->postJson("/cocina/comandas/{$comanda->id}/finalizar")
+            ->assertOk();
+
+        $this->assertSame('finalizado', $comanda->fresh()->estado);
+    }
+
+    /**
+     * "/" (home) ya sabía mandar a Mesero/Cajero al POS, pero no a Cocina
+     * — se quedaba en el panel de administrador, vacío para ella. Esto
+     * pasaba siempre al reabrir la PWA (su start_url es siempre "/").
+     */
+    public function test_un_usuario_de_cocina_que_entra_a_home_va_directo_a_la_vista_de_cocina(): void
+    {
+        $chef = $this->chef();
+
+        $this->actingAs($chef)
+            ->get('/')
+            ->assertRedirect(route('cocina.index'));
+    }
 }

@@ -101,6 +101,29 @@ class UsuarioController extends Controller
         return response()->json(['success' => '¡Usuario actualizado correctamente!']);
     }
 
+    /**
+     * Activar/desactivar sin borrar: un usuario inactivo no puede iniciar
+     * sesión (ver AuthController::login) pero conserva su historial —
+     * pensado para desactivar personal que no trabaja hoy en vez de
+     * dejarle la cuenta habilitada permanentemente.
+     */
+    public function toggleActivo($id)
+    {
+        $usuario = User::findOrFail($id);
+
+        if (Auth::id() == $id) {
+            return response()->json(['error' => 'No puedes desactivar tu propia cuenta'], 422);
+        }
+
+        $usuario->activo = !$usuario->activo;
+        $usuario->save();
+
+        return response()->json([
+            'success' => $usuario->activo ? 'Usuario activado' : 'Usuario desactivado',
+            'activo' => $usuario->activo,
+        ]);
+    }
+
     public function destroy($id)
     {
         // Usamos la Facade Auth directamente para evitar el error "Undefined method user"

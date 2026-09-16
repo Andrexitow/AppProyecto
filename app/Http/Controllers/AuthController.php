@@ -35,6 +35,21 @@ class AuthController extends Controller
             $user = Auth::user();
             $rolNombre = $user->rol->nombre ?? null;
 
+            // Un usuario desactivado (Usuarios → 🚫) no puede entrar aunque
+            // recuerde su contraseña — pensado para poder "apagar" el acceso
+            // de personal que no está trabajando hoy sin borrar su cuenta.
+            if (!$user->activo) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                AuditoriaService::registrar($user, 'Acceso', 'Inicio de sesión bloqueado', 'Intento de inicio de sesión con usuario desactivado.', $request);
+
+                return back()->withErrors([
+                    'username' => 'Este usuario está desactivado. Contacta al administrador.'
+                ]);
+            }
+
             // --- VALIDACIÓN DE CAJA PARA MESEROS ---
             if ($rolNombre === 'Mesero' && (is_null($user->caja_id) || !Caja::whereKey($user->caja_id)->where('activa', true)->exists())) {
                 Auth::logout(); // Cerramos la sesión que se acaba de abrir

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png"
-        href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+        href="{{ asset_v('imgs/nexora-logo.png') }}">
     <title>Nexora | Cocina</title>
     @include('partials.pwa-head')
     <link
@@ -182,6 +182,19 @@
             font: 10px "DM Mono", monospace;
             font-weight: 600;
             letter-spacing: .03em;
+        }
+
+        .print-error-banner {
+            margin: 0 17px 10px;
+            padding: 8px 11px;
+            border-radius: 9px;
+            background: #fef3c7;
+            color: #92400e;
+            font: 11px "DM Mono", monospace;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .order-head {
@@ -400,7 +413,7 @@
     <header class="top">
         <div class="brand">
             <div class="brand-mark"><img
-                    src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}"
+                    src="{{ asset_v('imgs/nexora-logo.png') }}"
                     alt="Nexora"></div>
             <div>
                 <p class="eyebrow">Nexora / Produccion</p>
@@ -458,12 +471,19 @@
                 }).join('');
                 const respaldo = !items && c.contenido_respaldo ? '<pre class="fallback">' + escapar(c
                     .contenido_respaldo) + '</pre>' : '';
+                // El ticket físico no salió (impresora apagada/sin papel/sin
+                // red), pero el pedido sigue siendo válido — se avisa sin
+                // ocultar nada, para que alguien revise la impresora aparte
+                // mientras la cocina prepara igual con lo que ve en pantalla.
+                const avisoImpresion = c.error_impresion
+                    ? '<div class="print-error-banner">🖨️ No se pudo imprimir el ticket físico' + (c.error_mensaje ? ' (' + escapar(c.error_mensaje) + ')' : '') + '</div>'
+                    : '';
                 return '<article class="order" id="comanda-' + c.id +
                     '"><div class="order-head"><div><div class="mesa">Mesa ' + escapar(c.mesa) +
                     '</div><div class="zone">' + escapar(c.zona || c.impresora) +
                     '</div></div><div class="time">EN COCINA<strong>' + tiempoDesde(c.creado_en) +
                     '</strong></div></div><div class="meta"><span>MESERO: ' + escapar(c.mesero) + '</span><span>#' +
-                    c.id + '</span></div><ul class="items">' + items + '</ul>' + respaldo +
+                    c.id + '</span></div>' + avisoImpresion + '<ul class="items">' + items + '</ul>' + respaldo +
                     '<button class="finish" onclick="finalizar(' + c.id +
                     ', this)">Pedido finalizado y listo</button></article>';
             }).join('');

@@ -621,6 +621,13 @@
                             <td>
                                 <div class="tbl-actions">
                                     <button class="act-btn edit" data-tip="Editar" onclick="editarUsuario({{ $u->id }})">✏️</button>
+                                    @if ($u->id !== auth()->id())
+                                        @if ($u->activo)
+                                            <button class="act-btn" data-tip="Desactivar" onclick="toggleActivoUsuario({{ $u->id }})">🚫</button>
+                                        @else
+                                            <button class="act-btn" data-tip="Activar" onclick="toggleActivoUsuario({{ $u->id }})">✅</button>
+                                        @endif
+                                    @endif
                                     <button class="act-btn del" data-tip="Eliminar" onclick="eliminarUsuario({{ $u->id }})">🗑️</button>
                                 </div>
                             </td>
@@ -880,6 +887,20 @@
             .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
             .then(function(res) {
                 if (!res.ok) throw new Error(res.data.message || 'No se pudo eliminar el usuario');
+                recargarVistaUsuarios();
+            })
+            .catch(function(e) { alert(e.message); });
+    }
+
+    function toggleActivoUsuario(id) {
+        var token = document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch('/usuarios/' + id + '/toggle-activo', {
+                method: 'PATCH',
+                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+            .then(function(res) {
+                if (!res.ok) throw new Error(res.data.error || 'No se pudo actualizar el usuario');
                 recargarVistaUsuarios();
             })
             .catch(function(e) { alert(e.message); });

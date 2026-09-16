@@ -29,10 +29,17 @@ class CocinaController extends Controller
         // viviendo DENTRO de su comanda original, tachado — ver el mapeo
         // de items más abajo. La comanda 'anulacion' solo sirve para el
         // ticket físico del agente de impresión (routes/web.php: /agente).
+        // Se incluye 'error' (el agente de impresión no pudo conectar con la
+        // impresora física — apagada, sin papel, sin red) a propósito: antes
+        // esas comandas desaparecían de la pantalla para siempre (ni acá, ni
+        // en el Historial, ni se podían finalizar) aunque la venta sí se
+        // hubiera hecho — el cocinero se quedaba sin saber que había un
+        // pedido. Ahora sigue viendo el pedido igual, con un aviso de que el
+        // ticket físico no salió, para que alguien revise la impresora aparte.
         $comandas = ComandaPendiente::query()
             ->with(['pedido.mesa.zona', 'pedido.mesero', 'impresora'])
             ->where('tipo', 'comanda')
-            ->whereIn('estado', ['pendiente', 'impreso'])
+            ->whereIn('estado', ['pendiente', 'impreso', 'error'])
             ->whereHas('impresora', fn ($query) => $query->whereRaw('LOWER(nombre) LIKE ?', ['%cocina%']))
             ->orderBy('created_at')
             ->get()
@@ -59,6 +66,8 @@ class CocinaController extends Controller
                     'impresora' => $comanda->impresora?->nombre ?? 'Cocina',
                     'creado_en' => $comanda->created_at?->toIso8601String(),
                     'items' => $items,
+                    'error_impresion' => $comanda->estado === 'error',
+                    'error_mensaje' => $comanda->estado === 'error' ? $comanda->error_mensaje : null,
                     // Comandas anteriores a este módulo no guardaban detalle_ids.
                     'contenido_respaldo' => $items->isEmpty() ? $comanda->contenido : null,
                 ];
@@ -186,7 +195,10 @@ class CocinaController extends Controller
             if (!$comanda) {
                 abort(422, 'La comanda ya no existe. Actualiza la pantalla de cocina.');
             }
-            if (!in_array($comanda->tipo, ['comanda', 'anulacion'], true) || !in_array($comanda->estado, ['pendiente', 'impreso'], true)) {
+            // 'error' se puede finalizar igual que 'pendiente'/'impreso': que
+            // el ticket físico no haya salido no significa que el pedido no
+            // se preparó — la cocina lo ve y lo marca listo desde la pantalla.
+            if (!in_array($comanda->tipo, ['comanda', 'anulacion'], true) || !in_array($comanda->estado, ['pendiente', 'impreso', 'error'], true)) {
                 abort(422, 'Esta comanda ya fue gestionada o no está disponible.');
             }
 

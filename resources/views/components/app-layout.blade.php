@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" type="image/png">
+    <link rel="icon" href="{{ asset_v('imgs/nexora-logo.png') }}" type="image/png">
     <title>{{ $title ?? 'Iniciar sesión — Nexora' }}</title>
     @include('partials.pwa-head')
 
@@ -527,7 +527,7 @@
 
             <div class="brand-top">
                 <div class="brand-logo-row">
-                    <img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora">
+                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
                     <span>NEXORA</span>
                 </div>
 
@@ -565,7 +565,7 @@
         <div class="form-panel">
             <div class="form-card {{ $errors->any() ? 'shake' : '' }}">
                 <div class="mobile-logo">
-                    <img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora">
+                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
                     <span>NEXORA</span>
                 </div>
 

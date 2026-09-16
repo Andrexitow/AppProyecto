@@ -56,12 +56,19 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::middleware(['auth', 'auditar'])->group(function () {
+Route::middleware(['auth', 'auditar', 'sesion.inactividad'])->group(function () {
 
     Route::get('/', function () {
         $user = Auth::user();
         if ($user && in_array($user->rol?->nombre, ['Mesero', 'Cajero'], true)) {
             return redirect()->route('facturacion.index');
+        }
+        // Faltaba Cocina: sin esto, un usuario de Cocina que entrara a "/"
+        // (ej. al reabrir la PWA, cuyo start_url siempre es "/") caía en el
+        // panel de administrador — vacío para ella, porque su rol no
+        // desbloquea nada del menú ni del contenido ahí.
+        if ($user && $user->rol?->nombre === 'Cocina') {
+            return redirect()->route('cocina.index');
         }
 
         return app(DashboardController::class)->index();
@@ -346,6 +353,7 @@ Route::middleware(['auth', 'auditar'])->group(function () {
     Route::post('/usuarios/store', [UsuarioController::class, 'store'])->middleware('role:Administrador')->name('usuarios.store');
     Route::get('/usuarios/{id}/edit', [UsuarioController::class, 'edit'])->middleware('role:Administrador');
     Route::post('/usuarios/update/{id}', [UsuarioController::class, 'update'])->middleware('role:Administrador');
+    Route::patch('/usuarios/{id}/toggle-activo', [UsuarioController::class, 'toggleActivo'])->middleware('role:Administrador');
     Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->middleware('role:Administrador');
 
     Route::get('/roles/{id}/edit', [UsuarioController::class, 'editRole'])->middleware('role:Administrador');

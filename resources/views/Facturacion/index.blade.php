@@ -5,14 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+    <link rel="icon" type="image/png" href="{{ asset_v('imgs/nexora-logo.png') }}">
     <title>Nexora | POS Terminal</title>
     @include('partials.pwa-head')
     <script src="https://cdn.tailwindcss.com"></script>
 
     <link rel="stylesheet"
-        href="{{ asset('css/facturacion.css') }}?v={{ filemtime(public_path('css/facturacion.css')) }}">
-    <script src="{{ asset('js/facturacion.js') }}?v={{ filemtime(public_path('js/facturacion.js')) }}" defer></script>
+        href="{{ asset_v('css/facturacion.css') }}">
+    <script src="{{ asset_v('js/facturacion.js') }}" defer></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
 </head>
@@ -28,7 +28,7 @@
         style="height:52px;">
 
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-xl overflow-hidden border border-slate-700"><img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora" class="w-full h-full object-contain"></div>
+            <div class="w-8 h-8 rounded-xl overflow-hidden border border-slate-700"><img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora" class="w-full h-full object-contain"></div>
             <div class="hidden sm:block">
                 <h1 class="text-sm font-black italic tracking-tight leading-none text-white">Nexora POS</h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Facturación rápida</p>

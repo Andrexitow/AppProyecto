@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/png" href="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}">
+    <link rel="icon" type="image/png" href="{{ asset_v('imgs/nexora-logo.png') }}">
     <title>Nexora | Panel administrativo</title>
     @include('partials.pwa-head')
 
@@ -406,7 +406,7 @@
 
         <a class="sidebar-brand" href="#">
             <div class="brand-icon">
-                <img src="{{ asset('imgs/nexora-logo.png') }}?v={{ filemtime(public_path('imgs/nexora-logo.png')) }}" alt="Nexora">
+                <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
             </div>
             <span class="brand-name">Nexora</span>
         </a>
@@ -568,45 +568,45 @@
     {{-- ══════════════════════════════
          SCRIPTS
     ══════════════════════════════ --}}
-    {{-- <script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script> --}}
+    {{-- <script src="{{ asset_v('js/utils.js') }}"></script> --}}
     <script
-        src="{{ asset('js/utils.js') }}?v={{ file_exists(public_path('js/utils.js')) ? filemtime(public_path('js/utils.js')) : time() }}">
+        src="{{ asset_v('js/utils.js') }}">
     </script>
     <script
-        src="{{ asset('js/modales.js') }}?v={{ file_exists(public_path('js/modales.js')) ? filemtime(public_path('js/modales.js')) : time() }}">
+        src="{{ asset_v('js/modales.js') }}">
     </script>
     <script
-        src="{{ asset('js/bodegas.js') }}?v={{ file_exists(public_path('js/bodegas.js')) ? filemtime(public_path('js/bodegas.js')) : time() }}">
+        src="{{ asset_v('js/bodegas.js') }}">
     </script>
     <script
-        src="{{ asset('js/terceros.js') }}?v={{ file_exists(public_path('js/terceros.js')) ? filemtime(public_path('js/terceros.js')) : time() }}">
+        src="{{ asset_v('js/terceros.js') }}">
     </script>
     <script
-        src="{{ asset('js/productos.js') }}?v={{ file_exists(public_path('js/productos.js')) ? filemtime(public_path('js/productos.js')) : time() }}">
+        src="{{ asset_v('js/productos.js') }}">
     </script>
     <script
-        src="{{ asset('js/ajustes.js') }}?v={{ file_exists(public_path('js/ajustes.js')) ? filemtime(public_path('js/ajustes.js')) : time() }}">
+        src="{{ asset_v('js/ajustes.js') }}">
     </script>
     <script
-        src="{{ asset('js/existencia.js') }}?v={{ file_exists(public_path('js/existencia.js')) ? filemtime(public_path('js/existencia.js')) : time() }}">
+        src="{{ asset_v('js/existencia.js') }}">
     </script>
     <script
-        src="{{ asset('js/usuarios.js') }}?v={{ file_exists(public_path('js/usuarios.js')) ? filemtime(public_path('js/usuarios.js')) : time() }}">
+        src="{{ asset_v('js/usuarios.js') }}">
     </script>
     <script
-        src="{{ asset('js/cajas.js') }}?v={{ file_exists(public_path('js/cajas.js')) ? filemtime(public_path('js/cajas.js')) : time() }}">
+        src="{{ asset_v('js/cajas.js') }}">
     </script>
     <script
-        src="{{ asset('js/impresoras.js') }}?v={{ file_exists(public_path('js/impresoras.js')) ? filemtime(public_path('js/impresoras.js')) : time() }}">
+        src="{{ asset_v('js/impresoras.js') }}">
     </script>
     <script
-        src="{{ asset('js/grupos.js') }}?v={{ file_exists(public_path('js/grupos.js')) ? filemtime(public_path('js/grupos.js')) : time() }}">
+        src="{{ asset_v('js/grupos.js') }}">
     </script>
     <script
-        src="{{ asset('js/categorias_pos.js') }}?v={{ file_exists(public_path('js/categorias_pos.js')) ? filemtime(public_path('js/categorias_pos.js')) : time() }}">
+        src="{{ asset_v('js/categorias_pos.js') }}">
     </script>
     <script
-        src="{{ asset('js/app.js') }}?v={{ file_exists(public_path('js/app.js')) ? filemtime(public_path('js/app.js')) : time() }}">
+        src="{{ asset_v('js/app.js') }}">
     </script>
 
     <script>
@@ -1228,17 +1228,17 @@
 
 </body>
 
-<script src="{{ asset('js/utils.js') }}?v={{ filemtime(public_path('js/utils.js')) }}"></script>
-<script src="{{ asset('js/modales.js') }}?v={{ filemtime(public_path('js/modales.js')) }}"></script>
-<script src="{{ asset('js/terceros.js') }}?v={{ filemtime(public_path('js/terceros.js')) }}"></script>
-<script src="{{ asset('js/productos.js') }}?v={{ filemtime(public_path('js/productos.js')) }}"></script>
-<script src="{{ asset('js/ajustes.js') }}?v={{ filemtime(public_path('js/ajustes.js')) }}"></script>
-<script src="{{ asset('js/existencia.js') }}?v={{ filemtime(public_path('js/existencia.js')) }}"></script>
-<script src="{{ asset('js/usuarios.js') }}?v={{ filemtime(public_path('js/usuarios.js')) }}"></script>
-<script src="{{ asset('js/cajas.js') }}?v={{ filemtime(public_path('js/cajas.js')) }}"></script>
-<script src="{{ asset('js/impresoras.js') }}?v={{ filemtime(public_path('js/impresoras.js')) }}"></script>
-<script src="{{ asset('js/grupos.js') }}?v={{ filemtime(public_path('js/grupos.js')) }}"></script>
-<script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
+<script src="{{ asset_v('js/utils.js') }}"></script>
+<script src="{{ asset_v('js/modales.js') }}"></script>
+<script src="{{ asset_v('js/terceros.js') }}"></script>
+<script src="{{ asset_v('js/productos.js') }}"></script>
+<script src="{{ asset_v('js/ajustes.js') }}"></script>
+<script src="{{ asset_v('js/existencia.js') }}"></script>
+<script src="{{ asset_v('js/usuarios.js') }}"></script>
+<script src="{{ asset_v('js/cajas.js') }}"></script>
+<script src="{{ asset_v('js/impresoras.js') }}"></script>
+<script src="{{ asset_v('js/grupos.js') }}"></script>
+<script src="{{ asset_v('js/app.js') }}"></script>
 
 <script>
     let activeTabName = 'archivo';
