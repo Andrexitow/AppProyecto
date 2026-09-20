@@ -847,8 +847,12 @@
     @media (max-width: 640px) {
         .metrics-row { grid-template-columns: 1fr 1fr; }
 
-        table.compras-tbl thead th:nth-child(n+5) { display: none; }
-        table.compras-tbl tbody td:nth-child(n+5) { display: none; }
+        /* Ocultamos Total/Estado de pago/Saldo/Usuario/Fecha de registro
+           (5-9). Antes se ocultaba desde la columna 5 en adelante, lo que
+           también tapaba "Estado" (10) y "Acciones" (11) sin ninguna forma
+           de llegar a ellas en el celular. */
+        table.compras-tbl thead th:nth-child(n+5):nth-child(-n+9) { display: none; }
+        table.compras-tbl tbody td:nth-child(n+5):nth-child(-n+9) { display: none; }
 
         .modal-compra { max-height: 96vh; }
         .co-product-wrap { min-width: 190px; }
@@ -901,16 +905,16 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="co-buscar" placeholder="Factura, proveedor, NIT…"
+            <input autocomplete="off" class="fi-input" type="text" id="co-buscar" placeholder="Factura, proveedor, NIT…"
                 oninput="aplicarFiltrosCompras()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input class="fi-input" type="date" id="co-desde" onchange="aplicarFiltrosCompras()">
+            <input autocomplete="off" class="fi-input" type="date" id="co-desde" onchange="aplicarFiltrosCompras()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input class="fi-input" type="date" id="co-hasta" onchange="aplicarFiltrosCompras()">
+            <input autocomplete="off" class="fi-input" type="date" id="co-hasta" onchange="aplicarFiltrosCompras()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="co-estado" onchange="aplicarFiltrosCompras()">
@@ -997,20 +1001,20 @@
             <div class="co-grid">
                 <div class="co-field">
                     <label>Prefijo *</label>
-                    <input type="text" id="co-prefijo" placeholder="Ej: FC" maxlength="10" value="FC"
+                    <input autocomplete="off" type="text" id="co-prefijo" placeholder="Ej: FC" maxlength="10" value="FC"
                         oninput="this.value=this.value.toUpperCase()" onchange="cargarSiguienteConsecutivoCompra()">
                 </div>
                 <div class="co-field">
                     <label>Consecutivo *</label>
-                    <input type="number" id="co-consecutivo" min="1" step="1" required>
+                    <input autocomplete="off" type="number" id="co-consecutivo" min="1" step="1" required>
                 </div>
                 <div class="co-field">
                     <label>N° Factura proveedor *</label>
-                    <input type="text" id="co-numero" placeholder="Número de la factura del proveedor">
+                    <input autocomplete="off" type="text" id="co-numero" placeholder="Número de la factura del proveedor">
                 </div>
                 <div class="co-field">
                     <label>Fecha *</label>
-                    <input type="date" id="co-fecha">
+                    <input autocomplete="off" type="date" id="co-fecha">
                 </div>
 
                 {{-- Buscador de proveedor: escribe NIT o razón social --}}
@@ -1076,16 +1080,16 @@
                 <p class="fac-section-title">Retenciones del documento</p>
                 <p class="co-help">Se calculan sobre la base gravable después de descuentos y se descuentan del total a pagar.</p>
                 <div class="co-grid">
-                    <div class="co-field"><label>Retefuente %</label><input type="number" min="0" step="0.01" id="co-retefuente" value="0" oninput="calcularTotalesCompra()"></div>
-                    <div class="co-field"><label>ReteIVA %</label><input type="number" min="0" step="0.01" id="co-reteiva" value="0" oninput="calcularTotalesCompra()"></div>
-                    <div class="co-field"><label>ReteICA %</label><input type="number" min="0" step="0.01" id="co-reteica" value="0" oninput="calcularTotalesCompra()"></div>
+                    <div class="co-field"><label>Retefuente %</label><input autocomplete="off" type="number" min="0" step="0.01" id="co-retefuente" value="0" oninput="calcularTotalesCompra()"></div>
+                    <div class="co-field"><label>ReteIVA %</label><input autocomplete="off" type="number" min="0" step="0.01" id="co-reteiva" value="0" oninput="calcularTotalesCompra()"></div>
+                    <div class="co-field"><label>ReteICA %</label><input autocomplete="off" type="number" min="0" step="0.01" id="co-reteica" value="0" oninput="calcularTotalesCompra()"></div>
                 </div>
             </div>
 
             <div class="co-tab-panel" id="co-panel-costos" style="display:none;">
                 <p class="fac-section-title">Costos adicionales</p>
                 <p class="co-help">Fletes, seguros, acarreos u otros valores que aumentan el total de esta compra.</p>
-                <div class="co-grid"><div class="co-field"><label>Valor total de costos adicionales</label><input type="number" min="0" step="0.01" id="co-otros-cargos" value="0" oninput="calcularTotalesCompra()"></div></div>
+                <div class="co-grid"><div class="co-field"><label>Valor total de costos adicionales</label><input autocomplete="off" type="number" min="0" step="0.01" id="co-otros-cargos" value="0" oninput="calcularTotalesCompra()"></div></div>
             </div>
 
             <div class="co-tab-panel" id="co-panel-pagos" style="display:none;">
@@ -1156,7 +1160,7 @@
 <div id="modal-abono-compra" style="display:none;" class="modal-backdrop">
     <div class="modal-compra" style="max-width:520px;">
         <div class="modal-head"><div><p class="modal-head-title">Registrar abono al proveedor</p><p class="modal-head-sub" id="abono-compra-ref"></p></div><button onclick="cerrarAbonoCompra()" style="border:0;background:transparent;font-size:20px;cursor:pointer;">✕</button></div>
-        <div class="modal-body"><input type="hidden" id="abono-compra-id"><div class="co-grid"><div class="co-field"><label>Fecha *</label><input id="abono-fecha" type="date"></div><div class="co-field"><label>Saldo pendiente</label><input id="abono-saldo" readonly></div><div class="co-field"><label>Medio de pago *</label><select id="abono-metodo"></select></div><div class="co-field"><label>Valor *</label><input id="abono-valor" type="number" min="0.01" step="0.01"></div><div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input id="abono-referencia" placeholder="Transferencia, recibo, comprobante..."></div></div></div>
+        <div class="modal-body"><input type="hidden" id="abono-compra-id"><div class="co-grid"><div class="co-field"><label>Fecha *</label><input autocomplete="off" id="abono-fecha" type="date"></div><div class="co-field"><label>Saldo pendiente</label><input autocomplete="off" id="abono-saldo" readonly></div><div class="co-field"><label>Medio de pago *</label><select id="abono-metodo"></select></div><div class="co-field"><label>Valor *</label><input autocomplete="off" id="abono-valor" type="number" min="0.01" step="0.01"></div><div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input autocomplete="off" id="abono-referencia" placeholder="Transferencia, recibo, comprobante..."></div></div></div>
         <div class="modal-foot"><button class="btn-outline" onclick="cerrarAbonoCompra()">Cancelar</button><button class="btn-primary" onclick="guardarAbonoCompra()">Registrar abono</button></div>
     </div>
 </div>
@@ -2009,11 +2013,11 @@
                 '" oninput="buscarProductoCompra(' + idx + ',this.value)" onblur="cerrarBusquedaProductoCompra(' + idx + ')"><div class="co-product-results" id="co-product-results-' + idx + '" style="display:none"></div></div></td>' +
                 '<td><select class="items-input" onchange="itemCompraChange(' + idx +
                 ',\'bodega_id\',this.value)">' + optsBod + '</select></td>' +
-                '<td><input type="number" class="items-input" min="1" value="' + it.cantidad +
+                '<td><input autocomplete="off" type="number" class="items-input" min="1" value="' + it.cantidad +
                 '" onchange="itemCompraChange(' + idx + ',\'cantidad\',+this.value)"></td>' +
-                '<td><input type="number" class="items-input" min="0" value="' + it.costo_unitario +
+                '<td><input autocomplete="off" type="number" class="items-input" min="0" value="' + it.costo_unitario +
                 '" onchange="itemCompraChange(' + idx + ',\'costo_unitario\',+this.value)"></td>' +
-                '<td><input type="number" class="items-input" min="0" value="' + it.iva_porcentaje +
+                '<td><input autocomplete="off" type="number" class="items-input" min="0" value="' + it.iva_porcentaje +
                 '" onchange="itemCompraChange(' + idx + ',\'iva_porcentaje\',+this.value)"></td>' +
                 '<td style="text-align:right;font-weight:600;font-size:12px;">' + fmtMoneyCO(sub) + '</td>' +
                 '<td><button class="co-item-toggle" onclick="toggleDetallesCompra(' + idx + ')">Impuestos y detalles</button><button onclick="eliminarItemCompra(' + idx + ')" style="border:none;background:transparent;cursor:pointer;font-size:14px;color:#DC2626;">✕</button></td>' +
@@ -2023,7 +2027,7 @@
                 campoItemCompra(idx, 'ICO % (si aplica por porcentaje)', 'ico_porcentaje', it.ico_porcentaje, 'number') + campoItemCompra(idx, 'Valor impuesto adicional: ICL / ADV / INC / ICO', 'valor_ico', it.valor_ico, 'number') + campoItemCompra(idx, 'Imp. saludable %', 'imp_saludable_porcentaje', it.imp_saludable_porcentaje, 'number') +
                 '<div class="co-field"><label>Producto bonificado</label><label style="text-transform:none;letter-spacing:0;color:#344054;display:flex;gap:6px;align-items:center;"><input type="checkbox" ' + (it.bonificado ? 'checked' : '') + ' onchange="itemCompraChange(' + idx + ',\'bonificado\',this.checked)"> Sin cobro</label></div>' +
                 '<div class="co-field"><label>Entrada tipo POS</label><label style="text-transform:none;letter-spacing:0;color:#344054;display:flex;gap:6px;align-items:center;"><input type="checkbox" ' + (it.entrada_pos ? 'checked' : '') + ' onchange="itemCompraChange(' + idx + ',\'entrada_pos\',this.checked)"> Marcar entrada</label></div>' +
-                '<div class="co-field" style="grid-column:span 2;"><label>Observación del producto</label><input value="' + esc(it.observacion || '') + '" oninput="itemCompraChange(' + idx + ',\'observacion\',this.value, null, true)"></div>' +
+                '<div class="co-field" style="grid-column:span 2;"><label>Observación del producto</label><input autocomplete="off" value="' + esc(it.observacion || '') + '" oninput="itemCompraChange(' + idx + ',\'observacion\',this.value, null, true)"></div>' +
                 '</div></td></tr>' : '');
         }).join('');
 
@@ -2031,7 +2035,7 @@
     }
 
     function campoItemCompra(idx, etiqueta, campo, valor, tipo) {
-        return '<div class="co-field"><label>' + etiqueta + '</label><input type="' + tipo + '" ' + (tipo === 'number' ? 'min="0" step="0.01" ' : '') + 'value="' + esc(valor || '') + '" oninput="itemCompraChange(' + idx + ',\'' + campo + '\', this.value, null, true)"></div>';
+        return '<div class="co-field"><label>' + etiqueta + '</label><input autocomplete="off" type="' + tipo + '" ' + (tipo === 'number' ? 'min="0" step="0.01" ' : '') + 'value="' + esc(valor || '') + '" oninput="itemCompraChange(' + idx + ',\'' + campo + '\', this.value, null, true)"></div>';
     }
 
     function toggleDetallesCompra(idx) { CO.itemExpandido = CO.itemExpandido === idx ? null : idx; renderItemsCompra(); }
@@ -2146,7 +2150,7 @@
         var medios = [{metodo_pago:'credito_proveedores', etiqueta:'Crédito proveedores (saldo pendiente)'}].concat(CO.catalogos.metodosPago || []);
         var totalPagos = CO.pagos.reduce(function(s,p){ return s + Number(p.valor || 0); }, 0);
         var totalFactura = calcularTotalesCompra();
-        box.innerHTML = CO.pagos.map(function(p, idx) { var opciones = medios.map(function(m){ return '<option value="'+esc(m.metodo_pago)+'" '+(p.metodo_pago===m.metodo_pago?'selected':'')+'>'+esc(m.etiqueta || m.metodo_pago)+'</option>'; }).join(''); return '<div class="co-payment-row"><div class="co-field"><label>Medio</label><select onchange="pagoCompraChange(' + idx + ',\'metodo_pago\',this.value);renderPagosCompra()">' + opciones + '</select></div><div class="co-field"><label>Valor</label><input type="number" min="0" step="0.01" value="' + Number(p.valor || 0) + '" onchange="pagoCompraChange(' + idx + ',\'valor\',this.value);renderPagosCompra()"></div><div class="co-field"><label>Referencia</label><input value="' + esc(p.referencia || '') + '" oninput="pagoCompraChange(' + idx + ',\'referencia\',this.value)"></div><button type="button" onclick="eliminarPagoCompra(' + idx + ')" style="border:0;background:transparent;color:#DC2626;font-size:16px;cursor:pointer;padding-bottom:8px;">✕</button></div>'; }).join('') + '<p class="co-help" style="margin-top:10px;color:' + (Math.abs(totalPagos-totalFactura)<0.01?'#027A48':'#B42318') + '">Formas de pago: <strong>' + fmtMoneyCO(totalPagos) + '</strong> · Total factura: <strong>' + fmtMoneyCO(totalFactura) + '</strong></p>';
+        box.innerHTML = CO.pagos.map(function(p, idx) { var opciones = medios.map(function(m){ return '<option value="'+esc(m.metodo_pago)+'" '+(p.metodo_pago===m.metodo_pago?'selected':'')+'>'+esc(m.etiqueta || m.metodo_pago)+'</option>'; }).join(''); return '<div class="co-payment-row"><div class="co-field"><label>Medio</label><select onchange="pagoCompraChange(' + idx + ',\'metodo_pago\',this.value);renderPagosCompra()">' + opciones + '</select></div><div class="co-field"><label>Valor</label><input autocomplete="off" type="number" min="0" step="0.01" value="' + Number(p.valor || 0) + '" onchange="pagoCompraChange(' + idx + ',\'valor\',this.value);renderPagosCompra()"></div><div class="co-field"><label>Referencia</label><input autocomplete="off" value="' + esc(p.referencia || '') + '" oninput="pagoCompraChange(' + idx + ',\'referencia\',this.value)"></div><button type="button" onclick="eliminarPagoCompra(' + idx + ')" style="border:0;background:transparent;color:#DC2626;font-size:16px;cursor:pointer;padding-bottom:8px;">✕</button></div>'; }).join('') + '<p class="co-help" style="margin-top:10px;color:' + (Math.abs(totalPagos-totalFactura)<0.01?'#027A48':'#B42318') + '">Formas de pago: <strong>' + fmtMoneyCO(totalPagos) + '</strong> · Total factura: <strong>' + fmtMoneyCO(totalFactura) + '</strong></p>';
     }
 
     /* ── Guardar ── */

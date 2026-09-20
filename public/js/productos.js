@@ -249,7 +249,7 @@ window.editarProducto = function (id) {
         })
         .catch(error => {
             console.error(error);
-            mostrarNotificacion('Error cargando producto', 'error');
+            mostrarNotificacion(error.message || 'Error cargando producto', 'error');
         });
 };
 
@@ -271,9 +271,11 @@ window.cambiarEstadoProducto = function (id) {
             })
                 .then(async res => {
 
-                    if (!res.ok) throw new Error(await res.text());
+                    const data = await res.json().catch(() => ({}));
 
-                    return res.json();
+                    if (!res.ok) throw new Error(data.message || `Error al cambiar estado (${res.status})`);
+
+                    return data;
                 })
                 .then(data => {
 
@@ -284,7 +286,7 @@ window.cambiarEstadoProducto = function (id) {
                 })
                 .catch(error => {
                     console.error(error);
-                    mostrarNotificacion('Error al cambiar estado', 'error');
+                    mostrarNotificacion(error.message || 'Error al cambiar estado', 'error');
                 });
 
         }
@@ -429,13 +431,19 @@ function cargarTablaProductos() {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(res => res.text())
+        .then(async res => {
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || `Error al buscar productos (${res.status})`);
+            }
+            return res.text();
+        })
         .then(html => {
             tabla.innerHTML = html;
         })
         .catch(error => {
             console.error('Error filtrando productos:', error);
-            mostrarNotificacion('Error al buscar productos', 'error');
+            mostrarNotificacion(error.message || 'Error al buscar productos', 'error');
         });
 }
 

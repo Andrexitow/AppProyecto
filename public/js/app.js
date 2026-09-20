@@ -1,7 +1,30 @@
 window.loadView = function (view) {
     fetch('/views/' + view)
-        .then(function (res) { return res.text(); })
+        .then(function (res) {
+            // Si la sesión expiró (timeout de inactividad, la cerró un
+            // admin, etc.), Laravel redirige esta petición a /login — y
+            // fetch sigue esa redirección solo. Sin este chequeo, la página
+            // de login completa (con su propio <html><body>) quedaba
+            // insertada DENTRO del panel de contenido de la app, encimada
+            // sobre lo que ya había en pantalla. Con la sesión vencida no
+            // tiene caso seguir en la SPA: se manda la pestaña entera al
+            // login de verdad.
+            if (res.redirected && res.url.indexOf('/login') !== -1) {
+                window.location.href = res.url;
+                return null;
+            }
+            if (!res.ok) {
+                // Antes la página de error completa se insertaba en el panel.
+                return res.json().catch(function () { return {}; }).then(function (d) {
+                    var msg = (d && d.message) || ('No se pudo cargar la pantalla (error ' + res.status + ').');
+                    if (typeof mostrarNotificacion === 'function') mostrarNotificacion(msg, 'error');
+                    return null;
+                });
+            }
+            return res.text();
+        })
         .then(function (html) {
+            if (html === null) return;
             var container = document.getElementById('main-content');
             container.innerHTML = html;
 

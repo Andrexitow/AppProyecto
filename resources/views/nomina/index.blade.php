@@ -86,16 +86,16 @@
             <button onclick="cerrarModalEmpleado()" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;">✕</button></div>
         <form id="formEmpleado" class="modal-body-nm" onsubmit="return false;">
             <div class="nm-grid">
-                <div class="nm-field"><label>Nombre</label><input type="text" name="nombre"></div>
-                <div class="nm-field"><label>Apellido</label><input type="text" name="apellido"></div>
-                <div class="nm-field"><label>Cédula</label><input type="text" name="cedula"></div>
-                <div class="nm-field"><label>Cargo</label><input type="text" name="cargo"></div>
-                <div class="nm-field"><label>Fecha de ingreso</label><input type="date" name="fecha_ingreso"></div>
-                <div class="nm-field"><label>Salario base</label><input type="number" name="salario_base" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Tarifa ARL (%)</label><input type="number" name="arl_tarifa" min="0" step="0.001" value="0.522"></div>
-                <div class="nm-field"><label>Cuenta bancaria</label><input type="text" name="cuenta_bancaria"></div>
-                <div class="nm-field"><label>Email</label><input type="email" name="email"></div>
-                <div class="nm-field"><label>Celular</label><input type="text" name="celular"></div>
+                <div class="nm-field"><label>Nombre</label><input autocomplete="off" type="text" name="nombre"></div>
+                <div class="nm-field"><label>Apellido</label><input autocomplete="off" type="text" name="apellido"></div>
+                <div class="nm-field"><label>Cédula</label><input autocomplete="off" type="text" name="cedula"></div>
+                <div class="nm-field"><label>Cargo</label><input autocomplete="off" type="text" name="cargo"></div>
+                <div class="nm-field"><label>Fecha de ingreso</label><input autocomplete="off" type="date" name="fecha_ingreso"></div>
+                <div class="nm-field"><label>Salario base</label><input autocomplete="off" type="number" name="salario_base" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Tarifa ARL (%)</label><input autocomplete="off" type="number" name="arl_tarifa" min="0" step="0.001" value="0.522"></div>
+                <div class="nm-field"><label>Cuenta bancaria</label><input autocomplete="off" type="text" name="cuenta_bancaria"></div>
+                <div class="nm-field"><label>Email</label><input autocomplete="off" type="email" name="email"></div>
+                <div class="nm-field"><label>Celular</label><input autocomplete="off" type="text" name="celular"></div>
             </div>
         </form>
         <div class="modal-foot-nm">
@@ -113,19 +113,19 @@
         <div class="modal-body-nm">
             <p style="font-size:12px;color:#DC2626;background:#FEF2F2;padding:8px 10px;border-radius:8px;margin-bottom:14px;">⚠️ El SMMLV y el auxilio de transporte cambian cada año por decreto del Ministerio de Trabajo. Verifíquelos antes de liquidar.</p>
             <form id="formParametros" class="nm-grid" onsubmit="return false;">
-                <div class="nm-field"><label>SMMLV vigente</label><input type="number" name="smmlv" min="0" step="1"></div>
-                <div class="nm-field"><label>Auxilio de transporte</label><input type="number" name="auxilio_transporte" min="0" step="1"></div>
-                <div class="nm-field"><label>Salud empleado (%)</label><input type="number" name="salud_empleado_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Pensión empleado (%)</label><input type="number" name="pension_empleado_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Salud patronal (%)</label><input type="number" name="salud_patronal_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Pensión patronal (%)</label><input type="number" name="pension_patronal_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Cesantías (%)</label><input type="number" name="cesantias_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Intereses cesantías (% mensual)</label><input type="number" name="intereses_cesantias_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Prima de servicios (%)</label><input type="number" name="prima_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Vacaciones (%)</label><input type="number" name="vacaciones_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>SENA (%)</label><input type="number" name="sena_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>ICBF (%)</label><input type="number" name="icbf_pct" min="0" step="0.01"></div>
-                <div class="nm-field"><label>Caja de Compensación (%)</label><input type="number" name="caja_compensacion_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>SMMLV vigente</label><input autocomplete="off" type="number" name="smmlv" min="0" step="1"></div>
+                <div class="nm-field"><label>Auxilio de transporte</label><input autocomplete="off" type="number" name="auxilio_transporte" min="0" step="1"></div>
+                <div class="nm-field"><label>Salud empleado (%)</label><input autocomplete="off" type="number" name="salud_empleado_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Pensión empleado (%)</label><input autocomplete="off" type="number" name="pension_empleado_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Salud patronal (%)</label><input autocomplete="off" type="number" name="salud_patronal_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Pensión patronal (%)</label><input autocomplete="off" type="number" name="pension_patronal_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Cesantías (%)</label><input autocomplete="off" type="number" name="cesantias_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Intereses cesantías (% mensual)</label><input autocomplete="off" type="number" name="intereses_cesantias_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Prima de servicios (%)</label><input autocomplete="off" type="number" name="prima_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Vacaciones (%)</label><input autocomplete="off" type="number" name="vacaciones_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>SENA (%)</label><input autocomplete="off" type="number" name="sena_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>ICBF (%)</label><input autocomplete="off" type="number" name="icbf_pct" min="0" step="0.01"></div>
+                <div class="nm-field"><label>Caja de Compensación (%)</label><input autocomplete="off" type="number" name="caja_compensacion_pct" min="0" step="0.01"></div>
             </form>
         </div>
         <div class="modal-foot-nm">
@@ -141,8 +141,8 @@
         <div class="modal-head-nm"><p class="modal-head-title">Liquidar Nómina</p>
             <button onclick="cerrarModalLiquidar()" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;">✕</button></div>
         <div class="modal-body-nm">
-            <div class="nm-field" style="margin-bottom:12px;"><label>Período</label><input type="month" id="nm-liq-periodo"></div>
-            <div class="nm-field"><label>Fecha de pago</label><input type="date" id="nm-liq-fecha"></div>
+            <div class="nm-field" style="margin-bottom:12px;"><label>Período</label><input autocomplete="off" type="month" id="nm-liq-periodo"></div>
+            <div class="nm-field"><label>Fecha de pago</label><input autocomplete="off" type="date" id="nm-liq-fecha"></div>
             <p style="font-size:11px;color:#9CA3AF;margin-top:10px;">Se liquidan TODOS los empleados activos de una sola vez en un único comprobante.</p>
         </div>
         <div class="modal-foot-nm">

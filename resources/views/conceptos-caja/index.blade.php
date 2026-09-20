@@ -279,7 +279,7 @@
                 style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;">✕</button>
         </div>
         <form id="formConcepto" class="modal-body-cc" onsubmit="return false;">
-            <div class="cc-field"><label>Nombre</label><input type="text" name="nombre" maxlength="150"
+            <div class="cc-field"><label>Nombre</label><input autocomplete="off" type="text" name="nombre" maxlength="150"
                     placeholder="Ej: Pago turno meseros"></div>
             <div class="cc-field">
                 <label>Aplica a</label>
@@ -289,7 +289,7 @@
                     <option value="ingreso">Solo ingresos</option>
                 </select>
             </div>
-            <div class="cc-field"><label>Descripción (opcional)</label><input type="text" name="descripcion"
+            <div class="cc-field"><label>Descripción (opcional)</label><input autocomplete="off" type="text" name="descripcion"
                     placeholder="Para qué se usa este concepto"></div>
         </form>
         <div class="modal-foot-cc">

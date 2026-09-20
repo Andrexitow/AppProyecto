@@ -795,11 +795,21 @@
             grid-template-columns: 1fr 1fr;
         }
 
-        table.cp-tbl thead th:nth-child(n+7) {
+        /* Ocultamos Observaciones/Débito/Crédito/Usuario (5,6,7,9). Antes
+           se ocultaba desde la columna 7 en adelante, lo que también tapaba
+           "Estado" (8) y "Acciones" (10) sin ninguna forma de llegar a
+           ellas en el celular. */
+        table.cp-tbl thead th:nth-child(5),
+        table.cp-tbl thead th:nth-child(6),
+        table.cp-tbl thead th:nth-child(7),
+        table.cp-tbl thead th:nth-child(9) {
             display: none;
         }
 
-        table.cp-tbl tbody td:nth-child(n+7) {
+        table.cp-tbl tbody td:nth-child(5),
+        table.cp-tbl tbody td:nth-child(6),
+        table.cp-tbl tbody td:nth-child(7),
+        table.cp-tbl tbody td:nth-child(9) {
             display: none;
         }
     }
@@ -855,16 +865,16 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="cp-fi-buscar"
+            <input autocomplete="off" class="fi-input" type="text" id="cp-fi-buscar"
                 placeholder="Prefijo, número, observaciones, usuario…" oninput="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input class="fi-input" type="date" id="cp-fi-desde" onchange="aplicarFiltrosCP()">
+            <input autocomplete="off" class="fi-input" type="date" id="cp-fi-desde" onchange="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input class="fi-input" type="date" id="cp-fi-hasta" onchange="aplicarFiltrosCP()">
+            <input autocomplete="off" class="fi-input" type="date" id="cp-fi-hasta" onchange="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="cp-fi-tipo" onchange="aplicarFiltrosCP()">
@@ -993,16 +1003,16 @@
                 </div>
                 <div class="cp-field">
                     <label>Prefijo *</label>
-                    <input type="text" id="cp-mf-prefijo" placeholder="Ej: CC" maxlength="10"
+                    <input autocomplete="off" type="text" id="cp-mf-prefijo" placeholder="Ej: CC" maxlength="10"
                         oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <div class="cp-field">
                     <label>Número</label>
-                    <input type="text" id="cp-mf-numero" placeholder="Automático" readonly>
+                    <input autocomplete="off" type="text" id="cp-mf-numero" placeholder="Automático" readonly>
                 </div>
                 <div class="cp-field">
                     <label>Fecha *</label>
-                    <input type="date" id="cp-mf-fecha">
+                    <input autocomplete="off" type="date" id="cp-mf-fecha">
                 </div>
                 <div class="cp-field" style="grid-column:1/-1;">
                     <label>Observaciones</label>
@@ -1823,13 +1833,13 @@
                 'padding:5px 8px;font-size:12px;" onchange="itemChangeCP(' + idx +
                 ',\'tercero_id\',this.value)">' +
                 optsTercero + '</select></td>' +
-                '<td><input type="text" value="' + esc(it.detalle || '') + '" placeholder="Detalle" ' +
+                '<td><input autocomplete="off" type="text" value="' + esc(it.detalle || '') + '" placeholder="Detalle" ' +
                 'style="width:100%;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;"' +
                 ' onchange="itemChangeCP(' + idx + ',\'detalle\',this.value)"></td>' +
-                '<td><input type="number" value="' + (it.debito || 0) + '" min="0" ' +
+                '<td><input autocomplete="off" type="number" value="' + (it.debito || 0) + '" min="0" ' +
                 'style="width:110px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;text-align:right;"' +
                 ' onchange="itemChangeCP(' + idx + ',\'debito\',+this.value)"></td>' +
-                '<td><input type="number" value="' + (it.credito || 0) + '" min="0" ' +
+                '<td><input autocomplete="off" type="number" value="' + (it.credito || 0) + '" min="0" ' +
                 'style="width:110px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;text-align:right;"' +
                 ' onchange="itemChangeCP(' + idx + ',\'credito\',+this.value)"></td>' +
                 '<td><button onclick="eliminarItemCP(' + idx + ')" ' +
@@ -2020,8 +2030,8 @@
                     notifCP('↩️ Comprobante ' + codigo + ' restaurado', 'success');
                     cargarComprobantes();
                 })
-                .catch(function() {
-                    notifCP('Error al revertir la anulación', 'error');
+                .catch(function(e) {
+                    notifCP(e.message || 'Error al revertir la anulación', 'error');
                 });
         });
     }

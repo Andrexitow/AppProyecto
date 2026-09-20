@@ -709,7 +709,7 @@
     <div class="aj-filter-bar">
         <div class="aj-fi-group" style="flex:2;min-width:240px;">
             <span class="aj-fi-label">🔍</span>
-            <input class="aj-fi-input" type="text" id="buscarAjuste"
+            <input autocomplete="off" class="aj-fi-input" type="text" id="buscarAjuste"
                 placeholder="Número, observaciones, usuario…">
         </div>
     </div>
@@ -832,13 +832,13 @@
                             <option value="BR">BR</option>
                         </select>
 
-                        <input type="text" id="numero" value="0001" readonly>
+                        <input autocomplete="off" type="text" id="numero" value="0001" readonly>
                     </div>
                 </div>
 
                 <div class="aj-field">
                     <label>Fecha</label>
-                    <input type="date" id="fecha">
+                    <input autocomplete="off" type="date" id="fecha">
                 </div>
 
                 <div class="aj-field">
@@ -881,7 +881,7 @@
 
             <div class="aj-field aj-autocomplete" style="margin-bottom:12px;">
                 <label>Buscar producto</label>
-                <input type="text" id="buscarProducto"
+                <input autocomplete="off" type="text" id="buscarProducto"
                     onkeyup="buscarProducto()"
                     placeholder="Nombre o código del producto…">
 

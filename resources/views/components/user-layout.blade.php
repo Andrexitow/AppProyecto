@@ -391,6 +391,72 @@
             pointer-events: none;
             max-width: calc(100vw - 32px);
         }
+
+        /* En el celular las tablas de listado son más anchas que la pantalla
+           y viven dentro de un contenedor con scroll horizontal. La columna
+           de "Acciones" (siempre la última) quedaba hasta 200-450px fuera del
+           área visible: técnicamente se podía llegar deslizando de lado, pero
+           nadie lo adivina, así que en la práctica los botones eran
+           inalcanzables. Anclándola al borde derecho queda siempre a la vista
+           mientras el resto de la tabla se desliza por debajo.
+
+           En tablas que sí caben en pantalla, sticky no hace nada (no hay
+           desplazamiento del que anclarse), y en escritorio la regla ni
+           siquiera aplica. */
+        @media (max-width: 640px) {
+
+            /* :not([colspan]) deja fuera las filas de "no hay registros" y
+               "cargando…", que son una sola celda que abarca toda la tabla:
+               anclarlas no tiene sentido y les pintaba un fondo y una línea
+               que no les corresponden. */
+            .table-scroll table thead th:last-child:not([colspan]),
+            .table-scroll table tbody td:last-child:not([colspan]),
+            .aj-table-scroll table thead th:last-child:not([colspan]),
+            .aj-table-scroll table tbody td:last-child:not([colspan]) {
+                position: sticky;
+                right: 0;
+                z-index: 2;
+            }
+
+            .table-scroll table thead th:last-child:not([colspan]),
+            .aj-table-scroll table thead th:last-child:not([colspan]) {
+                background: #F8FAFC;
+            }
+
+            .table-scroll table tbody td:last-child:not([colspan]),
+            .aj-table-scroll table tbody td:last-child:not([colspan]) {
+                background: #FFFFFF;
+            }
+
+            /* Línea separadora para que se note que la columna está anclada
+               y el contenido pasa por debajo. */
+            .table-scroll table thead th:last-child:not([colspan])::before,
+            .table-scroll table tbody td:last-child:not([colspan])::before,
+            .aj-table-scroll table thead th:last-child:not([colspan])::before,
+            .aj-table-scroll table tbody td:last-child:not([colspan])::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 1px;
+                background: #E5E7EB;
+            }
+
+            /* Los botones de acción miden 26-30px, cómodos con mouse pero
+               pequeños para el dedo — y van pegados entre sí, así que es
+               fácil darle a "eliminar" queriendo darle a "editar". En el
+               celular se agrandan y se separan. */
+            .tbl-actions {
+                gap: 6px;
+            }
+
+            .act-btn {
+                min-width: 36px;
+                min-height: 36px;
+                font-size: 15px;
+            }
+        }
     </style>
 </head>
 
@@ -438,6 +504,7 @@
                 <button class="nav-item" onclick="loadViewAndClose('prefijos')"><span class="nav-item-icon">🔖</span><span class="nav-item-label">Prefijos</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('conceptos-caja')"><span class="nav-item-icon">💵</span><span class="nav-item-label">Conceptos de Caja</span></button>
                 <button class="nav-item" onclick="loadViewAndClose('configuracion-emisor')"><span class="nav-item-icon">🏢</span><span class="nav-item-label">Datos del Emisor</span></button>
+                <button class="nav-item" onclick="loadViewAndClose('configuracion')"><span class="nav-item-icon">⚙️</span><span class="nav-item-label">Configuración</span></button>
 
                 <div class="nav-sep"></div>
                 <div class="nav-section-label">Catálogo e inventario</div>

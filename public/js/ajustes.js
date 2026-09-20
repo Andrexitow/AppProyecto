@@ -300,7 +300,7 @@ window.retomarAjuste = function (id) {
         })
         .catch(err => {
             console.error(err);
-            alert('Error cargando ajuste');
+            alert(err.message || 'Error cargando ajuste');
         });
 };
 

@@ -690,11 +690,16 @@
             grid-template-columns: 1fr 1fr;
         }
 
-        table.cajas-tbl thead th:nth-child(n+6) {
+        /* Ocultamos solo Cajero e Impresora (6,7). Antes se ocultaba desde
+           la columna 6 en adelante, lo que también tapaba "Estado" (8) y
+           "Acciones" (9) sin ninguna forma de llegar a ellas en el celular. */
+        table.cajas-tbl thead th:nth-child(6),
+        table.cajas-tbl thead th:nth-child(7) {
             display: none;
         }
 
-        table.cajas-tbl tbody td:nth-child(n+6) {
+        table.cajas-tbl tbody td:nth-child(6),
+        table.cajas-tbl tbody td:nth-child(7) {
             display: none;
         }
     }
@@ -746,7 +751,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="fi-buscar" placeholder="Nombre, prefijo, bodega, cajero…"
+            <input autocomplete="off" class="fi-input" type="text" id="fi-buscar" placeholder="Nombre, prefijo, bodega, cajero…"
                 oninput="aplicarFiltrosCajas()">
         </div>
         <div class="fi-group">
@@ -849,7 +854,7 @@
             <div class="fac-grid">
                 <div class="fac-field" style="grid-column:1/-1;">
                     <label>Nombre de la caja *</label>
-                    <input type="text" id="mc-nombre" placeholder="Ej: Caja Principal">
+                    <input autocomplete="off" type="text" id="mc-nombre" placeholder="Ej: Caja Principal">
                 </div>
                 <div class="fac-field">
                     <label>Prefijo *</label>
@@ -859,7 +864,7 @@
                 </div>
                 <div class="fac-field">
                     <label>Próximo número *</label>
-                    <input type="number" id="mc-proximo-numero" min="1" placeholder="Ej: 1">
+                    <input autocomplete="off" type="number" id="mc-proximo-numero" min="1" placeholder="Ej: 1">
                 </div>
             </div>
 

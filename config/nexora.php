@@ -41,4 +41,39 @@ return [
     'inactividad_operativos_minutos' => (int) env('INACTIVIDAD_OPERATIVOS_MINUTOS', 15),
     'inactividad_admin_minutos' => (int) env('INACTIVIDAD_ADMIN_MINUTOS', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Duración máxima de sesión
+    |--------------------------------------------------------------------------
+    |
+    | Distinto al cierre por inactividad: ese mide "hace cuánto no hace nada",
+    | esto mide "hace cuánto inició sesión" — sin importar si sigue activo.
+    | Existe porque la pantalla de facturación se autorefresca sola cada
+    | pocos segundos, así que una sesión puede quedar viva por días aunque
+    | el turno del mesero/cajero ya haya terminado hace rato. A las X horas
+    | se cierra la sesión SIN tocar la contraseña ni desactivar la cuenta —
+    | si el turno sigue, con volver a iniciar sesión basta.
+    |
+    | 0 = sin límite (para Administrador/Contabilidad por defecto, que no
+    | trabajan por turnos fijos).
+    |
+    */
+
+    'sesion_maxima_operativos_horas' => (float) env('SESION_MAXIMA_OPERATIVOS_HORAS', 8),
+    'sesion_maxima_admin_horas' => (float) env('SESION_MAXIMA_ADMIN_HORAS', 0),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Detalle técnico en los mensajes de error
+    |--------------------------------------------------------------------------
+    |
+    | false: ante un error inesperado el usuario ve un mensaje genérico con una
+    | referencia (ref) que se busca en storage/logs/laravel.log.
+    | true: se agrega además el mensaje técnico real. Útil mientras se hacen
+    | pruebas en el servidor; apagar en producción.
+    |
+    */
+
+    'errores_detallados' => (bool) env('NEXORA_ERRORES_DETALLADOS', false),
+
 ];

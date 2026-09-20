@@ -14,11 +14,11 @@
         <div class="logs-info">Solo administradores pueden consultar este historial. <span id="logs-actualizacion">Actualizado ahora</span></div>
     </header>
     <form class="logs-filters" id="logs-filtros">
-        <input class="logs-input" id="logs-buscar" type="search" placeholder="Buscar por módulo, acción o referencia">
+        <input autocomplete="off" class="logs-input" id="logs-buscar" type="search" placeholder="Buscar por módulo, acción o referencia">
         <select class="logs-select" id="logs-usuario"><option value="">Todos los usuarios</option>@foreach($usuarios as $usuario)<option value="{{ $usuario->id }}">{{ $usuario->name }}</option>@endforeach</select>
         <select class="logs-select" id="logs-accion"><option value="">Todas las acciones</option><option>Inicio de sesión</option><option>Inicio de sesión fallido</option><option>Cierre de sesión</option><option>Creación</option><option>Actualización</option><option>Eliminación</option><option>Anulación</option><option>Reversión</option><option>Registro</option></select>
-        <input class="logs-input" id="logs-desde" type="date" title="Desde">
-        <input class="logs-input" id="logs-hasta" type="date" title="Hasta">
+        <input autocomplete="off" class="logs-input" id="logs-desde" type="date" title="Desde">
+        <input autocomplete="off" class="logs-input" id="logs-hasta" type="date" title="Hasta">
         <button class="logs-filter-btn" type="submit">Filtrar</button>
     </form>
     <section class="logs-card">

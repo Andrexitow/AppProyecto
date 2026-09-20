@@ -92,11 +92,11 @@
     <div class="filter-bar">
         <div class="fi-group" id="if-grupo-desde">
             <span class="fi-label">Desde</span>
-            <input type="date" id="if-desde" class="fi-input">
+            <input autocomplete="off" type="date" id="if-desde" class="fi-input">
         </div>
         <div class="fi-group" id="if-grupo-hasta">
             <span class="fi-label">Hasta</span>
-            <input type="date" id="if-hasta" class="fi-input">
+            <input autocomplete="off" type="date" id="if-hasta" class="fi-input">
         </div>
         <div class="fi-group hidden" id="if-grupo-cuenta">
             <span class="fi-label">Cuenta</span>

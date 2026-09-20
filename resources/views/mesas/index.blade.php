@@ -66,7 +66,7 @@
             <button onclick="cerrarModalZona()" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;">✕</button>
         </div>
         <form id="formZona" class="modal-body-mz" onsubmit="return false;">
-            <div class="mz-field"><label>Nombre</label><input type="text" name="nombre" placeholder="Ej: Restaurante, Discoteca, Karaoke 1"></div>
+            <div class="mz-field"><label>Nombre</label><input autocomplete="off" type="text" name="nombre" placeholder="Ej: Restaurante, Discoteca, Karaoke 1"></div>
             <div class="mz-field">
                 <label>Bodega (para descontar inventario / imprimir en cocina) — opcional</label>
                 <select name="bodega_id"><option value="">Sin bodega asignada</option>@foreach ($bodegas as $b)<option value="{{ $b->id }}">{{ $b->descripcion }}</option>@endforeach</select>
@@ -91,8 +91,8 @@
                 <label>Zona</label>
                 <select name="zona_id" id="mz-mesa-zona">@foreach ($zonas as $z)<option value="{{ $z->id }}">{{ $z->nombre }}</option>@endforeach</select>
             </div>
-            <div class="mz-field"><label>Número / Nombre de la mesa</label><input type="text" name="numero" placeholder="Ej: 01, Barra 3, VIP"></div>
-            <div class="mz-field"><label>Capacidad (personas)</label><input type="number" name="capacidad" min="1" max="50" value="4"></div>
+            <div class="mz-field"><label>Número / Nombre de la mesa</label><input autocomplete="off" type="text" name="numero" placeholder="Ej: 01, Barra 3, VIP"></div>
+            <div class="mz-field"><label>Capacidad (personas)</label><input autocomplete="off" type="number" name="capacidad" min="1" max="50" value="4"></div>
         </form>
         <div class="modal-foot-mz">
             <button class="btn-outline" onclick="cerrarModalMesa()">Cancelar</button>

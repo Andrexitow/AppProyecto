@@ -790,11 +790,16 @@
             grid-template-columns: 1fr 1fr;
         }
 
-        table.cp-tbl thead th:nth-child(n+6) {
+        /* Ocultamos solo Padre y Reglas (6,7). Antes se ocultaba desde la
+           columna 6 en adelante, lo que también tapaba "Estado" (8) y
+           "Acciones" (9) sin ninguna forma de llegar a ellas en el celular. */
+        table.cp-tbl thead th:nth-child(6),
+        table.cp-tbl thead th:nth-child(7) {
             display: none;
         }
 
-        table.cp-tbl tbody td:nth-child(n+6) {
+        table.cp-tbl tbody td:nth-child(6),
+        table.cp-tbl tbody td:nth-child(7) {
             display: none;
         }
 
@@ -855,7 +860,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="ct-fi-buscar" placeholder="Código o nombre de la cuenta…"
+            <input autocomplete="off" class="fi-input" type="text" id="ct-fi-buscar" placeholder="Código o nombre de la cuenta…"
                 oninput="aplicarFiltrosCT()">
         </div>
         <div class="fi-group">
@@ -976,11 +981,11 @@
             <div class="cp-grid">
                 <div class="cp-field">
                     <label>Código *</label>
-                    <input type="text" id="ct-mf-codigo" placeholder="Ej: 110505" maxlength="20">
+                    <input autocomplete="off" type="text" id="ct-mf-codigo" placeholder="Ej: 110505" maxlength="20">
                 </div>
                 <div class="cp-field" style="grid-column:span 1;">
                     <label>Nombre *</label>
-                    <input type="text" id="ct-mf-nombre" placeholder="Ej: Caja General">
+                    <input autocomplete="off" type="text" id="ct-mf-nombre" placeholder="Ej: Caja General">
                 </div>
                 <div class="cp-field" style="grid-column:1/-1;">
                     <label>Cuenta Padre</label>
@@ -1016,7 +1021,7 @@
                 </div>
                 <div class="cp-field">
                     <label>Nivel</label>
-                    <input type="text" id="ct-mf-nivel" placeholder="Automático" readonly>
+                    <input autocomplete="off" type="text" id="ct-mf-nivel" placeholder="Automático" readonly>
                 </div>
                 <div class="cp-field checkbox-field">
                     <input type="checkbox" id="ct-mf-movimientos">

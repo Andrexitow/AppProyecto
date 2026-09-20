@@ -226,9 +226,10 @@ window.guardarTercero = function () {
 
             // 🔥 OTROS ERRORES (500, etc)
             if (!res.ok) {
-                let errorText = await res.text();
-                mostrarNotificacion('Error del servidor', 'error');
-                throw new Error(errorText);
+                const errData = await res.json().catch(() => ({}));
+                const errMsg = errData.message || `Error del servidor (${res.status})`;
+                mostrarNotificacion(errMsg, 'error');
+                throw new Error(errMsg);
             }
 
             return res.json();

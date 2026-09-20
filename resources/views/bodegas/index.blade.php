@@ -329,7 +329,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="min-width:220px;">
             <span class="fi-label">🔍</span>
-            <input type="text" id="buscarBodega" oninput="filtrarBodega()" placeholder="Buscar bodega por nombre…" class="fi-input">
+            <input autocomplete="off" type="text" id="buscarBodega" oninput="filtrarBodega()" placeholder="Buscar bodega por nombre…" class="fi-input">
         </div>
         <button class="btn-outline" onclick="document.getElementById('buscarBodega').value='';filtrarBodega();">✕ Limpiar</button>
     </div>
@@ -412,7 +412,7 @@
             <div class="modal-body-bod">
                 <div class="bod-field">
                     <label>Descripción de la Bodega</label>
-                    <input name="descripcion" placeholder="Ej: Bodega Central, Depósito Norte…" required>
+                    <input autocomplete="off" name="descripcion" placeholder="Ej: Bodega Central, Depósito Norte…" required>
                 </div>
                 <div class="bod-field">
                     <label>Punto de impresión</label>

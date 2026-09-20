@@ -398,7 +398,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="min-width:220px;">
             <span class="fi-label">🔍</span>
-            <input type="text" id="mp-buscar" class="fi-input" placeholder="Buscar medio de pago…" oninput="renderMetodosPago()">
+            <input autocomplete="off" type="text" id="mp-buscar" class="fi-input" placeholder="Buscar medio de pago…" oninput="renderMetodosPago()">
         </div>
         <div class="fi-group" style="flex:none;">
             <select class="fi-select" id="mp-estado" onchange="renderMetodosPago()">
@@ -449,7 +449,7 @@
             <input type="hidden" id="mp-id">
             <div class="mp-field">
                 <label>Nombre del Medio</label>
-                <input id="mp-nombre" placeholder="Ej: Efectivo, Tarjeta, Transferencia…">
+                <input autocomplete="off" id="mp-nombre" placeholder="Ej: Efectivo, Tarjeta, Transferencia…">
             </div>
             <div class="mp-field mp-cuenta-wrap">
                 <label>Cuenta Contable</label>
@@ -484,9 +484,9 @@
             MP.datos = x[0].data || [];
             MP.cuentas = x[1].data || [];
             renderMetodosPago();
-        }).catch(function () {
+        }).catch(function (e) {
             document.getElementById('mp-lista').innerHTML = '<tr><td colspan="4"><div class="spinner-cell">⚠️ No fue posible cargar la parametrización.</div></td></tr>';
-            notifMP('No fue posible cargar la parametrización.', 'error');
+            notifMP(e.message || 'No fue posible cargar la parametrización.', 'error');
         });
     }
 

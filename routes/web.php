@@ -22,6 +22,7 @@ use App\Http\Controllers\{
     CierreCajaController,
     CocinaController,
     DashboardController,
+    DashboardContableController,
     ComprobanteController,
     CuentaContableController,
     ProductoController,
@@ -37,6 +38,7 @@ use App\Http\Controllers\{
     PrefijoController,
     ConceptoCajaController,
     ConfiguracionEmisorController,
+    ConfiguracionController,
     VentaProductoController,
     InformeContableController,
     KardexController,
@@ -71,9 +73,18 @@ Route::middleware(['auth', 'auditar', 'sesion.inactividad'])->group(function () 
             return redirect()->route('cocina.index');
         }
 
+        // Contabilidad tenía el mismo panel de ventas/cocina que
+        // Administrador, que no le sirve de nada a quien lleva la parte
+        // contable — ver DashboardContableController.
+        if ($user && $user->rol?->nombre === 'Contabilidad') {
+            return app(DashboardContableController::class)->index();
+        }
+
         return app(DashboardController::class)->index();
     })->name('home');
     Route::get('/dashboard/resumen', [DashboardController::class, 'resumen'])
+        ->middleware('role:Administrador,Contabilidad');
+    Route::get('/dashboard-contable/resumen', [DashboardContableController::class, 'resumen'])
         ->middleware('role:Administrador,Contabilidad');
     Route::post('/dashboard/hora-corte', [DashboardController::class, 'actualizarHoraCorte'])
         ->middleware('role:Administrador');
@@ -407,6 +418,12 @@ Route::middleware(['auth', 'auditar', 'sesion.inactividad'])->group(function () 
     Route::get('/views/configuracion-emisor', [ConfiguracionEmisorController::class, 'index'])->middleware('role:Administrador')->name('configuracion-emisor.index');
     Route::get('/configuracion-emisor/datos', [ConfiguracionEmisorController::class, 'show'])->middleware('role:Administrador');
     Route::put('/configuracion-emisor', [ConfiguracionEmisorController::class, 'update'])->middleware('role:Administrador');
+
+    Route::get('/views/configuracion', [ConfiguracionController::class, 'index'])->middleware('role:Administrador')->name('configuracion.index');
+    Route::get('/configuracion/datos', [ConfiguracionController::class, 'show'])->middleware('role:Administrador');
+    Route::put('/configuracion', [ConfiguracionController::class, 'update'])->middleware('role:Administrador');
+    Route::post('/configuracion/regenerar-token-agente', [ConfiguracionController::class, 'regenerarTokenAgente'])->middleware('role:Administrador');
+    Route::get('/configuracion/descargar-agente', [ConfiguracionController::class, 'descargarAgenteImpresion'])->middleware('role:Administrador');
 
     Route::get('/views/venta-productos', [VentaProductoController::class, 'index'])->middleware('role:Administrador,Contabilidad')->name('venta-productos.index');
     Route::get('/venta-productos/filtros', [VentaProductoController::class, 'filtros'])->middleware('role:Administrador,Contabilidad');

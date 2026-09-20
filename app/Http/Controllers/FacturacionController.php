@@ -73,7 +73,9 @@ class FacturacionController extends Controller
         // real de ProductoController usa 'inactivo'. Filtrar por 'activo'
         // (siempre 1) dejaba ver en el POS productos que sí se habían
         // desactivado desde el catálogo.
-        $productos = Producto::where('inactivo', 0)->orderBy('categoria')->get();
+        // Sin grupo de menú = insumo o producto aún sin parametrizar (no se
+        // vende en el piso), así que no se le muestra al mesero.
+        $productos = Producto::where('inactivo', 0)->whereNotNull('grupo_menu_id')->orderBy('categoria')->get();
         $categorias = $productos->pluck('categoria')->unique();
 
         // ← Agregar esta línea

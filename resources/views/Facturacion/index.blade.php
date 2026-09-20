@@ -209,7 +209,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input type="text" id="buscarProducto" placeholder="Buscar producto..." class="search-input">
+                    <input autocomplete="off" type="text" id="buscarProducto" placeholder="Buscar producto..." class="search-input">
                 </div>
             </div>
 
@@ -411,7 +411,7 @@
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="3" />
                     </svg>
-                    <input type="text" id="buscarMesa" onkeyup="filtrarMesasPorZona()"
+                    <input autocomplete="off" type="text" id="buscarMesa" onkeyup="filtrarMesasPorZona()"
                         placeholder="Buscar mesa..."
                         class="w-full pl-9 pr-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest outline-none"
                         style="background:#111827; border:0.5px solid #283347; color:#e2e8f0;">
@@ -482,7 +482,7 @@
                 <p class="text-[10px] text-slate-500 text-center mb-4 leading-relaxed">
                     Se requiere superclave de administrador para eliminar productos ya enviados.
                 </p>
-                <input type="password" id="inputSuperClave" placeholder="••••"
+                <input autocomplete="off" type="password" id="inputSuperClave" placeholder="••••"
                     class="modal-input-dark text-center text-xl tracking-widest mb-4">
                 <div class="flex flex-col gap-2">
                     <button onclick="validarSuperClave()" class="btn-send"
@@ -590,7 +590,7 @@
                             <div>
                                 <label
                                     class="text-[9px] text-slate-500 font-bold uppercase block mb-1.5">Referencia</label>
-                                <input type="text" id="ref_tarjeta" placeholder="Voucher #"
+                                <input autocomplete="off" type="text" id="ref_tarjeta" placeholder="Voucher #"
                                     class="modal-input-dark" style="padding:9px 12px; font-size:11px;">
                             </div>
                         </div>
@@ -610,7 +610,7 @@
                             <div>
                                 <label
                                     class="text-[9px] text-slate-500 font-bold uppercase block mb-1.5">Comprobante</label>
-                                <input type="text" id="ref_transferencia" placeholder="ID Transacción"
+                                <input autocomplete="off" type="text" id="ref_transferencia" placeholder="ID Transacción"
                                     class="modal-input-dark" style="padding:9px 12px; font-size:11px;">
                             </div>
                         </div>
@@ -620,7 +620,7 @@
                 <div id="wrapper-recibido" class="mb-5">
                     <label class="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">Efectivo
                         recibido</label>
-                    <input type="number" id="montoRecibido" oninput="calcularCambio()" placeholder="0"
+                    <input autocomplete="off" type="number" id="montoRecibido" oninput="calcularCambio()" placeholder="0"
                         class="modal-input-dark text-xl font-black"
                         style="padding:12px 16px; color:#4ade80; border-width:1px;">
                 </div>
@@ -653,7 +653,7 @@
                         </button>
                     </div>
                     <div id="propina-custom-wrap" class="hidden mb-2">
-                        <input type="number" id="propina_custom" placeholder="Monto propina"
+                        <input autocomplete="off" type="number" id="propina_custom" placeholder="Monto propina"
                             oninput="aplicarPropinaCustom()" class="modal-input-dark font-bold"
                             style="color:#fbbf24;">
                     </div>
@@ -708,14 +708,14 @@
                             <label
                                 class="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-1">Fecha
                                 de Inicio</label>
-                            <input type="date" id="cierre_fecha_inicio"
+                            <input autocomplete="off" type="date" id="cierre_fecha_inicio"
                                 class="w-full bg-[#0f172a] border border-slate-800 text-xs font-semibold p-2.5 rounded-xl text-slate-300 outline-none">
                         </div>
                         <div>
                             <label
                                 class="text-[9px] text-slate-500 font-black uppercase tracking-wider block mb-1">Hora
                                 Apertura Turno</label>
-                            <input type="time" id="cierre_hora_inicio"
+                            <input autocomplete="off" type="time" id="cierre_hora_inicio"
                                 class="w-full bg-[#0f172a] border border-slate-800 text-xs font-semibold p-2.5 rounded-xl text-slate-300 outline-none">
                         </div>
                         <hr class="border-slate-800/60 my-2">
@@ -723,13 +723,13 @@
                             <label
                                 class="text-[9px] text-slate-400 font-black uppercase tracking-wider block mb-1">Fecha
                                 Cierre (Bloqueada)</label>
-                            <input type="date" id="cierre_fecha_fin" readonly
+                            <input autocomplete="off" type="date" id="cierre_fecha_fin" readonly
                                 class="w-full bg-[#0a0f1d] border border-slate-900 text-xs font-bold p-2.5 rounded-xl text-slate-500 cursor-not-allowed outline-none">
                         </div>
                         <div>
                             <label class="text-[9px] text-blue-400 font-black uppercase tracking-wider block mb-1">Hora
                                 de Cierre/Salida</label>
-                            <input type="time" id="cierre_hora_fin"
+                            <input autocomplete="off" type="time" id="cierre_hora_fin"
                                 class="w-full bg-[#0f172a] border border-blue-900/50 text-xs font-black p-2.5 rounded-xl text-white bg-blue-950/10 focus:border-blue-500 outline-none">
                         </div>
                     </div>
@@ -737,7 +737,7 @@
                     <div>
                         <label class="text-[9px] text-slate-400 font-black uppercase tracking-wider block mb-1">Base de
                             Caja Inicial ($)</label>
-                        <input type="number" id="base_caja" value="0" oninput="calcularArqueoTotal()"
+                        <input autocomplete="off" type="number" id="base_caja" value="0" oninput="calcularArqueoTotal()"
                             class="w-full bg-[#020617] border border-slate-800 text-sm font-black p-3 rounded-xl text-emerald-400 outline-none focus:border-emerald-500 transition-all">
                     </div>
                 </div>
@@ -797,7 +797,7 @@
                                 {{-- INPUT --}}
                                 <div class="flex items-center gap-2">
 
-                                    <input id="{{ $d['id'] }}" type="number" min="0" value="0"
+                                    <input autocomplete="off" id="{{ $d['id'] }}" type="number" min="0" value="0"
                                         data-valor="{{ $d['v'] }}" oninput="calcularArqueoTotal()"
                                         class="input-denominacion w-full bg-[#0f172a] border border-slate-700 text-right font-black text-sm p-2.5 rounded-xl text-white outline-none focus:border-blue-500">
 
@@ -890,7 +890,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input type="text" id="buscarTercero" placeholder="NIT, cédula o nombre..."
+                    <input autocomplete="off" type="text" id="buscarTercero" placeholder="NIT, cédula o nombre..."
                         class="modal-input-dark" style="padding-left:38px;">
                 </div>
 
@@ -981,7 +981,7 @@
                     <label class="text-[9px] text-slate-500 font-bold uppercase tracking-widest block mb-1.5">
                         Monto
                     </label>
-                    <input type="number" id="mov_monto" placeholder="0" class="modal-input-dark text-lg font-bold"
+                    <input autocomplete="off" type="number" id="mov_monto" placeholder="0" class="modal-input-dark text-lg font-bold"
                         style="color:#4ade80;">
                 </div>
 
@@ -1054,7 +1054,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
-                    <input type="text" id="mov-buscar-tercero-input" placeholder="Cédula, NIT o nombre..."
+                    <input autocomplete="off" type="text" id="mov-buscar-tercero-input" placeholder="Cédula, NIT o nombre..."
                         class="modal-input-dark" style="padding-left:38px;">
                 </div>
 
@@ -1098,47 +1098,47 @@
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Nombres</label>
-                            <input type="text" id="ct_nombre" class="modal-input-dark" placeholder="Nombres">
+                            <input autocomplete="off" type="text" id="ct_nombre" class="modal-input-dark" placeholder="Nombres">
                         </div>
                         <div>
                             <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Apellidos</label>
-                            <input type="text" id="ct_apellido" class="modal-input-dark" placeholder="Apellidos">
+                            <input autocomplete="off" type="text" id="ct_apellido" class="modal-input-dark" placeholder="Apellidos">
                         </div>
                     </div>
                     <div>
                         <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Cédula</label>
-                        <input type="text" id="ct_cedula" class="modal-input-dark" placeholder="Cédula">
+                        <input autocomplete="off" type="text" id="ct_cedula" class="modal-input-dark" placeholder="Cédula">
                     </div>
                 </div>
 
                 <div id="ct-campos-empresa" class="hidden space-y-3">
                     <div>
                         <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Razón social</label>
-                        <input type="text" id="ct_razon_social" class="modal-input-dark" placeholder="Razón social">
+                        <input autocomplete="off" type="text" id="ct_razon_social" class="modal-input-dark" placeholder="Razón social">
                     </div>
                     <div>
                         <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">NIT</label>
-                        <input type="text" id="ct_nit" class="modal-input-dark" placeholder="NIT">
+                        <input autocomplete="off" type="text" id="ct_nit" class="modal-input-dark" placeholder="NIT">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Celular</label>
-                        <input type="text" id="ct_celular" class="modal-input-dark" placeholder="Celular">
+                        <input autocomplete="off" type="text" id="ct_celular" class="modal-input-dark" placeholder="Celular">
                     </div>
                     <div>
                         <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Correo (opcional)</label>
-                        <input type="email" id="ct_email" class="modal-input-dark" placeholder="correo@ejemplo.com">
+                        <input autocomplete="off" type="email" id="ct_email" class="modal-input-dark" placeholder="correo@ejemplo.com">
                     </div>
                 </div>
                 <div>
                     <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Dirección (opcional)</label>
-                    <input type="text" id="ct_direccion" class="modal-input-dark" placeholder="Dirección">
+                    <input autocomplete="off" type="text" id="ct_direccion" class="modal-input-dark" placeholder="Dirección">
                 </div>
                 <div>
                     <label class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Ciudad (opcional)</label>
-                    <input type="text" id="ct_ciudad" class="modal-input-dark" placeholder="Ciudad">
+                    <input autocomplete="off" type="text" id="ct_ciudad" class="modal-input-dark" placeholder="Ciudad">
                 </div>
 
                 <button onclick="guardarTerceroInlineMovimiento()" class="btn-send w-full"

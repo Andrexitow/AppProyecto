@@ -51,7 +51,7 @@ window.editarCaja = function (id) {
         })
         .catch(function (err) {
             console.error(err);
-            mostrarNotificacion('Error al cargar datos de la caja', 'error');
+            mostrarNotificacion(err.message || 'Error al cargar datos de la caja', 'error');
         });
 };
 
@@ -94,11 +94,13 @@ window.guardarCaja = function () {
             mostrarNotificacion(successMsg, 'success');
             window.closeModalCaja();
             loadView('cajas');
+        } else {
+            mostrarNotificacion(obj.data.message || 'No se pudo guardar la caja (error ' + obj.res.status + ')', 'error');
         }
     })
     .catch(function (err) {
         console.error(err);
-        mostrarNotificacion('Error de conexión', 'error');
+        mostrarNotificacion(err.message || 'Error de conexión', 'error');
     })
     .finally(function () {
         if (btn) {
@@ -145,7 +147,7 @@ window.eliminarCaja = function (id) {
             })
             .catch(function (err) {
                 console.error(err);
-                mostrarNotificacion('Error de conexión', 'error');
+                mostrarNotificacion(err.message || 'Error de conexión', 'error');
                 window.cerrarConfirm();
             })
             .finally(function () {

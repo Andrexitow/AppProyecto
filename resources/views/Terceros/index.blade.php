@@ -386,7 +386,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="min-width:220px;">
             <span class="fi-label">🔍</span>
-            <input type="text" id="tc-buscar" class="fi-input" placeholder="Buscar por nombre, documento o celular…">
+            <input autocomplete="off" type="text" id="tc-buscar" class="fi-input" placeholder="Buscar por nombre, documento o celular…">
         </div>
         <div class="fi-group" style="flex:none;">
             <select class="fi-select" id="tc-tipo">
@@ -441,53 +441,53 @@
             <div class="tc-grid">
                 <div class="tc-field campo-persona">
                     <label>Nombre</label>
-                    <input type="text" name="nombre">
+                    <input autocomplete="off" type="text" name="nombre">
                 </div>
                 <div class="tc-field campo-persona">
                     <label>Apellido</label>
-                    <input type="text" name="apellido">
+                    <input autocomplete="off" type="text" name="apellido">
                 </div>
                 <div class="tc-field campo-persona" style="grid-column:1/-1;">
                     <label>Cédula de Ciudadanía</label>
-                    <input type="text" name="cedula">
+                    <input autocomplete="off" type="text" name="cedula">
                 </div>
 
                 <div class="tc-field campo-empresa hidden" style="grid-column:1/-1;">
                     <label>Razón Social</label>
-                    <input type="text" name="razon_social">
+                    <input autocomplete="off" type="text" name="razon_social">
                 </div>
                 <div class="tc-field campo-empresa hidden" style="grid-column:1/-1;">
                     <label>NIT</label>
-                    <input type="text" name="nit">
+                    <input autocomplete="off" type="text" name="nit">
                 </div>
 
                 <div class="tc-field">
                     <label>Correo Electrónico</label>
-                    <input type="email" name="email" placeholder="ejemplo@correo.com">
+                    <input autocomplete="off" type="email" name="email" placeholder="ejemplo@correo.com">
                 </div>
                 <div class="tc-field">
                     <label>Celular / Teléfono</label>
-                    <input type="text" name="celular">
+                    <input autocomplete="off" type="text" name="celular">
                 </div>
                 <div class="tc-field" style="grid-column:1/-1;">
                     <label>Dirección</label>
-                    <input type="text" name="direccion">
+                    <input autocomplete="off" type="text" name="direccion">
                 </div>
                 <div class="tc-field">
                     <label>Ciudad</label>
-                    <input type="text" name="ciudad" placeholder="Ej: Bogotá D.C.">
+                    <input autocomplete="off" type="text" name="ciudad" placeholder="Ej: Bogotá D.C.">
                 </div>
                 <div class="tc-field">
                     <label>Código municipio (DANE)</label>
-                    <input type="text" name="codigo_municipio" placeholder="Ej: 11001 (Bogotá)" maxlength="10">
+                    <input autocomplete="off" type="text" name="codigo_municipio" placeholder="Ej: 11001 (Bogotá)" maxlength="10">
                 </div>
                 <div class="tc-field">
                     <label>Código CIIU</label>
-                    <input type="text" name="codigo_ciiu" placeholder="Ej: 5611">
+                    <input autocomplete="off" type="text" name="codigo_ciiu" placeholder="Ej: 5611">
                 </div>
                 <div class="tc-field">
                     <label>Días de crédito</label>
-                    <input type="number" name="dias_credito" min="1" max="365" placeholder="Ej: 30 (vacío = política general)">
+                    <input autocomplete="off" type="number" name="dias_credito" min="1" max="365" placeholder="Ej: 30 (vacío = política general)">
                 </div>
                 <div class="tc-field" style="grid-column:1/-1;">
                     <label>Régimen Tributario</label>

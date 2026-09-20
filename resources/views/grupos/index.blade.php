@@ -67,7 +67,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-[11px] font-black text-gray-400 uppercase mb-2">Nombre del Grupo</label>
-                    <input type="text" id="nombre_grupo" required
+                    <input autocomplete="off" type="text" id="nombre_grupo" required
                         class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-gray-700">
                 </div>
 

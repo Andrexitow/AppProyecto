@@ -98,11 +98,11 @@
     <div class="filter-bar" id="tz-filtro-ledger" style="display:none;">
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input type="date" id="tz-desde" class="fi-input">
+            <input autocomplete="off" type="date" id="tz-desde" class="fi-input">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input type="date" id="tz-hasta" class="fi-input">
+            <input autocomplete="off" type="date" id="tz-hasta" class="fi-input">
         </div>
         <button class="btn-primary" onclick="cargarLedgerTz()">🔍 Consultar</button>
         <button class="btn-outline" onclick="abrirConciliacionTz()">🔄 Conciliar extracto</button>
@@ -124,9 +124,9 @@
         <div class="modal-head"><p class="modal-head-title">Nueva cuenta de tesorería</p><button onclick="cerrarModalTz('modal-cuenta-tz')" style="border:0;background:transparent;font-size:20px;cursor:pointer;">✕</button></div>
         <div class="modal-body">
             <div class="co-grid">
-                <div class="co-field full"><label>Nombre *</label><input id="tzc-nombre" placeholder="Ej: Nequi Ventas, Caja Menor..."></div>
+                <div class="co-field full"><label>Nombre *</label><input autocomplete="off" id="tzc-nombre" placeholder="Ej: Nequi Ventas, Caja Menor..."></div>
                 <div class="co-field"><label>Tipo *</label><select id="tzc-tipo"><option value="CAJA">Caja</option><option value="BANCO">Banco</option></select></div>
-                <div class="co-field"><label>N° cuenta</label><input id="tzc-numero" placeholder="Opcional"></div>
+                <div class="co-field"><label>N° cuenta</label><input autocomplete="off" id="tzc-numero" placeholder="Opcional"></div>
                 <div class="co-field full"><label>Cuenta contable *</label><input id="tzc-cuenta-buscar" autocomplete="off" placeholder="Buscar por código o nombre…"><input type="hidden" id="tzc-cuenta-id"><div id="tzc-cuenta-resultados" class="tz-resultados"></div></div>
             </div>
         </div>
@@ -141,10 +141,10 @@
         <div class="modal-body">
             <div class="co-grid">
                 <div class="co-field"><label>Cuenta *</label><select id="tzm-cuenta"></select></div>
-                <div class="co-field"><label>Fecha *</label><input id="tzm-fecha" type="date"></div>
+                <div class="co-field"><label>Fecha *</label><input autocomplete="off" id="tzm-fecha" type="date"></div>
                 <div class="co-field full"><label id="tzm-label-contrapartida">Cuenta contrapartida *</label><input id="tzm-contrapartida-buscar" autocomplete="off" placeholder="Buscar por código o nombre…"><input type="hidden" id="tzm-contrapartida-id"><div id="tzm-contrapartida-resultados" class="tz-resultados"></div></div>
-                <div class="co-field full"><label>Valor *</label><input id="tzm-valor" type="number" min="0.01" step="0.01"></div>
-                <div class="co-field full"><label>Descripción *</label><input id="tzm-descripcion" placeholder="Concepto del movimiento…"></div>
+                <div class="co-field full"><label>Valor *</label><input autocomplete="off" id="tzm-valor" type="number" min="0.01" step="0.01"></div>
+                <div class="co-field full"><label>Descripción *</label><input autocomplete="off" id="tzm-descripcion" placeholder="Concepto del movimiento…"></div>
             </div>
         </div>
         <div class="modal-foot"><button class="btn-outline" onclick="cerrarModalTz('modal-movimiento-tz')">Cancelar</button><button class="btn-primary" id="tzm-btn-guardar" onclick="guardarMovimientoTz()">Registrar</button></div>
@@ -159,9 +159,9 @@
             <div class="co-grid">
                 <div class="co-field"><label>Desde *</label><select id="tzt-origen"></select></div>
                 <div class="co-field"><label>Hacia *</label><select id="tzt-destino"></select></div>
-                <div class="co-field"><label>Fecha *</label><input id="tzt-fecha" type="date"></div>
-                <div class="co-field"><label>Valor *</label><input id="tzt-valor" type="number" min="0.01" step="0.01"></div>
-                <div class="co-field full"><label>Descripción</label><input id="tzt-descripcion" placeholder="Opcional…"></div>
+                <div class="co-field"><label>Fecha *</label><input autocomplete="off" id="tzt-fecha" type="date"></div>
+                <div class="co-field"><label>Valor *</label><input autocomplete="off" id="tzt-valor" type="number" min="0.01" step="0.01"></div>
+                <div class="co-field full"><label>Descripción</label><input autocomplete="off" id="tzt-descripcion" placeholder="Opcional…"></div>
             </div>
         </div>
         <div class="modal-foot"><button class="btn-outline" onclick="cerrarModalTz('modal-transferencia-tz')">Cancelar</button><button class="btn-primary" onclick="guardarTransferenciaTz()">Transferir</button></div>
@@ -177,8 +177,8 @@
         </div>
         <div class="modal-body">
             <div class="co-grid" style="grid-template-columns:1fr 1fr 1fr auto;align-items:end;margin-bottom:12px;">
-                <div class="co-field"><label>Desde</label><input id="cz-desde" type="date"></div>
-                <div class="co-field"><label>Hasta</label><input id="cz-hasta" type="date"></div>
+                <div class="co-field"><label>Desde</label><input autocomplete="off" id="cz-desde" type="date"></div>
+                <div class="co-field"><label>Hasta</label><input autocomplete="off" id="cz-hasta" type="date"></div>
                 <div class="co-field"><label>&nbsp;</label><button class="btn-primary" style="width:100%;" onclick="cargarConciliacionTz()">🔍 Consultar</button></div>
                 <div></div>
             </div>
@@ -187,9 +187,9 @@
 
             <p style="font-size:12px;font-weight:700;margin-bottom:6px;">➕ Añadir línea del extracto bancario</p>
             <div class="co-grid" style="grid-template-columns:1fr 2fr 1fr auto;margin-bottom:16px;">
-                <input id="cz-nueva-fecha" type="date" placeholder="Fecha">
-                <input id="cz-nueva-desc" placeholder="Descripción (ej: Consignación, Comisión...)">
-                <input id="cz-nueva-valor" type="number" step="0.01" placeholder="Valor (+ / -)">
+                <input autocomplete="off" id="cz-nueva-fecha" type="date" placeholder="Fecha">
+                <input autocomplete="off" id="cz-nueva-desc" placeholder="Descripción (ej: Consignación, Comisión...)">
+                <input autocomplete="off" id="cz-nueva-valor" type="number" step="0.01" placeholder="Valor (+ / -)">
                 <button class="btn-outline" onclick="agregarLineaExtractoTz()">＋ Añadir</button>
             </div>
 
@@ -475,7 +475,7 @@
         fetch('/conciliacion-bancaria/resumen?' + params.toString(), { headers: hdrsTz() }).then(function (r) { return r.json(); }).then(function (d) {
             CZ.datos = d;
             renderConciliacionTz();
-        }).catch(function () { notifTz('No fue posible cargar la conciliación.', 'error'); });
+        }).catch(function (e) { notifTz(e.message || 'No fue posible cargar la conciliación.', 'error'); });
     };
 
     function renderConciliacionTz() {

@@ -774,11 +774,22 @@
             grid-template-columns: 1fr 1fr;
         }
 
-        table.facturas-tbl thead th:nth-child(n+7) {
+        /* Ocultamos solo Total/Registrada/Usuario/Doc.Electrónico (7,8,10,11).
+           Antes se ocultaba TODO desde la columna 7 en adelante, lo que
+           también tapaba "Estado" (9) y "Acciones" (12) sin ninguna forma
+           de llegar a ellas en el celular — exactamente donde estaban los
+           botones para ver/anular/reimprimir una factura. */
+        table.facturas-tbl thead th:nth-child(7),
+        table.facturas-tbl thead th:nth-child(8),
+        table.facturas-tbl thead th:nth-child(10),
+        table.facturas-tbl thead th:nth-child(11) {
             display: none;
         }
 
-        table.facturas-tbl tbody td:nth-child(n+7) {
+        table.facturas-tbl tbody td:nth-child(7),
+        table.facturas-tbl tbody td:nth-child(8),
+        table.facturas-tbl tbody td:nth-child(10),
+        table.facturas-tbl tbody td:nth-child(11) {
             display: none;
         }
     }
@@ -832,16 +843,16 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="fi-buscar" placeholder="Prefijo, número, cliente, usuario…"
+            <input autocomplete="off" class="fi-input" type="text" id="fi-buscar" placeholder="Prefijo, número, cliente, usuario…"
                 oninput="aplicarFiltros()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input class="fi-input" type="date" id="fi-desde" onchange="aplicarFiltros()">
+            <input autocomplete="off" class="fi-input" type="date" id="fi-desde" onchange="aplicarFiltros()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input class="fi-input" type="date" id="fi-hasta" onchange="aplicarFiltros()">
+            <input autocomplete="off" class="fi-input" type="date" id="fi-hasta" onchange="aplicarFiltros()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="fi-estado" onchange="aplicarFiltros()">
@@ -957,20 +968,20 @@
             <div class="fac-grid">
                 <div class="fac-field">
                     <label>Prefijo *</label>
-                    <input type="text" id="mf-prefijo" placeholder="Ej: FV" maxlength="10"
+                    <input autocomplete="off" type="text" id="mf-prefijo" placeholder="Ej: FV" maxlength="10"
                         oninput="this.value=this.value.toUpperCase()">
                 </div>
                 <div class="fac-field">
                     <label>Número *</label>
-                    <input type="text" id="mf-numero" placeholder="Automático" readonly>
+                    <input autocomplete="off" type="text" id="mf-numero" placeholder="Automático" readonly>
                 </div>
                 <div class="fac-field">
                     <label>Fecha *</label>
-                    <input type="date" id="mf-fecha">
+                    <input autocomplete="off" type="date" id="mf-fecha">
                 </div>
                 <div class="fac-field">
                     <label>Hora</label>
-                    <input type="time" id="mf-hora">
+                    <input autocomplete="off" type="time" id="mf-hora">
                 </div>
                 <div class="fac-field" style="grid-column:1/-1;">
                     <label>Cliente / Tercero *</label>
@@ -1050,7 +1061,7 @@
                 </div>
                 <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <label style="font-size:12px;color:#6B7280;">Desc. global %</label>
-                    <input type="number" id="desc-global" min="0" max="100" step="0.01"
+                    <input autocomplete="off" type="number" id="desc-global" min="0" max="100" step="0.01"
                         style="width:80px;border:1px solid #D1D5DB;border-radius:6px;
                                   padding:5px 8px;font-size:12px;outline:none;"
                         oninput="calcularTotales()" placeholder="0">
@@ -1896,16 +1907,16 @@
                 '<td><select style="width:100%;border:1px solid #D1D5DB;border-radius:6px;' +
                 'padding:5px 8px;font-size:12px;" onchange="itemChange(' + idx + ',\'producto\',this.value)">' +
                 opts + '</select></td>' +
-                '<td><input type="number" value="' + it.cantidad + '" min="1" ' +
+                '<td><input autocomplete="off" type="number" value="' + it.cantidad + '" min="1" ' +
                 'style="width:60px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;"' +
                 ' onchange="itemChange(' + idx + ',\'cantidad\',+this.value)"></td>' +
-                '<td><input type="number" value="' + it.precio + '" min="0" ' +
+                '<td><input autocomplete="off" type="number" value="' + it.precio + '" min="0" ' +
                 'style="width:100px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;"' +
                 ' onchange="itemChange(' + idx + ',\'precio\',+this.value)"></td>' +
-                '<td><input type="number" value="' + (it.descuento || 0) + '" min="0" max="100" ' +
+                '<td><input autocomplete="off" type="number" value="' + (it.descuento || 0) + '" min="0" max="100" ' +
                 'style="width:60px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;"' +
                 ' onchange="itemChange(' + idx + ',\'descuento\',+this.value)"></td>' +
-                '<td><input type="number" value="' + (it.iva || 0) + '" min="0" ' +
+                '<td><input autocomplete="off" type="number" value="' + (it.iva || 0) + '" min="0" ' +
                 'style="width:60px;border:1px solid #D1D5DB;border-radius:6px;padding:5px 8px;font-size:12px;"' +
                 ' onchange="itemChange(' + idx + ',\'iva\',+this.value)"></td>' +
                 '<td style="text-align:right;font-weight:600;font-size:12px;">' + fmtMoney(sub) + '</td>' +
@@ -2053,7 +2064,7 @@
             return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6;">' +
                 '<div style="flex:1;"><div style="font-weight:600;font-size:13px;">' + esc(it.producto) + '</div>' +
                 '<div style="font-size:11px;color:#6B7280;">Vendido: ' + it.cantidad + ' × $' + Number(it.precio).toLocaleString('es-CO') + '</div></div>' +
-                '<input type="number" min="0" max="' + it.cantidad + '" step="0.01" value="0" id="nota-cant-' + idx + '" ' +
+                '<input autocomplete="off" type="number" min="0" max="' + it.cantidad + '" step="0.01" value="0" id="nota-cant-' + idx + '" ' +
                 'style="width:90px;border:1px solid #D1D5DB;border-radius:7px;padding:6px 8px;font-size:12.5px;">' +
                 '</div>';
         }).join('') || '<p class="field-hint">Esta factura no tiene líneas.</p>';
@@ -2161,8 +2172,8 @@
                     notif('↩️ Factura ' + codigo + ' restaurada', 'success');
                     cargarFacturas();
                 })
-                .catch(function() {
-                    notif('Error al revertir la anulación', 'error');
+                .catch(function(e) {
+                    notif(e.message || 'Error al revertir la anulación', 'error');
                 });
         });
     }

@@ -67,7 +67,7 @@
                 @if($esAdministrador)
                     <div class="cutoff-control">
                         <label for="hora-corte-operativo">Corte 24 h</label>
-                        <input id="hora-corte-operativo" type="time" value="{{ $horaCorteOperativo }}" aria-label="Hora de inicio del día operativo">
+                        <input autocomplete="off" id="hora-corte-operativo" type="time" value="{{ $horaCorteOperativo }}" aria-label="Hora de inicio del día operativo">
                         <button id="guardar-hora-corte" type="button">Guardar</button>
                     </div>
                     <div class="cutoff-status" id="cutoff-status">El día operativo inicia a las {{ $horaCorteOperativo }}.</div>

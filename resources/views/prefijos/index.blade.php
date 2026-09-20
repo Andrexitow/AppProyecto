@@ -62,27 +62,27 @@
             <button onclick="cerrarModalPrefijo()" style="border:none;background:transparent;font-size:20px;cursor:pointer;color:#6B7280;">✕</button>
         </div>
         <form id="formPrefijo" class="modal-body-pf" onsubmit="return false;">
-            <div class="pf-field"><label>Código</label><input type="text" name="codigo" maxlength="10" placeholder="Ej: FR" oninput="this.value=this.value.toUpperCase()"></div>
-            <div class="pf-field"><label>Nombre</label><input type="text" name="nombre" placeholder="Ej: Factura Restaurante"></div>
-            <div class="pf-field"><label>Descripción (opcional)</label><input type="text" name="descripcion" placeholder="Para qué se usa este prefijo"></div>
+            <div class="pf-field"><label>Código</label><input autocomplete="off" type="text" name="codigo" maxlength="10" placeholder="Ej: FR" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="pf-field"><label>Nombre</label><input autocomplete="off" type="text" name="nombre" placeholder="Ej: Factura Restaurante"></div>
+            <div class="pf-field"><label>Descripción (opcional)</label><input autocomplete="off" type="text" name="descripcion" placeholder="Para qué se usa este prefijo"></div>
 
             <p style="font-size:11px;font-weight:600;color:#6B7280;text-transform:uppercase;margin:16px 0 8px;border-top:1px solid #EAECF0;padding-top:14px;">
                 Resolución DIAN (solo si facturas electrónicamente)
             </p>
-            <div class="pf-field"><label>N° de resolución</label><input type="text" name="resolucion_numero" placeholder="Ej: 18760000001"></div>
-            <div class="pf-field"><label>Fecha de la resolución</label><input type="date" name="resolucion_fecha"></div>
+            <div class="pf-field"><label>N° de resolución</label><input autocomplete="off" type="text" name="resolucion_numero" placeholder="Ej: 18760000001"></div>
+            <div class="pf-field"><label>Fecha de la resolución</label><input autocomplete="off" type="date" name="resolucion_fecha"></div>
             <div style="display:flex;gap:10px;">
-                <div class="pf-field" style="flex:1;"><label>Rango desde</label><input type="number" min="1" name="rango_desde" placeholder="1"></div>
-                <div class="pf-field" style="flex:1;"><label>Rango hasta</label><input type="number" min="1" name="rango_hasta" placeholder="5000"></div>
+                <div class="pf-field" style="flex:1;"><label>Rango desde</label><input autocomplete="off" type="number" min="1" name="rango_desde" placeholder="1"></div>
+                <div class="pf-field" style="flex:1;"><label>Rango hasta</label><input autocomplete="off" type="number" min="1" name="rango_hasta" placeholder="5000"></div>
             </div>
             <div style="display:flex;gap:10px;">
-                <div class="pf-field" style="flex:1;"><label>Vigente desde</label><input type="date" name="vigencia_desde"></div>
-                <div class="pf-field" style="flex:1;"><label>Vigente hasta</label><input type="date" name="vigencia_hasta"></div>
+                <div class="pf-field" style="flex:1;"><label>Vigente desde</label><input autocomplete="off" type="date" name="vigencia_desde"></div>
+                <div class="pf-field" style="flex:1;"><label>Vigente hasta</label><input autocomplete="off" type="date" name="vigencia_hasta"></div>
             </div>
-            <div class="pf-field"><label>Clave técnica</label><input type="text" name="clave_tecnica" placeholder="La que te entregue la DIAN/tu proveedor"></div>
-            <div class="pf-field"><label>ID de rango para facturas (opcional)</label><input type="number" min="1" name="numbering_range_id_factus" placeholder="Solo si el proveedor tiene más de un rango de FACTURA activo"></div>
-            <div class="pf-field"><label>ID de rango para notas crédito (opcional)</label><input type="number" min="1" name="numbering_range_id_nota_credito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA CRÉDITO activo"></div>
-            <div class="pf-field"><label>ID de rango para notas débito (opcional)</label><input type="number" min="1" name="numbering_range_id_nota_debito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA DÉBITO activo"></div>
+            <div class="pf-field"><label>Clave técnica</label><input autocomplete="off" type="text" name="clave_tecnica" placeholder="La que te entregue la DIAN/tu proveedor"></div>
+            <div class="pf-field"><label>ID de rango para facturas (opcional)</label><input autocomplete="off" type="number" min="1" name="numbering_range_id_factus" placeholder="Solo si el proveedor tiene más de un rango de FACTURA activo"></div>
+            <div class="pf-field"><label>ID de rango para notas crédito (opcional)</label><input autocomplete="off" type="number" min="1" name="numbering_range_id_nota_credito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA CRÉDITO activo"></div>
+            <div class="pf-field"><label>ID de rango para notas débito (opcional)</label><input autocomplete="off" type="number" min="1" name="numbering_range_id_nota_debito_factus" placeholder="Solo si el proveedor tiene más de un rango de NOTA DÉBITO activo"></div>
         </form>
         <div class="modal-foot-pf">
             <button class="btn-outline" onclick="cerrarModalPrefijo()">Cancelar</button>
@@ -118,7 +118,7 @@
         form.reset();
         document.getElementById('pf-titulo').textContent = id ? 'Editar Prefijo' : 'Nuevo Prefijo';
         // Las fechas llegan como ISO completo (2026-01-15T05:00:00.000000Z);
-        // <input type="date"> solo acepta el AAAA-MM-DD.
+        // <input autocomplete="off" type="date"> solo acepta el AAAA-MM-DD.
         function soloFechaPF(valor) { return valor ? String(valor).slice(0, 10) : ''; }
 
         if (id) {

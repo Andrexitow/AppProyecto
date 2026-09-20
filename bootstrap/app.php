@@ -19,22 +19,25 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'plan' => \App\Http\Middleware\EnsurePlanPro::class,
             'sesion.inactividad' => \App\Http\Middleware\CerrarSesionPorInactividad::class,
         ]);
+
         $middleware->validateCsrfTokens(except: [
             'agente/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
-    })->create();
+        // Toda petición AJAX/JSON que falle responde con un motivo legible
+        // (nunca un "Server Error" pelado). Ver App\Support\MensajeError.
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            return \App\Support\MensajeError::responder($e, $request);
+        });
+    })
+    ->create();
 
-// En este servidor (Hostinger) la carpeta se llama "public_html" en vez
-// de "public" — Laravel busca "public" por defecto en public_path(), así
-// que sin esto cualquier cosa que lea el archivo real en vez de solo
-// generar su URL (filemtime() para el cache-busting de assets, storage:link,
-// el manifest de Vite) apunta a una carpeta que no existe en este server.
-// En local sigue existiendo "public", así que ahí no se activa.
-if (! is_dir($app->basePath('public')) && is_dir($app->basePath('public_html'))) {
-    $app->usePublicPath($app->basePath('public_html'));
+// Solo en Hostinger: ahi la carpeta publica vive fuera del proyecto. En local
+// esa ruta no existe y se usa el "public" normal.
+$publicHostinger = '/home/u113350287/domains/papayawhip-porpoise-285252.hostingersite.com/public_html';
+if (is_dir($publicHostinger)) {
+    $app->usePublicPath($publicHostinger);
 }
 
 return $app;

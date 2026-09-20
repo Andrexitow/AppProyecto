@@ -104,7 +104,7 @@ window.guardarGrupo = async function (e) {
         }
     } catch (error) {
         console.error('Error:', error);
-        window.mostrarNotificacion('Error de conexión con el servidor', 'error');
+        window.mostrarNotificacion(error.message || 'Error de conexión con el servidor', 'error');
     }
 };
 
@@ -128,7 +128,7 @@ window.eliminarGrupo = function (id) {
                 window.mostrarNotificacion(data.message || 'No se pudo eliminar', 'error');
             }
         } catch (e) {
-            window.mostrarNotificacion('Error al intentar eliminar', 'error');
+            window.mostrarNotificacion(e.message || 'Error al intentar eliminar', 'error');
         }
     });
 };

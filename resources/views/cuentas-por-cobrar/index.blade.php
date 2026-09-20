@@ -403,7 +403,7 @@
     <div class="filter-bar">
         <div class="fi-group">
             <span class="fi-label">Buscar</span>
-            <input type="text" id="cxc-buscar" class="fi-input" placeholder="Factura o cliente…">
+            <input autocomplete="off" type="text" id="cxc-buscar" class="fi-input" placeholder="Factura o cliente…">
         </div>
         <div class="fi-group" style="flex:0 0 200px;min-width:160px;">
             <span class="fi-label">Estado</span>
@@ -460,7 +460,7 @@
         </div>
         <div class="modal-body">
             <div class="co-grid" style="margin-bottom:14px;">
-                <div class="co-field"><label>Fecha de corte</label><input id="prov-fecha" type="date"></div>
+                <div class="co-field"><label>Fecha de corte</label><input autocomplete="off" id="prov-fecha" type="date"></div>
                 <div class="co-field" style="display:flex;align-items:flex-end;"><button class="btn-outline"
                         style="width:100%;" onclick="calcularProvisionCartera()">🔄 Calcular</button></div>
             </div>
@@ -508,12 +508,12 @@
         <div class="modal-body">
             <input type="hidden" id="cxc-abono-factura-id">
             <div class="co-grid">
-                <div class="co-field"><label>Fecha *</label><input id="cxc-abono-fecha" type="date"></div>
-                <div class="co-field"><label>Saldo pendiente</label><input id="cxc-abono-saldo" readonly></div>
+                <div class="co-field"><label>Fecha *</label><input autocomplete="off" id="cxc-abono-fecha" type="date"></div>
+                <div class="co-field"><label>Saldo pendiente</label><input autocomplete="off" id="cxc-abono-saldo" readonly></div>
                 <div class="co-field"><label>Medio de pago *</label><select id="cxc-abono-metodo"></select></div>
-                <div class="co-field"><label>Valor *</label><input id="cxc-abono-valor" type="number" min="0.01"
+                <div class="co-field"><label>Valor *</label><input autocomplete="off" id="cxc-abono-valor" type="number" min="0.01"
                         step="0.01"></div>
-                <div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input
+                <div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input autocomplete="off"
                         id="cxc-abono-referencia" placeholder="Transferencia, recibo, comprobante..."></div>
             </div>
         </div>
@@ -798,8 +798,8 @@
                 '<tr><td colspan="6" style="text-align:center;color:#9CA3AF;padding:16px;">Sin cartera vencida que provisionar</td></tr>';
 
             document.getElementById('btn-prov-contabilizar').disabled = Math.abs(ajuste) < 0.01;
-        }).catch(function() {
-            notifCxc('No fue posible calcular la provisión.', 'error');
+        }).catch(function(e) {
+            notifCxc(e.message || 'No fue posible calcular la provisión.', 'error');
         });
     };
 

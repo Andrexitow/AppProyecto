@@ -287,7 +287,7 @@
     </div>
 
     <div class="filter-bar">
-        <input type="text" id="acomp-buscar" class="fi-input" placeholder="Buscar por código o descripción..."
+        <input autocomplete="off" type="text" id="acomp-buscar" class="fi-input" placeholder="Buscar por código o descripción..."
             oninput="filtrarAcompanamientos()">
         <button type="button" class="btn-outline"
             onclick="document.getElementById('acomp-buscar').value='';filtrarAcompanamientos();">✕ Limpiar</button>
@@ -309,15 +309,15 @@
             <input type="hidden" id="acomp-id">
             <div class="field">
                 <label>Código</label>
-                <input type="text" id="acomp-codigo" placeholder="Ej: CUBETAZO">
+                <input autocomplete="off" type="text" id="acomp-codigo" placeholder="Ej: CUBETAZO">
             </div>
             <div class="field">
                 <label>Descripción</label>
-                <input type="text" id="acomp-descripcion" placeholder="Ej: Servicio de Cubetazo">
+                <input autocomplete="off" type="text" id="acomp-descripcion" placeholder="Ej: Servicio de Cubetazo">
             </div>
             <div class="field">
                 <label>Cantidad máxima a repartir</label>
-                <input type="number" id="acomp-cantidad-maxima" min="1" placeholder="Ej: 10">
+                <input autocomplete="off" type="number" id="acomp-cantidad-maxima" min="1" placeholder="Ej: 10">
             </div>
         </div>
         <div class="modal-foot">
@@ -610,7 +610,7 @@
                 cargarOpcionesDelGrupo();
             })
             .catch(function(e) {
-                mostrarNotificacion('No se pudo quitar', 'error');
+                mostrarNotificacion(e.message || 'No se pudo quitar', 'error');
             });
     };
 </script>

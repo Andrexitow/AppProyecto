@@ -70,9 +70,9 @@
         <div class="modal-head"><p class="modal-head-title">Cerrar un período contable</p><button onclick="cerrarModalPc()" style="border:0;background:transparent;font-size:20px;cursor:pointer;">✕</button></div>
         <div class="modal-body">
             <div class="aviso">⚠️ Una vez cerrado, nadie podrá crear, editar ni anular comprobantes con fecha dentro de este rango — en ningún módulo (ventas, compras, ajustes, tesorería, etc.) — hasta que un Administrador lo reabra.</div>
-            <div class="co-field"><label>Nombre *</label><input id="pcc-nombre" placeholder="Ej: Septiembre 2026"></div>
-            <div class="co-field"><label>Desde *</label><input id="pcc-desde" type="date"></div>
-            <div class="co-field"><label>Hasta *</label><input id="pcc-hasta" type="date"></div>
+            <div class="co-field"><label>Nombre *</label><input autocomplete="off" id="pcc-nombre" placeholder="Ej: Septiembre 2026"></div>
+            <div class="co-field"><label>Desde *</label><input autocomplete="off" id="pcc-desde" type="date"></div>
+            <div class="co-field"><label>Hasta *</label><input autocomplete="off" id="pcc-hasta" type="date"></div>
         </div>
         <div class="modal-foot"><button class="btn-outline" onclick="cerrarModalPc()">Cancelar</button><button class="btn-primary" onclick="guardarCierrePc()">Cerrar período</button></div>
     </div>

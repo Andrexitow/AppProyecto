@@ -187,7 +187,7 @@ function abrirModalAcompanamientoPos(id, descripcion, precio, grupoId) {
             actualizarTotalAcompPos();
             document.getElementById('modalAcompanamientoPos').classList.add('show');
         })
-        .catch(function () { window.notificar('No se pudo cargar el acompañamiento', 'error'); });
+        .catch(function (e) { window.notificar(e.message || 'No se pudo cargar el acompañamiento', 'error'); });
 }
 
 window.cerrarModalAcompanamientoPos = function () {
@@ -413,7 +413,7 @@ window.seleccionarMesa = async function (id, nombre) {
         }
     } catch (e) {
         console.error(e);
-        window.notificar('Error de conexión', 'error');
+        window.notificar(e.message || 'Error de conexión', 'error');
     }
 };
 
@@ -450,7 +450,7 @@ window.liberarMesaActual = async function (id) {
             window.notificar('Mesa liberada', 'success');
         }
     } catch (e) {
-        window.notificar('Error al liberar mesa', 'error');
+        window.notificar(e.message || 'Error al liberar mesa', 'error');
     }
 };
 
@@ -478,6 +478,16 @@ async function refrescarMesas() {
 
     try {
         var res = await fetch('/mesas/actualizar');
+        // Este refresco corre solo cada 5s (ver setInterval más abajo). Si
+        // la sesión expiró mientras la pantalla de mesas estaba abierta,
+        // Laravel redirige esta petición a /login — sin este chequeo, la
+        // página de login completa quedaba insertada dentro de la
+        // cuadrícula de mesas cada 5 segundos, encimada sobre lo que ya
+        // había en pantalla.
+        if (res.redirected && res.url.indexOf('/login') !== -1) {
+            window.location.href = res.url;
+            return;
+        }
         var html = await res.text();
         var tmp = document.createElement('div');
         tmp.innerHTML = html;
@@ -506,6 +516,10 @@ async function refrescarMesas() {
 async function ejecutarRefrescoVisual() {
     try {
         var res = await fetch('/mesas/actualizar');
+        if (res.redirected && res.url.indexOf('/login') !== -1) {
+            window.location.href = res.url;
+            return;
+        }
         var html = await res.text();
         var cont = document.getElementById('contenedorMesas');
         if (cont) cont.innerHTML = html;
@@ -586,7 +600,7 @@ window.enviarPedido = async function () {
 
     } catch (e) {
         console.error('Error al enviar pedido:', e);
-        window.notificar('Error de conexión', 'error');
+        window.notificar(e.message || 'Error de conexión', 'error');
     }
 };
 
@@ -637,7 +651,7 @@ window.cargarPedidoExistente = async function (mesaId, nombreMesa) {
             window.notificar(data.message || 'Sin pedidos pendientes', 'info');
         }
     } catch (e) {
-        window.notificar('Error al cargar pedido', 'error');
+        window.notificar(e.message || 'Error al cargar pedido', 'error');
     }
 };
 
@@ -1241,7 +1255,7 @@ window.procesarPagoFinal = async function () {
 
     } catch (e) {
         console.error('Error procesando pago:', e);
-        window.notificar('Error de conexión al procesar pago', 'error');
+        window.notificar(e.message || 'Error de conexión al procesar pago', 'error');
     }
 }
 
@@ -1265,7 +1279,7 @@ function imprimirInventarioPOS() {
         })
         .catch(error => {
             console.error("Error al procesar impresión de inventario:", error);
-            alert("Ocurrió un error de red al intentar mandar la impresión.");
+            alert(error.message || "Ocurrió un error de red al intentar mandar la impresión.");
         });
 }
 
@@ -1388,12 +1402,12 @@ function procesarCierreFinal() {
                 mostrarToastCierre(icon, res.estado_cuadre, res.diferencia, color);
                 setTimeout(() => location.reload(), 3500);
             } else {
-                alert('Error: ' + res.message);
+                alert('Error: ' + (res.message || 'no se pudo procesar el cierre'));
             }
         })
         .catch(err => {
             console.error(err);
-            alert('Error al procesar el cierre.');
+            alert(err.message || 'Error al procesar el cierre.');
         });
 }
 

@@ -100,7 +100,7 @@
                 <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Nombre / Destino</label>
                 <div class="relative">
                     <span class="absolute left-4 top-3.5 text-gray-400">🖨️</span>
-                    <input type="text" name="nombre" id="imp_nombre"
+                    <input autocomplete="off" type="text" name="nombre" id="imp_nombre"
                         placeholder="Ej: COCINA, BARRA, CAJA"
                         class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all font-bold text-gray-700">
                 </div>
@@ -110,13 +110,13 @@
             <div class="grid grid-cols-2 gap-4">
                 <div class="space-y-1">
                     <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Dirección IP</label>
-                    <input type="text" name="ip" id="imp_ip"
+                    <input autocomplete="off" type="text" name="ip" id="imp_ip"
                         placeholder="192.168.110.100"
                         class="w-full px-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all font-bold text-blue-600 font-mono">
                 </div>
                 <div class="space-y-1">
                     <label class="text-[10px] font-black text-gray-400 uppercase ml-2">Puerto</label>
-                    <input type="number" name="puerto" id="imp_puerto"
+                    <input autocomplete="off" type="number" name="puerto" id="imp_puerto"
                         value="9100"
                         class="w-full px-4 py-3.5 bg-gray-50 border-transparent focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 rounded-2xl outline-none transition-all font-bold text-gray-700 font-mono">
                 </div>

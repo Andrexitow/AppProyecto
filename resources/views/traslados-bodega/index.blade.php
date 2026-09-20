@@ -29,7 +29,7 @@
         <article class="tb-metric"><div class="tb-metric-label">Estado de inventario</div><div class="tb-metric-value" style="color:#027a48;font-size:16px;padding-top:5px;">Actualizado</div></article>
     </section>
     <section class="tb-card">
-        <div class="tb-toolbar"><input id="tb-buscar" class="tb-search" type="search" placeholder="Buscar por prefijo o consecutivo"></div>
+        <div class="tb-toolbar"><input autocomplete="off" id="tb-buscar" class="tb-search" type="search" placeholder="Buscar por prefijo o consecutivo"></div>
         <div style="overflow:auto"><table class="tb-table"><thead><tr><th>Documento</th><th>Fecha</th><th>Movimiento</th><th>Productos</th><th>Registrado por</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="tb-lista"></tbody></table></div>
         <div id="tb-vacio" class="tb-empty" style="display:none">No hay traslados registrados todavía.</div>
     </section>
@@ -40,9 +40,9 @@
         <div class="tb-modal-head"><h2 id="tb-modal-title">Nuevo traslado de inventario</h2><button class="tb-close" type="button" onclick="cerrarTraslado()" aria-label="Cerrar">&times;</button></div>
         <form class="tb-form" id="tb-form">
             <div class="tb-form-grid">
-                <div class="tb-field"><label for="tb-prefijo">Prefijo</label><input id="tb-prefijo" maxlength="10" value="TR" required></div>
-                <div class="tb-field"><label for="tb-consecutivo">Consecutivo</label><input id="tb-consecutivo" type="number" min="1" required></div>
-                <div class="tb-field"><label for="tb-fecha">Fecha</label><input id="tb-fecha" type="date" value="{{ now()->toDateString() }}" required></div>
+                <div class="tb-field"><label for="tb-prefijo">Prefijo</label><input autocomplete="off" id="tb-prefijo" maxlength="10" value="TR" required></div>
+                <div class="tb-field"><label for="tb-consecutivo">Consecutivo</label><input autocomplete="off" id="tb-consecutivo" type="number" min="1" required></div>
+                <div class="tb-field"><label for="tb-fecha">Fecha</label><input autocomplete="off" id="tb-fecha" type="date" value="{{ now()->toDateString() }}" required></div>
                 <div class="tb-field"><label for="tb-origen">Bodega de origen</label><select id="tb-origen" required><option value="">Selecciona la bodega de salida</option>@foreach($bodegas as $bodega)<option value="{{ $bodega->id }}">{{ $bodega->descripcion }}</option>@endforeach</select></div>
                 <div class="tb-field" style="grid-column:span 2"><label for="tb-destino">Bodega de destino</label><select id="tb-destino" required><option value="">Selecciona la bodega de llegada</option>@foreach($bodegas as $bodega)<option value="{{ $bodega->id }}">{{ $bodega->descripcion }}</option>@endforeach</select></div>
                 <div class="tb-field" style="grid-column:span 2"><label for="tb-observaciones">Observaciones</label><textarea id="tb-observaciones" placeholder="Motivo o nota del traslado (opcional)"></textarea></div>
@@ -79,7 +79,7 @@
         function renderLineas() {
             var cont=document.getElementById('tb-lineas');
             if(!lineas.length){cont.innerHTML='<div class="tb-no-lines">Aún no has agregado productos al traslado.</div>';return;}
-            cont.innerHTML=lineas.map(function(item,i){return '<div class="tb-line"><div><div class="tb-line-name">'+esc(item.descripcion)+'</div><div class="tb-line-stock">Disponible en origen: '+n(item.stock)+'</div></div><input class="tb-qty" aria-label="Cantidad de '+esc(item.descripcion)+'" type="number" min="0.001" max="'+item.stock+'" step="0.001" value="'+item.cantidad+'" onchange="actualizarCantidadTraslado('+i+',this.value)"><div class="tb-line-stock">Stock: '+n(item.stock)+'</div><button class="tb-remove" type="button" onclick="quitarProductoTraslado('+i+')" title="Quitar">×</button></div>';}).join('');
+            cont.innerHTML=lineas.map(function(item,i){return '<div class="tb-line"><div><div class="tb-line-name">'+esc(item.descripcion)+'</div><div class="tb-line-stock">Disponible en origen: '+n(item.stock)+'</div></div><input autocomplete="off" class="tb-qty" aria-label="Cantidad de '+esc(item.descripcion)+'" type="number" min="0.001" max="'+item.stock+'" step="0.001" value="'+item.cantidad+'" onchange="actualizarCantidadTraslado('+i+',this.value)"><div class="tb-line-stock">Stock: '+n(item.stock)+'</div><button class="tb-remove" type="button" onclick="quitarProductoTraslado('+i+')" title="Quitar">×</button></div>';}).join('');
         }
         window.actualizarCantidadTraslado=function(i,valor){var cantidad=Number(valor);if(!cantidad||cantidad<=0){lineas[i].cantidad=0.001;}else if(cantidad>Number(lineas[i].stock)){lineas[i].cantidad=Number(lineas[i].stock);aviso('Cantidad ajustada','No puedes trasladar más de lo disponible en la bodega de origen.','warning');}else lineas[i].cantidad=cantidad;renderLineas();};
         window.quitarProductoTraslado=function(i){lineas.splice(i,1);renderLineas();};

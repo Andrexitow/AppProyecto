@@ -247,7 +247,7 @@
         </div>
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input type="text" id="ex-buscar" class="fi-input" placeholder="Buscar producto por nombre o código…" oninput="renderExistencias()">
+            <input autocomplete="off" type="text" id="ex-buscar" class="fi-input" placeholder="Buscar producto por nombre o código…" oninput="renderExistencias()">
         </div>
         <div class="fi-group" style="flex:none;">
             <select class="fi-select" id="ex-estado" onchange="renderExistencias()">

@@ -699,8 +699,16 @@
 
     @media (max-width: 640px) {
         .metrics-row { grid-template-columns: 1fr 1fr; }
-        table.cp-tbl thead th:nth-child(n+7) { display: none; }
-        table.cp-tbl tbody td:nth-child(n+7) { display: none; }
+        /* Ocultamos Tercero/Descripción/Débito/Crédito/Usuario (5,6,7,8,10).
+           Antes se ocultaba desde la columna 7 en adelante, lo que también
+           tapaba "Estado" (9) y "Acciones" (11) sin ninguna forma de
+           llegar a ellas en el celular. */
+        table.cp-tbl thead th:nth-child(5), table.cp-tbl thead th:nth-child(6),
+        table.cp-tbl thead th:nth-child(7), table.cp-tbl thead th:nth-child(8),
+        table.cp-tbl thead th:nth-child(10) { display: none; }
+        table.cp-tbl tbody td:nth-child(5), table.cp-tbl tbody td:nth-child(6),
+        table.cp-tbl tbody td:nth-child(7), table.cp-tbl tbody td:nth-child(8),
+        table.cp-tbl tbody td:nth-child(10) { display: none; }
     }
 </style>
 
@@ -751,16 +759,16 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="cp-fi-buscar"
+            <input autocomplete="off" class="fi-input" type="text" id="cp-fi-buscar"
                 placeholder="Tipo, prefijo, número, descripción, tercero, usuario…" oninput="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input class="fi-input" type="date" id="cp-fi-desde" onchange="aplicarFiltrosCP()">
+            <input autocomplete="off" class="fi-input" type="date" id="cp-fi-desde" onchange="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input class="fi-input" type="date" id="cp-fi-hasta" onchange="aplicarFiltrosCP()">
+            <input autocomplete="off" class="fi-input" type="date" id="cp-fi-hasta" onchange="aplicarFiltrosCP()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="cp-fi-estado" onchange="aplicarFiltrosCP()">
@@ -844,7 +852,7 @@
             <div class="cp-grid">
                 <div class="cp-field">
                     <label>Tipo *</label>
-                    <input type="text" id="cp-ed-tipo" list="cp-tipos-dl" placeholder="Ej: Ingreso, Egreso, Diario…" maxlength="100">
+                    <input autocomplete="off" type="text" id="cp-ed-tipo" list="cp-tipos-dl" placeholder="Ej: Ingreso, Egreso, Diario…" maxlength="100">
                     <datalist id="cp-tipos-dl">
                         <option value="Ingreso"><option value="Egreso"><option value="Diario">
                         <option value="Nota Débito"><option value="Nota Crédito"><option value="Ajuste">
@@ -852,17 +860,17 @@
                 </div>
                 <div class="cp-field">
                     <label>Prefijo *</label>
-                    <input type="text" id="cp-ed-prefijo" placeholder="Ej: CC" maxlength="10"
+                    <input autocomplete="off" type="text" id="cp-ed-prefijo" placeholder="Ej: CC" maxlength="10"
                         oninput="this.value=this.value.toUpperCase()">
                     <small>Si el tipo ya existe se reutiliza su prefijo.</small>
                 </div>
                 <div class="cp-field">
                     <label>Número</label>
-                    <input type="text" id="cp-ed-numero" placeholder="Se asigna al guardar" readonly>
+                    <input autocomplete="off" type="text" id="cp-ed-numero" placeholder="Se asigna al guardar" readonly>
                 </div>
                 <div class="cp-field">
                     <label>Fecha *</label>
-                    <input type="date" id="cp-ed-fecha">
+                    <input autocomplete="off" type="date" id="cp-ed-fecha">
                 </div>
                 <div class="cp-field" style="grid-column:1/-1;">
                     <label>Descripción</label>
@@ -1445,11 +1453,11 @@
 
                 return '<tr>' +
                     '<td><select onchange="lineaCambiarCP(' + idx + ',\'cuenta_id\',this.value)">' + optsCuenta + '</select></td>' +
-                    '<td><input type="text" value="' + esc(l.descripcion || '') + '" placeholder="Detalle" onchange="lineaCambiarCP(' + idx + ',\'descripcion\',this.value)"></td>' +
+                    '<td><input autocomplete="off" type="text" value="' + esc(l.descripcion || '') + '" placeholder="Detalle" onchange="lineaCambiarCP(' + idx + ',\'descripcion\',this.value)"></td>' +
                     '<td><select class="' + tercCls.trim() + '" onchange="lineaCambiarCP(' + idx + ',\'tercero_id\',this.value)" title="' + (reqTercero ? 'Requerido por la cuenta' : '') + '">' + optsTercero + '</select></td>' +
                     '<td><select class="' + centroCls.trim() + '" onchange="lineaCambiarCP(' + idx + ',\'centro_costo_id\',this.value)" title="' + (reqCentro ? 'Requerido por la cuenta' : '') + '">' + optsCentro + '</select></td>' +
-                    '<td><input type="number" min="0" step="0.01" style="text-align:right;" value="' + (l.debito || 0) + '" onchange="lineaCambiarCP(' + idx + ',\'debito\',+this.value)"></td>' +
-                    '<td><input type="number" min="0" step="0.01" style="text-align:right;" value="' + (l.credito || 0) + '" onchange="lineaCambiarCP(' + idx + ',\'credito\',+this.value)"></td>' +
+                    '<td><input autocomplete="off" type="number" min="0" step="0.01" style="text-align:right;" value="' + (l.debito || 0) + '" onchange="lineaCambiarCP(' + idx + ',\'debito\',+this.value)"></td>' +
+                    '<td><input autocomplete="off" type="number" min="0" step="0.01" style="text-align:right;" value="' + (l.credito || 0) + '" onchange="lineaCambiarCP(' + idx + ',\'credito\',+this.value)"></td>' +
                     '<td><button onclick="eliminarLineaCP(' + idx + ')" style="border:none;background:transparent;cursor:pointer;font-size:14px;color:#DC2626;">✕</button></td>' +
                     '</tr>';
             }).join('');
@@ -1627,7 +1635,7 @@
                     notifCP('↩️ Comprobante ' + doc + ' restaurado.', 'success');
                     cargarComprobantesCP();
                 })
-                .catch(function() { notifCP('No se pudo revertir la anulación.', 'error'); });
+                .catch(function(e) { notifCP(e.message || 'No se pudo revertir la anulación.', 'error'); });
         });
     }
 

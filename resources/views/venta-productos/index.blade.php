@@ -69,8 +69,8 @@
 
     <div class="filter-panel">
         <div class="filter-grid">
-            <div class="vp-field"><label>Desde</label><input type="datetime-local" id="vp-desde"></div>
-            <div class="vp-field"><label>Hasta</label><input type="datetime-local" id="vp-hasta"></div>
+            <div class="vp-field"><label>Desde</label><input autocomplete="off" type="datetime-local" id="vp-desde"></div>
+            <div class="vp-field"><label>Hasta</label><input autocomplete="off" type="datetime-local" id="vp-hasta"></div>
             <div class="vp-field"><label>Bodega</label><select id="vp-bodega"><option value="">Todas</option></select></div>
             <div class="vp-field"><label>Vendedor / Cajero</label><select id="vp-usuario"><option value="">Todos</option></select></div>
             <div class="vp-field"><label>Caja</label><select id="vp-caja"><option value="">Todas</option></select></div>

@@ -75,7 +75,7 @@
     <div class="filter-bar">
         <div class="fi-group">
             <span class="fi-label">Buscar</span>
-            <input type="text" id="cxp-buscar" class="fi-input" placeholder="Factura o proveedor…">
+            <input autocomplete="off" type="text" id="cxp-buscar" class="fi-input" placeholder="Factura o proveedor…">
         </div>
         <div class="fi-group" style="flex:0 0 200px;min-width:160px;">
             <span class="fi-label">Estado</span>
@@ -111,11 +111,11 @@
         <div class="modal-body">
             <input type="hidden" id="cxp-abono-compra-id">
             <div class="co-grid">
-                <div class="co-field"><label>Fecha *</label><input id="cxp-abono-fecha" type="date"></div>
-                <div class="co-field"><label>Saldo pendiente</label><input id="cxp-abono-saldo" readonly></div>
+                <div class="co-field"><label>Fecha *</label><input autocomplete="off" id="cxp-abono-fecha" type="date"></div>
+                <div class="co-field"><label>Saldo pendiente</label><input autocomplete="off" id="cxp-abono-saldo" readonly></div>
                 <div class="co-field"><label>Medio de pago *</label><select id="cxp-abono-metodo"></select></div>
-                <div class="co-field"><label>Valor *</label><input id="cxp-abono-valor" type="number" min="0.01" step="0.01"></div>
-                <div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input id="cxp-abono-referencia" placeholder="Transferencia, recibo, comprobante..."></div>
+                <div class="co-field"><label>Valor *</label><input autocomplete="off" id="cxp-abono-valor" type="number" min="0.01" step="0.01"></div>
+                <div class="co-field" style="grid-column:1/-1"><label>Referencia</label><input autocomplete="off" id="cxp-abono-referencia" placeholder="Transferencia, recibo, comprobante..."></div>
             </div>
         </div>
         <div class="modal-foot">

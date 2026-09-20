@@ -8,6 +8,7 @@ use App\Models\GrupoMenu;
 use App\Models\Impresora;
 use App\Models\IntegracionContable;
 use App\Models\Producto;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -328,7 +329,20 @@ class ProductoController extends Controller
         //     ], 422);
         // }
 
-        $producto->delete();
+        try {
+            $producto->delete();
+        } catch (QueryException $e) {
+            // 23000: violación de llave foránea (el producto ya está en
+            // facturas, pedidos, compras, kardex, etc.).
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se puede eliminar. El producto ya tiene movimientos o documentos asociados; desactívalo en su lugar.'
+                ], 422);
+            }
+
+            throw $e;
+        }
 
         return response()->json([
             'success' => true,
@@ -351,6 +365,6 @@ class ProductoController extends Controller
             ->paginate(self::POR_PAGINA)
             ->withQueryString();
 
-        return view('Productos.partials.tabla', compact('productos'));
+        return view('productos.partials.tabla', compact('productos'));
     }
 }

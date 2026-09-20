@@ -462,7 +462,7 @@
             <div class="af-grid">
                 <div class="af-field" style="grid-column:1/-1;">
                     <label>Nombre del activo</label>
-                    <input type="text" name="nombre" placeholder="Ej: Computador Dell Recepción">
+                    <input autocomplete="off" type="text" name="nombre" placeholder="Ej: Computador Dell Recepción">
                 </div>
                 <div class="af-field" style="grid-column:1/-1;">
                     <label>Categoría</label>
@@ -470,19 +470,19 @@
                 </div>
                 <div class="af-field">
                     <label>Fecha de adquisición</label>
-                    <input type="date" name="fecha_adquisicion">
+                    <input autocomplete="off" type="date" name="fecha_adquisicion">
                 </div>
                 <div class="af-field">
                     <label>Vida útil (meses)</label>
-                    <input type="number" name="vida_util_meses" min="1" placeholder="Ej: 60">
+                    <input autocomplete="off" type="number" name="vida_util_meses" min="1" placeholder="Ej: 60">
                 </div>
                 <div class="af-field">
                     <label>Valor de adquisición</label>
-                    <input type="number" name="valor_adquisicion" min="0" step="0.01" placeholder="0">
+                    <input autocomplete="off" type="number" name="valor_adquisicion" min="0" step="0.01" placeholder="0">
                 </div>
                 <div class="af-field">
                     <label>Valor de salvamento</label>
-                    <input type="number" name="valor_residual" min="0" step="0.01" placeholder="0"
+                    <input autocomplete="off" type="number" name="valor_residual" min="0" step="0.01" placeholder="0"
                         value="0">
                 </div>
                 <div class="af-field" style="grid-column:1/-1;">
@@ -518,7 +518,7 @@
         <div class="modal-body-af">
             <div class="af-field">
                 <label>Período (mes)</label>
-                <input type="month" id="af-periodo-depreciar">
+                <input autocomplete="off" type="month" id="af-periodo-depreciar">
             </div>
             <p class="af-hint">Se puede ejecutar varias veces sin riesgo: los activos ya depreciados ese mes se saltan
                 automáticamente.</p>

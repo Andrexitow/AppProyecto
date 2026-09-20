@@ -266,8 +266,15 @@
     }
 
     @media (max-width: 640px) {
-        #view-documentos thead th:nth-child(n+5) { display: none; }
-        #view-documentos tbody td:nth-child(n+5) { display: none; }
+        /* Ocultamos Bodega/Total/Usuario (5,6,8) pero dejamos "Estado" (7)
+           siempre visible, para no esconder información sin ninguna forma
+           de llegar a ella en el celular. */
+        #view-documentos thead th:nth-child(5),
+        #view-documentos thead th:nth-child(6),
+        #view-documentos thead th:nth-child(8) { display: none; }
+        #view-documentos tbody td:nth-child(5),
+        #view-documentos tbody td:nth-child(6),
+        #view-documentos tbody td:nth-child(8) { display: none; }
     }
 </style>
 
@@ -280,7 +287,7 @@
     </div>
 
     <div class="filters">
-        <input id="doc-buscar" placeholder="Prefijo o número…" onkeydown="if(event.key==='Enter')cargarDocumentos()">
+        <input autocomplete="off" id="doc-buscar" placeholder="Prefijo o número…" onkeydown="if(event.key==='Enter')cargarDocumentos()">
         <select id="doc-estado">
             <option value="">Todos los estados</option>
             <option value="borrador">Borrador</option>

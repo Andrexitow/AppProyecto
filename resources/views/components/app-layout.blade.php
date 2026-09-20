@@ -591,7 +591,7 @@
                         <input type="text" name="username" id="username" placeholder=" "
                             value="{{ old('username') }}"
                             class="{{ $errors->has('username') ? 'field-error' : '' }}"
-                            autocomplete="username" required autofocus>
+                            autocomplete="off" required autofocus>
                         <label for="username">Usuario o correo electrónico</label>
                     </div>
 
@@ -599,7 +599,7 @@
                         <div class="field">
                             <input type="password" name="password" id="password" placeholder=" "
                                 class="has-icon {{ $errors->has('password') ? 'field-error' : '' }}"
-                                autocomplete="current-password" required>
+                                autocomplete="off" required>
                             <label for="password">Contraseña</label>
                             <button type="button" class="toggle-eye" id="toggle-password" aria-label="Mostrar contraseña" tabindex="-1">
                                 <svg id="eye-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>

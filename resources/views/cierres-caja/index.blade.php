@@ -552,11 +552,16 @@
     }
 
     @media (max-width: 640px) {
-        table.cierres-tbl thead th:nth-child(n+6) {
+        /* Ocultamos solo las columnas numéricas intermedias (Base, Esperado,
+           Físico, Diferencia: columnas 4-7). Antes se ocultaba desde la
+           columna 6 en adelante, lo que también tapaba "Estado" y
+           "Acciones" (8 y 9) — sin scroll ni ninguna otra forma de llegar
+           a ellas, quedaban inservibles en el celular. */
+        table.cierres-tbl thead th:nth-child(n+4):nth-child(-n+7) {
             display: none;
         }
 
-        table.cierres-tbl tbody td:nth-child(n+6) {
+        table.cierres-tbl tbody td:nth-child(n+4):nth-child(-n+7) {
             display: none;
         }
     }
@@ -581,16 +586,16 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="cc-buscar" placeholder="Caja o cajero…"
+            <input autocomplete="off" class="fi-input" type="text" id="cc-buscar" placeholder="Caja o cajero…"
                 oninput="aplicarFiltrosCC()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Desde</span>
-            <input class="fi-input" type="date" id="cc-desde" onchange="cargarCierresCaja()">
+            <input autocomplete="off" class="fi-input" type="date" id="cc-desde" onchange="cargarCierresCaja()">
         </div>
         <div class="fi-group">
             <span class="fi-label">Hasta</span>
-            <input class="fi-input" type="date" id="cc-hasta" onchange="cargarCierresCaja()">
+            <input autocomplete="off" class="fi-input" type="date" id="cc-hasta" onchange="cargarCierresCaja()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="cc-estado" onchange="aplicarFiltrosCC()">

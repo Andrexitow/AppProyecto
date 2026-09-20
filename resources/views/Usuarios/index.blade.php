@@ -549,7 +549,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:200px;">
             <span class="fi-label">🔍</span>
-            <input class="fi-input" type="text" id="fu-buscar" placeholder="Nombre o usuario…" oninput="filtrarUsuarios()">
+            <input autocomplete="off" class="fi-input" type="text" id="fu-buscar" placeholder="Nombre o usuario…" oninput="filtrarUsuarios()">
         </div>
         <div class="fi-group">
             <select class="fi-select" id="fu-rol" onchange="filtrarUsuarios()">
@@ -692,23 +692,23 @@
             @csrf
             <div class="field full" style="margin-bottom:14px;">
                 <label>Nombre del personal</label>
-                <input type="text" name="name" placeholder="Ej: Juan Pérez">
+                <input autocomplete="off" type="text" name="name" placeholder="Ej: Juan Pérez">
             </div>
 
             <div class="field-grid">
                 <div class="field">
                     <label>Usuario (login)</label>
-                    <input type="text" name="username" placeholder="Ej: mesero_norte">
+                    <input autocomplete="off" type="text" name="username" placeholder="Ej: mesero_norte">
                 </div>
                 <div class="field">
                     <label>Contraseña</label>
-                    <input type="password" name="password" placeholder="••••••">
+                    <input autocomplete="off" type="password" name="password" placeholder="••••••">
                 </div>
             </div>
 
             <div class="field full" style="margin-bottom:14px;">
                 <label>Clave para anulaciones</label>
-                <input type="password" name="clave_anulacion" placeholder="Mínimo 4 caracteres">
+                <input autocomplete="off" type="password" name="clave_anulacion" placeholder="Mínimo 4 caracteres">
                 <p class="field-hint">Déjala vacía al editar para conservar la clave actual.</p>
             </div>
 
@@ -757,11 +757,11 @@
             <div class="field-grid">
                 <div class="field">
                     <label>Nombre del rol</label>
-                    <input type="text" name="nombre" placeholder="Ej: Mesero">
+                    <input autocomplete="off" type="text" name="nombre" placeholder="Ej: Mesero">
                 </div>
                 <div class="field">
                     <label>Descripción</label>
-                    <input type="text" name="descripcion" placeholder="Ej: Solo pedidos y ventas">
+                    <input autocomplete="off" type="text" name="descripcion" placeholder="Ej: Solo pedidos y ventas">
                 </div>
             </div>
 

@@ -472,8 +472,8 @@
                 <p>Consulta el rendimiento por producto y las comandas que ya fueron entregadas.</p>
             </div>
             <form class="filters" id="filtros">
-                <label>Desde<input type="date" id="desde" value="{{ now()->toDateString() }}"></label>
-                <label>Hasta<input type="date" id="hasta" value="{{ now()->toDateString() }}"></label>
+                <label>Desde<input autocomplete="off" type="date" id="desde" value="{{ now()->toDateString() }}"></label>
+                <label>Hasta<input autocomplete="off" type="date" id="hasta" value="{{ now()->toDateString() }}"></label>
                 <button type="submit" id="buscar">Actualizar</button>
             </form>
         </section>

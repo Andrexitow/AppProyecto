@@ -348,7 +348,7 @@
     <div class="filter-bar">
         <div class="fi-group">
             <span class="fi-label">🔍</span>
-            <input type="text" id="cons-buscar" class="fi-input" placeholder="Número de factura..."
+            <input autocomplete="off" type="text" id="cons-buscar" class="fi-input" placeholder="Número de factura..."
                 oninput="filtrarConsumos()">
         </div>
         <div class="fi-group" style="flex:none;">
@@ -361,11 +361,11 @@
         </div>
         <div class="fi-group" style="flex:none;">
             <span class="fi-label">Desde</span>
-            <input type="date" id="cons-desde" class="fi-input" onchange="filtrarConsumos()">
+            <input autocomplete="off" type="date" id="cons-desde" class="fi-input" onchange="filtrarConsumos()">
         </div>
         <div class="fi-group" style="flex:none;">
             <span class="fi-label">Hasta</span>
-            <input type="date" id="cons-hasta" class="fi-input" onchange="filtrarConsumos()">
+            <input autocomplete="off" type="date" id="cons-hasta" class="fi-input" onchange="filtrarConsumos()">
         </div>
         <button type="button" class="fi-btn" onclick="limpiarFiltrosConsumos()">✕ Limpiar</button>
     </div>
@@ -465,8 +465,8 @@
                 return r.json();
             })
             .then(renderConsumoDetalle)
-            .catch(function() {
-                notifConsumos('No se pudo cargar el detalle del consumo', 'error');
+            .catch(function(e) {
+                notifConsumos(e.message || 'No se pudo cargar el detalle del consumo', 'error');
             });
     };
 
@@ -501,7 +501,7 @@
                     disponible + ' disponibles' : '✗ solo hay ' + disponible + ' (faltan ' + (Number(d
                         .cantidad) - disponible) + ')') + '</div>' +
                 '</div>' +
-                '<input type="number" min="0.01" step="0.01" value="' + Number(d.cantidad) +
+                '<input autocomplete="off" type="number" min="0.01" step="0.01" value="' + Number(d.cantidad) +
                 '" id="pend-cant-' + d.id + '">' +
                 '<button class="act-btn" title="Guardar cantidad" onclick="guardarCantidadConsumo(' + d.id +
                 ', ' + c.id + ')">💾</button>' +

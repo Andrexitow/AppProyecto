@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Roles;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class UsuarioActivoTest extends TestCase
@@ -64,6 +65,76 @@ class UsuarioActivoTest extends TestCase
             ->assertStatus(422);
 
         $this->assertTrue($admin->fresh()->activo);
+    }
+
+    /**
+     * Desactivar no solo debe bloquear FUTUROS logins: si el usuario ya
+     * tenía una sesión abierta en otro dispositivo (el mesero que se fue a
+     * la casa dejando la sesión abierta), esa sesión debe morir de una vez
+     * — no seguir viva hasta que expire sola por inactividad.
+     */
+    public function test_desactivar_a_un_usuario_borra_sus_sesiones_activas(): void
+    {
+        config(['session.driver' => 'database']);
+
+        $admin = $this->admin();
+        $rolMesero = Roles::firstOrCreate(['nombre' => 'Mesero'], ['descripcion' => 'Test']);
+        $mesero = User::create([
+            'name' => 'Mesero Test',
+            'username' => 'mesero-sesion-viva-test',
+            'password' => bcrypt('secret'),
+            'rol_id' => $rolMesero->id,
+            'activo' => true,
+        ]);
+
+        DB::table('sessions')->insert([
+            'id' => 'sesion-fake-del-mesero',
+            'user_id' => $mesero->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode(serialize([])),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson("/usuarios/{$mesero->id}/toggle-activo")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('sessions', ['user_id' => $mesero->id]);
+    }
+
+    /**
+     * Reactivar a alguien no debe borrar sesiones de nadie más — solo se
+     * purgan sesiones al DESACTIVAR.
+     */
+    public function test_reactivar_a_un_usuario_no_toca_sesiones(): void
+    {
+        config(['session.driver' => 'database']);
+
+        $admin = $this->admin();
+        $rolMesero = Roles::firstOrCreate(['nombre' => 'Mesero'], ['descripcion' => 'Test']);
+        $mesero = User::create([
+            'name' => 'Mesero Test',
+            'username' => 'mesero-reactivar-test',
+            'password' => bcrypt('secret'),
+            'rol_id' => $rolMesero->id,
+            'activo' => false,
+        ]);
+
+        DB::table('sessions')->insert([
+            'id' => 'sesion-de-otro-usuario',
+            'user_id' => $admin->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode(serialize([])),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson("/usuarios/{$mesero->id}/toggle-activo")
+            ->assertOk();
+
+        $this->assertDatabaseHas('sessions', ['user_id' => $admin->id]);
     }
 
     /**

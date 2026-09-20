@@ -79,19 +79,21 @@ window.guardarUsuario = function () {
     })
     .then(function (obj) {
         if (obj.res.status === 422) {
-            var errores = Object.values(obj.data.errors).map(function (e) { return e[0]; }).join('<br>');
-            mostrarNotificacion(errores, 'error');
+            var errores = Object.values(obj.data.errors || {}).map(function (e) { return e[0]; }).join('<br>');
+            mostrarNotificacion(errores || obj.data.message, 'error');
             return;
         }
         if (obj.res.ok) {
             mostrarNotificacion(successMsg, 'success');
             window.closeModalUsuario();
             loadView('usuarios');
+        } else {
+            mostrarNotificacion(obj.data.message || obj.data.error || 'No se pudo guardar el usuario (error ' + obj.res.status + ')', 'error');
         }
     })
     .catch(function (err) {
         console.error(err);
-        mostrarNotificacion('Error de conexión con el servidor', 'error');
+        mostrarNotificacion(err.message || 'Error de conexión con el servidor', 'error');
     })
     .finally(function () {
         if (btnSubmit) {
@@ -136,7 +138,7 @@ window.eliminarUsuario = function (id) {
             })
             .catch(function (err) {
                 console.error(err);
-                mostrarNotificacion('Error de conexión', 'error');
+                mostrarNotificacion(err.message || 'Error de conexión', 'error');
                 window.cerrarConfirm();
             })
             .finally(function () {
@@ -215,7 +217,7 @@ window.editarRol = function (id) {
         })
         .catch(function (err) {
             console.error(err);
-            mostrarNotificacion('No se pudieron cargar los datos del rol', 'error');
+            mostrarNotificacion(err.message || 'No se pudieron cargar los datos del rol', 'error');
         });
 };
 
@@ -255,12 +257,13 @@ window.guardarRol = function () {
         } else {
             var errorMsg = obj.result.error || 'Error al guardar';
             if (obj.result.errors) errorMsg = Object.values(obj.result.errors)[0][0];
+            else if (obj.result.message) errorMsg = obj.result.message;
             mostrarNotificacion(errorMsg, 'error');
         }
     })
     .catch(function (err) {
         console.error(err);
-        mostrarNotificacion('Error de conexión con el servidor', 'error');
+        mostrarNotificacion(err.message || 'Error de conexión con el servidor', 'error');
     })
     .finally(function () {
         if (btn) { btn.disabled = false; btn.innerText = originalText; }

@@ -151,11 +151,11 @@
         <form id="formEmisor" onsubmit="return false;">
             <p class="ce-section-title">Identificación</p>
             <div class="ce-grid">
-                <div class="ce-field full"><label>Razón social</label><input type="text" name="razon_social"
+                <div class="ce-field full"><label>Razón social</label><input autocomplete="off" type="text" name="razon_social"
                         placeholder="Ej: Mi Restaurante S.A.S"></div>
-                <div class="ce-field"><label>NIT</label><input type="text" name="nit"
+                <div class="ce-field"><label>NIT</label><input autocomplete="off" type="text" name="nit"
                         placeholder="Sin DV, ej: 901456789"></div>
-                <div class="ce-field"><label>DV</label><input type="text" name="dv" maxlength="1"
+                <div class="ce-field"><label>DV</label><input autocomplete="off" type="text" name="dv" maxlength="1"
                         placeholder="1"></div>
                 <div class="ce-field">
                     <label>Tipo de persona</label>
@@ -177,19 +177,19 @@
 
             <p class="ce-section-title">Ubicación y contacto</p>
             <div class="ce-grid">
-                <div class="ce-field full"><label>Dirección</label><input type="text" name="direccion"
+                <div class="ce-field full"><label>Dirección</label><input autocomplete="off" type="text" name="direccion"
                         placeholder="Calle 10 # 20-30"></div>
-                <div class="ce-field"><label>Ciudad</label><input type="text" name="ciudad"
+                <div class="ce-field"><label>Ciudad</label><input autocomplete="off" type="text" name="ciudad"
                         placeholder="Piedecuesta"></div>
-                <div class="ce-field"><label>Departamento</label><input type="text" name="departamento"
+                <div class="ce-field"><label>Departamento</label><input autocomplete="off" type="text" name="departamento"
                         placeholder="Santander"></div>
-                <div class="ce-field"><label>Código postal</label><input type="text" name="codigo_postal"
+                <div class="ce-field"><label>Código postal</label><input autocomplete="off" type="text" name="codigo_postal"
                         placeholder="681001"></div>
-                <div class="ce-field"><label>Teléfono</label><input type="text" name="telefono"
+                <div class="ce-field"><label>Teléfono</label><input autocomplete="off" type="text" name="telefono"
                         placeholder="300 000 0000"></div>
-                <div class="ce-field"><label>Email</label><input type="email" name="email"
+                <div class="ce-field"><label>Email</label><input autocomplete="off" type="email" name="email"
                         placeholder="facturacion@tunegocio.com"></div>
-                <div class="ce-field"><label>Matrícula mercantil (opcional)</label><input type="text"
+                <div class="ce-field"><label>Matrícula mercantil (opcional)</label><input autocomplete="off" type="text"
                         name="matricula_mercantil"></div>
             </div>
 

@@ -427,7 +427,7 @@
     <div class="filter-bar">
         <div class="fi-group" style="flex:2;min-width:220px;">
             <span class="fi-label">🔍</span>
-            <input type="text" id="buscarTablaProducto" oninput="filtrarProducto()"
+            <input autocomplete="off" type="text" id="buscarTablaProducto" oninput="filtrarProducto()"
                 placeholder="Buscar producto por nombre o código…" class="fi-input">
         </div>
         <div class="fi-group">
@@ -486,7 +486,7 @@
               <div class="prod-grid">
                 <div class="prod-field">
                     <label>Código del Producto</label>
-                    <input name="codigo" placeholder="Ej: PROD-001">
+                    <input autocomplete="off" name="codigo" placeholder="Ej: PROD-001">
                 </div>
 
                 <div class="prod-field">
@@ -509,7 +509,7 @@
 
                 <div class="prod-field">
                     <label>Unidad de Medida</label>
-                    <input name="und_detal" placeholder="Ej: Unidad, Kg, Paquete">
+                    <input autocomplete="off" name="und_detal" placeholder="Ej: Unidad, Kg, Paquete">
                 </div>
 
                 <div class="prod-field">
@@ -522,7 +522,7 @@
 
                 <div class="prod-field" style="grid-column:1/-1;">
                     <label>Nombre / Descripción</label>
-                    <input name="descripcion" placeholder="Nombre completo del producto">
+                    <input autocomplete="off" name="descripcion" placeholder="Nombre completo del producto">
                 </div>
 
                 <div class="prod-field" style="grid-column:1/-1;">
@@ -537,7 +537,7 @@
               <div class="prod-grid">
                 <div class="prod-field">
                     <label>Precio de Venta</label>
-                    <input type="number" name="precio" placeholder="0.00">
+                    <input autocomplete="off" type="number" name="precio" placeholder="0.00">
                 </div>
 
                 <div class="prod-field">
@@ -597,7 +597,7 @@
 
                     <div class="prod-field">
                         <label>Cantidad consumida por unidad vendida</label>
-                        <input type="number" name="factor_consumo" id="prod_factor_consumo" step="0.01" min="0.01" placeholder="Ej: 6">
+                        <input autocomplete="off" type="number" name="factor_consumo" id="prod_factor_consumo" step="0.01" min="0.01" placeholder="Ej: 6">
                         <p style="font-size:11px;color:#9CA3AF;margin-top:4px;">Ej: si un Cubetazo trae 6 Poker, aquí va 6.</p>
                     </div>
 

@@ -88,11 +88,11 @@
         </div>
         <div class="fi-group" id="kx-grupo-desde">
             <span class="fi-label">Desde</span>
-            <input type="date" id="kx-desde" class="fi-input">
+            <input autocomplete="off" type="date" id="kx-desde" class="fi-input">
         </div>
         <div class="fi-group" id="kx-grupo-hasta">
             <span class="fi-label">Hasta</span>
-            <input type="date" id="kx-hasta" class="fi-input">
+            <input autocomplete="off" type="date" id="kx-hasta" class="fi-input">
         </div>
         <button class="btn-primary" onclick="consultarKardex()">🔍 Consultar</button>
     </div>

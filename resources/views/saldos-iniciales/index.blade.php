@@ -52,11 +52,11 @@
         <div class="si-topbar">
             <div class="si-field">
                 <label>Fecha de corte</label>
-                <input type="date" id="si-fecha">
+                <input autocomplete="off" type="date" id="si-fecha">
             </div>
             <div class="si-field" style="flex:1;min-width:220px;">
                 <label>Descripción (opcional)</label>
-                <input type="text" id="si-descripcion" placeholder="Ej: Saldos iniciales al cierre del año anterior">
+                <input autocomplete="off" type="text" id="si-descripcion" placeholder="Ej: Saldos iniciales al cierre del año anterior">
             </div>
             <button class="btn-outline" onclick="agregarLineaSI()">＋ Añadir cuenta</button>
         </div>
@@ -148,9 +148,9 @@
 
             return '<tr>' +
                 '<td><select onchange="lineaCambiarSI(' + idx + ',\'cuenta_id\',this.value)">' + optsCuenta + '</select>' + hintNaturaleza + '</td>' +
-                '<td>' + (mostrarTercero ? '<input type="text" placeholder="ID tercero (usar buscador de Terceros)" onchange="lineaCambiarSI(' + idx + ',\'tercero_id\',this.value)" value="' + (l.tercero_id || '') + '">' : '<span style="color:#D1D5DB;">—</span>') + '</td>' +
-                '<td><input type="number" min="0" step="0.01" value="' + (l.debito || 0) + '" onchange="lineaCambiarSI(' + idx + ',\'debito\',+this.value)"></td>' +
-                '<td><input type="number" min="0" step="0.01" value="' + (l.credito || 0) + '" onchange="lineaCambiarSI(' + idx + ',\'credito\',+this.value)"></td>' +
+                '<td>' + (mostrarTercero ? '<input autocomplete="off" type="text" placeholder="ID tercero (usar buscador de Terceros)" onchange="lineaCambiarSI(' + idx + ',\'tercero_id\',this.value)" value="' + (l.tercero_id || '') + '">' : '<span style="color:#D1D5DB;">—</span>') + '</td>' +
+                '<td><input autocomplete="off" type="number" min="0" step="0.01" value="' + (l.debito || 0) + '" onchange="lineaCambiarSI(' + idx + ',\'debito\',+this.value)"></td>' +
+                '<td><input autocomplete="off" type="number" min="0" step="0.01" value="' + (l.credito || 0) + '" onchange="lineaCambiarSI(' + idx + ',\'credito\',+this.value)"></td>' +
                 '<td><button onclick="eliminarLineaSI(' + idx + ')" style="border:none;background:transparent;cursor:pointer;color:#DC2626;font-size:14px;">✕</button></td>' +
                 '</tr>';
         }).join('') || '<tr><td colspan="5" style="text-align:center;color:#9CA3AF;padding:14px;">Sin cuentas. Haga clic en "＋ Añadir cuenta".</td></tr>';

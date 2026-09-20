@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Roles;
 use App\Services\CajeroAsignacionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 
@@ -117,6 +118,15 @@ class UsuarioController extends Controller
 
         $usuario->activo = !$usuario->activo;
         $usuario->save();
+
+        // No basta con bloquear el login: si el usuario YA tenia una sesion
+        // abierta (ej. el mesero que se fue a la casa y la dejo abierta),
+        // seguia pudiendo comandar hasta que la sesion expirara sola. Al
+        // borrar su fila en "sessions" (driver database), su proxima
+        // peticion ya no encuentra esa sesion y queda deslogueado de una vez.
+        if (!$usuario->activo && config('session.driver') === 'database') {
+            DB::table('sessions')->where('user_id', $usuario->id)->delete();
+        }
 
         return response()->json([
             'success' => $usuario->activo ? 'Usuario activado' : 'Usuario desactivado',
