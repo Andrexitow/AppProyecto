@@ -179,7 +179,7 @@
             '.brand{font-size:20px;font-weight:800;color:#1D4ED8;}.sub{font-size:11px;color:#6B7280;margin-top:2px;}.meta{text-align:right;font-size:12px;color:#374151;}' +
             'table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#F8FAFC;text-align:left;padding:6px 8px;border-bottom:2px solid #E5E7EB;text-transform:uppercase;font-size:9px;color:#6B7280;}' +
             'td{padding:5px 8px;border-bottom:1px solid #F3F4F6;}' +
-            '</style></head><body><div class="head"><div><div class="brand">💵 Nexora</div><div class="sub">Propinas por Vendedor</div></div>' +
+            '</style></head><body><div class="head"><div><div class="brand">💵 NussoraPos</div><div class="sub">Propinas por Vendedor</div></div>' +
             '<div class="meta"><b>Generado:</b> ' + new Date().toLocaleString('es-CO') + '</div></div>' +
             tabla.outerHTML + '</body></html>';
 

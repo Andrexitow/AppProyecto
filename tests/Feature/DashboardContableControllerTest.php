@@ -34,7 +34,7 @@ class DashboardContableControllerTest extends TestCase
         $contadora = $this->usuario('Contabilidad', 'contadora-home-test');
 
         $this->actingAs($contadora)
-            ->get('/')
+            ->get('/pos')
             ->assertOk()
             ->assertSee('Centro de control contable')
             ->assertSee('Cartera por cobrar')
@@ -47,7 +47,7 @@ class DashboardContableControllerTest extends TestCase
         $admin = $this->usuario('Administrador', 'admin-home-test');
 
         $this->actingAs($admin)
-            ->get('/')
+            ->get('/pos')
             ->assertOk()
             ->assertSee('Todo el negocio en una sola mirada')
             ->assertDontSee('Centro de control contable');

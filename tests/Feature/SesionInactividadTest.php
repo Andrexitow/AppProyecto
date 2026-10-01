@@ -32,7 +32,7 @@ class SesionInactividadTest extends TestCase
 
         $respuesta = $this->actingAs($mesero)
             ->withSession(['ultima_actividad' => now()->subMinutes(20)])
-            ->get('/');
+            ->get('/pos');
 
         $respuesta->assertRedirect(route('login'));
         $this->assertGuest();
@@ -56,7 +56,7 @@ class SesionInactividadTest extends TestCase
 
         $respuesta = $this->actingAs($admin)
             ->withSession(['ultima_actividad' => now()->subMinutes(5)])
-            ->get('/');
+            ->get('/pos');
 
         $respuesta->assertOk();
         $this->assertAuthenticated();
@@ -83,7 +83,7 @@ class SesionInactividadTest extends TestCase
 
         $respuesta = $this->actingAs($admin)
             ->withSession(['ultima_actividad' => now()->subMinutes(20)])
-            ->get('/');
+            ->get('/pos');
 
         $respuesta->assertOk();
         $this->assertAuthenticated();
@@ -114,7 +114,7 @@ class SesionInactividadTest extends TestCase
                 'ultima_actividad' => now(),
                 'inicio_sesion' => now()->subHours(9),
             ])
-            ->get('/');
+            ->get('/pos');
 
         $respuesta->assertRedirect(route('login'));
         $this->assertGuest();
@@ -138,7 +138,7 @@ class SesionInactividadTest extends TestCase
                 'ultima_actividad' => now(),
                 'inicio_sesion' => now()->subHours(2),
             ])
-            ->get('/');
+            ->get('/pos');
 
         // Un Mesero en "/" redirige normal a facturacion.index — lo
         // relevante aquí es que NO lo mandó al login por sesión vencida.
@@ -168,7 +168,7 @@ class SesionInactividadTest extends TestCase
                 'ultima_actividad' => now(),
                 'inicio_sesion' => now()->subHours(100),
             ])
-            ->get('/');
+            ->get('/pos');
 
         $respuesta->assertOk();
         $this->assertAuthenticated();
@@ -190,7 +190,7 @@ class SesionInactividadTest extends TestCase
             'activo' => true,
         ]);
 
-        $this->actingAs($admin)->get('/')->assertOk();
+        $this->actingAs($admin)->get('/pos')->assertOk();
 
         $this->assertNotNull(session('inicio_sesion'));
     }

@@ -144,7 +144,7 @@
             </aside>
         </section>
 
-        <footer class="dash-footer"><span>Nexora · Panel contable</span><span>Datos actualizados al cargar esta pantalla</span></footer>
+        <footer class="dash-footer"><span>NussoraPos · Panel contable</span><span>Datos actualizados al cargar esta pantalla</span></footer>
     </div>
 
     <script>

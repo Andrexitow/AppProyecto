@@ -16,7 +16,6 @@ window.guardarProducto = function () {
     const codigo = formData.get('codigo')?.trim();
     const descripcion = formData.get('descripcion')?.trim();
     const precio = formData.get('precio')?.trim();
-    const grupo_menu_id = formData.get('grupo_menu_id'); // <--- NUEVO CAMPO
     const integracion_contable_id = formData.get('integracion_contable_id');
     const afecta = formData.get('afecta_inventario');
 
@@ -25,7 +24,9 @@ window.guardarProducto = function () {
     if (!codigo) errores.push('El código es obligatorio.');
     if (!descripcion) errores.push('La descripción es obligatoria.');
     if (!precio || Number(precio) < 0) errores.push('Ingrese un precio válido.');
-    if (!grupo_menu_id) errores.push('Seleccione un Grupo de Menú (Destino).'); // <--- VALIDACIÓN
+    // Sin Grupo de Menú el producto no aparece en la vista del mesero — es
+    // así como se marca una materia prima que no se vende directo, por eso
+    // no es obligatorio.
     if (!integracion_contable_id) errores.push('Seleccione la Integración Contable (pestaña Impuestos y Precios) — sin esto no se podrá vender el producto.');
     if (afecta === null || afecta === '') errores.push('Seleccione si afecta inventario.');
 

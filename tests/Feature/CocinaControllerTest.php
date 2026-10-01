@@ -182,7 +182,7 @@ class CocinaControllerTest extends TestCase
         $chef = $this->chef();
 
         $this->actingAs($chef)
-            ->get('/')
+            ->get('/pos')
             ->assertRedirect(route('cocina.index'));
     }
 }

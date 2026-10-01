@@ -3,10 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset_v('imgs/nexora-logo.png') }}">
-    <title>Nexora | Panel administrativo</title>
+    <title>NussoraPos | Panel administrativo</title>
     @include('partials.pwa-head')
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -25,7 +25,12 @@
             font-family: 'Inter', sans-serif;
             background: #F5F6FA;
             display: flex;
+            /* En Safari móvil / PWA instalada, 100vh puede quedar detrás de la
+               barra de direcciones o de la barra inferior del navegador;
+               100dvh sigue el viewport realmente visible (fallback abajo
+               para navegadores sin soporte). */
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
         }
 
@@ -56,6 +61,7 @@
             flex-direction: column;
             flex-shrink: 0;
             height: 100vh;
+            height: 100dvh;
             position: fixed;
             top: 0;
             left: 0;
@@ -89,6 +95,8 @@
             align-items: center;
             gap: 9px;
             padding: 16px 14px 14px;
+            /* Empuja el logo debajo del notch/Dynamic Island en iPhone. */
+            padding-top: calc(16px + env(safe-area-inset-top));
             border-bottom: 1px solid #EAECF0;
             text-decoration: none;
         }
@@ -211,6 +219,11 @@
         /* Footer usuario */
         .sidebar-footer {
             padding: 12px 10px;
+            /* El botón "Salir" quedaba pegado al borde inferior real del
+               teléfono, detrás del home indicator o de la barra
+               inferior de Safari (donde se ve el link del sitio) — con
+               esto queda siempre por encima de esa zona. */
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
             border-top: 1px solid #EAECF0;
             display: flex;
             align-items: center;
@@ -280,6 +293,7 @@
             min-height: 0;
             /* ← AÑADIR */
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
             /* margin-left: 210px; */
         }
@@ -291,12 +305,15 @@
         }
 
         .topbar {
-            height: 46px;
+            min-height: 46px;
             background: #fff;
             border-bottom: 1px solid #EAECF0;
             display: flex;
             align-items: center;
             padding: 0 16px;
+            /* En móvil (sidebar oculta) esta es la barra pegada a top:0 con
+               el botón de hamburguesa — sin esto queda debajo del notch. */
+            padding-top: env(safe-area-inset-top);
             gap: 12px;
             flex-shrink: 0;
         }
@@ -472,9 +489,9 @@
 
         <a class="sidebar-brand" href="#">
             <div class="brand-icon">
-                <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
+                <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="NussoraPos">
             </div>
-            <span class="brand-name">Nexora</span>
+            <span class="brand-name">NussoraPos</span>
         </a>
 
         <nav class="sidebar-nav">

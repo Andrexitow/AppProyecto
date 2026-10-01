@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Http;
  * Simplificaciones deliberadas de este V1 (documentadas aquí para no
  * perderlas de vista):
  * - unit_measure_code fijo en "94" (Unidad) y standard_code fijo en "999"
- *   (sin clasificar) — Nexora no tiene hoy un catálogo de unidades/UNSPSC
+ *   (sin clasificar) — NussoraPos no tiene hoy un catálogo de unidades/UNSPSC
  *   por producto. Ajustar si un producto puntual lo necesita.
  * - Solo se mapea IVA (tax code "01"). ico_ventas/imp_saludable de Producto
  *   no se envían todavía — si algún producto del documento los tiene
@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Http;
  *   de pago; revísalo si tu operación necesita distinguir tarjeta débito de
  *   crédito, o un medio no cubierto aquí.
  * - due_date de una venta a crédito se fija en 30 días desde la venta
- *   (Nexora no captura hoy un plazo de crédito por factura).
+ *   (NussoraPos no captura hoy un plazo de crédito por factura).
  */
 class FactusFacturaElectronicaProvider implements FacturaElectronicaProvider
 {

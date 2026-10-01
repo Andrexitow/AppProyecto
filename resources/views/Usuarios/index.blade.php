@@ -850,7 +850,7 @@
                 // password y clave_anulacion quedan vacías a propósito: solo se
                 // actualizan si el admin escribe una nueva.
             })
-            .catch(function (e) { alert(e.message); closeModalUsuario(); });
+            .catch(function (e) { mostrarNotificacion(e.message, 'error'); closeModalUsuario(); });
     }
 
     function guardarUsuario() {
@@ -874,22 +874,29 @@
                 closeModalUsuario();
                 recargarVistaUsuarios();
             })
-            .catch(function(e) { alert(e.message); });
+            .catch(function(e) { mostrarNotificacion(e.message, 'error'); });
     }
 
     function eliminarUsuario(id) {
-        if (!confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) return;
-        var token = document.querySelector('meta[name="csrf-token"]')?.content;
-        fetch('/usuarios/' + id, {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
-            })
-            .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
-            .then(function(res) {
-                if (!res.ok) throw new Error(res.data.message || 'No se pudo eliminar el usuario');
-                recargarVistaUsuarios();
-            })
-            .catch(function(e) { alert(e.message); });
+        var confirmar = window.Swal
+            ? Swal.fire({ title: '¿Eliminar este usuario?', text: 'Esta acción no se puede deshacer.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Eliminar', cancelButtonText: 'Cancelar', confirmButtonColor: '#dc2626' })
+            : Promise.resolve({ isConfirmed: confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.') });
+
+        confirmar.then(function(resultado) {
+            if (!resultado.isConfirmed) return;
+            var token = document.querySelector('meta[name="csrf-token"]')?.content;
+            fetch('/usuarios/' + id, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json' }
+                })
+                .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+                .then(function(res) {
+                    if (!res.ok) throw new Error(res.data.message || 'No se pudo eliminar el usuario');
+                    mostrarNotificacion('Usuario eliminado correctamente', 'success');
+                    recargarVistaUsuarios();
+                })
+                .catch(function(e) { mostrarNotificacion(e.message, 'error'); });
+        });
     }
 
     function toggleActivoUsuario(id) {
@@ -903,7 +910,7 @@
                 if (!res.ok) throw new Error(res.data.error || 'No se pudo actualizar el usuario');
                 recargarVistaUsuarios();
             })
-            .catch(function(e) { alert(e.message); });
+            .catch(function(e) { mostrarNotificacion(e.message, 'error'); });
     }
 
     // Refresca solo esta vista dentro del SPA. La app no cambia la URL del
@@ -961,6 +968,6 @@
                 closeModalRol();
                 location.reload();
             })
-            .catch(function(e) { alert(e.message); });
+            .catch(function(e) { mostrarNotificacion(e.message, 'error'); });
     }
 </script>

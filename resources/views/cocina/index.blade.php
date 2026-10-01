@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png"
         href="{{ asset_v('imgs/nexora-logo.png') }}">
-    <title>Nexora | Cocina</title>
+    <title>NussoraPos | Cocina</title>
     @include('partials.pwa-head')
     <link
         href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap"
@@ -414,9 +414,9 @@
         <div class="brand">
             <div class="brand-mark"><img
                     src="{{ asset_v('imgs/nexora-logo.png') }}"
-                    alt="Nexora"></div>
+                    alt="NussoraPos"></div>
             <div>
-                <p class="eyebrow">Nexora / Produccion</p>
+                <p class="eyebrow">NussoraPos / Produccion</p>
                 <h1>Chef Cocina</h1>
             </div>
         </div>

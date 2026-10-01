@@ -74,7 +74,11 @@ class ProductoController extends Controller
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
-            'grupo_menu_id' => 'required|exists:grupo_menus,id',
+            // Sin grupo de menú el producto simplemente no aparece en la
+            // vista del mesero (ver FacturacionController::index, que
+            // filtra whereNotNull('grupo_menu_id')) — así es como se marca
+            // una materia prima que no se vende directo.
+            'grupo_menu_id' => 'nullable|exists:grupo_menus,id',
             // Sin esto, cerrarMesa() rechaza CUALQUIER venta de este
             // producto con "no tiene una integración contable configurada"
             // — mejor exigirla al crear el producto que descubrirlo en
@@ -237,7 +241,7 @@ class ProductoController extends Controller
             'descripcion' => 'required',
             'precio' => 'required|numeric|min:0',
             'afecta_inventario' => 'required|in:0,1',
-            'grupo_menu_id' => 'required|exists:grupo_menus,id',
+            'grupo_menu_id' => 'nullable|exists:grupo_menus,id',
             'integracion_contable_id' => 'required|exists:integraciones_contables,id',
             'iva_ventas' => 'nullable|numeric|min:0|max:100'
         ], $this->reglasEnsamblado((int) $id), $this->reglasAcompanamiento()));

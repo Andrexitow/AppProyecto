@@ -3,10 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/png" href="{{ asset_v('imgs/nexora-logo.png') }}">
-    <title>Nexora | POS Terminal</title>
+    <title>NussoraPos | POS Terminal</title>
     @include('partials.pwa-head')
     <script src="https://cdn.tailwindcss.com"></script>
 
@@ -24,13 +24,13 @@
 
     {{-- ===================== HEADER ===================== --}}
     <header
-        class="h-13 border-b border-slate-800/80 bg-[#090e1e] flex items-center justify-between px-4 md:px-5 shrink-0"
-        style="height:52px;">
+        class="pos-header h-13 border-b border-slate-800/80 bg-[#090e1e] flex items-center justify-between px-4 md:px-5 shrink-0"
+        style="min-height:52px;">
 
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-xl overflow-hidden border border-slate-700"><img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora" class="w-full h-full object-contain"></div>
+            <div class="w-8 h-8 rounded-xl overflow-hidden border border-slate-700"><img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="NussoraPos" class="w-full h-full object-contain"></div>
             <div class="hidden sm:block">
-                <h1 class="text-sm font-black italic tracking-tight leading-none text-white">Nexora POS</h1>
+                <h1 class="text-sm font-black italic tracking-tight leading-none text-white">NussoraPos</h1>
                 <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Facturación rápida</p>
             </div>
             <h1 class="sm:hidden text-sm font-black italic text-white">POS</h1>
@@ -337,7 +337,7 @@
             </div>
 
             {{-- Footer --}}
-            <div class="px-4 py-4 border-t border-slate-800/60 shrink-0" style="background:#090e1e;">
+            <div class="ticket-footer px-4 py-4 border-t border-slate-800/60 shrink-0" style="background:#090e1e;">
 
                 {{-- Totales --}}
                 <div class="space-y-1.5 mb-4">
@@ -378,8 +378,8 @@
     <div id="modalMesas" class="fixed inset-0 z-[100] hidden flex-col animate-fade"
         style="background:rgba(9,14,30,0.97); backdrop-filter:blur(8px);">
 
-        <div class="flex items-center justify-between px-5 md:px-8 border-b border-slate-800/60 shrink-0"
-            style="height:52px; background:#090e1e;">
+        <div class="mesas-modal-header flex items-center justify-between px-5 md:px-8 border-b border-slate-800/60 shrink-0"
+            style="min-height:52px; background:#090e1e;">
             <h2 class="text-sm font-black italic tracking-tight text-white uppercase">Mapa de sala / Mesas</h2>
             <button onclick="cerrarSelectorMesas()"
                 class="w-8 h-8 bg-slate-800 hover:bg-red-900/40 border border-slate-700 hover:border-red-800/50 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-400 transition-all">

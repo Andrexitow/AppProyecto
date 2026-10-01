@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {{-- Redirección automática por si el usuario no hace clic --}}
     <meta http-equiv="refresh" content="4;url={{ url('/login') }}">
-    <title>Sesión expirada — Nexora</title>
+    <title>Sesión expirada — NussoraPos</title>
     <style>
         * { box-sizing: border-box; }
 

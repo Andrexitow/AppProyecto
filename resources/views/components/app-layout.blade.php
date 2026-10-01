@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ asset_v('imgs/nexora-logo.png') }}" type="image/png">
-    <title>{{ $title ?? 'Iniciar sesión — Nexora' }}</title>
+    <title>{{ $title ?? 'Iniciar sesión — NussoraPos' }}</title>
     @include('partials.pwa-head')
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -527,8 +527,8 @@
 
             <div class="brand-top">
                 <div class="brand-logo-row">
-                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
-                    <span>NEXORA</span>
+                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="NussoraPos">
+                    <span>NUSSORAPOS</span>
                 </div>
 
                 <h1 class="brand-heading">Gestiona tu negocio con <span class="grad">total claridad</span></h1>
@@ -565,8 +565,8 @@
         <div class="form-panel">
             <div class="form-card {{ $errors->any() ? 'shake' : '' }}">
                 <div class="mobile-logo">
-                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="Nexora">
-                    <span>NEXORA</span>
+                    <img src="{{ asset_v('imgs/nexora-logo.png') }}" alt="NussoraPos">
+                    <span>NUSSORAPOS</span>
                 </div>
 
                 <div class="form-header">
@@ -628,7 +628,7 @@
                     </button>
                 </form>
 
-                <p class="form-footer">© {{ date('Y') }} Nexora. Todos los derechos reservados.</p>
+                <p class="form-footer">© {{ date('Y') }} NussoraPos. Todos los derechos reservados.</p>
             </div>
         </div>
     </div>

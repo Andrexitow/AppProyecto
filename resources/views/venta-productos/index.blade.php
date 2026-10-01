@@ -306,10 +306,10 @@
             'table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#F8FAFC;text-align:left;padding:6px 8px;border-bottom:2px solid #E5E7EB;text-transform:uppercase;font-size:9px;color:#6B7280;}' +
             'td{padding:5px 8px;border-bottom:1px solid #F3F4F6;}' +
             '.foot{margin-top:20px;text-align:center;font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:10px;}' +
-            '</style></head><body><div class="head"><div><div class="brand">🛒 Nexora</div><div class="sub">Venta por Producto</div></div>' +
+            '</style></head><body><div class="head"><div><div class="brand">🛒 NussoraPos</div><div class="sub">Venta por Producto</div></div>' +
             '<div class="meta"><b>Generado:</b> ' + new Date().toLocaleString('es-CO') + '</div></div>' +
             tabla.outerHTML +
-            '<div class="foot">Generado desde Nexora — Sistema de Gestión POS</div></body></html>';
+            '<div class="foot">Generado desde NussoraPos — Sistema de Gestión POS</div></body></html>';
 
         var ventana = window.open('', '_blank', 'width=1100,height=700');
         if (!ventana) { notifVp('El navegador bloqueó la ventana de impresión.', 'error'); return; }

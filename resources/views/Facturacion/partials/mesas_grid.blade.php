@@ -18,18 +18,18 @@
         data-numero="{{ $mesa->numero }}"
 
         @if ($mesa->estado == 'disponible')
-            onclick="seleccionarMesa({{ $mesa->id }}, '{{ $mesa->numero }}')"
+            onclick="manejarClickMesa({{ $mesa->id }}, '{{ $mesa->numero }}', 'disponible')"
 
         @elseif ($esMia)
-            onclick="cargarPedidoExistente({{ $mesa->id }}, '{{ $mesa->numero }}')"
+            onclick="manejarClickMesa({{ $mesa->id }}, '{{ $mesa->numero }}', 'propia')"
 
         @elseif ($mesa->estado == 'ocupada' && $esAdmin)
             {{-- Admin puede abrir cualquier mesa --}}
-            onclick="cargarPedidoExistente({{ $mesa->id }}, '{{ $mesa->numero }}')"
+            onclick="manejarClickMesa({{ $mesa->id }}, '{{ $mesa->numero }}', 'ocupada')"
 
         @elseif ($mesa->estado == 'ocupada' && $esCajero && $esDeMiCaja)
             {{-- Cajero solo puede abrir mesas de sus meseros --}}
-            onclick="cargarPedidoExistente({{ $mesa->id }}, '{{ $mesa->numero }}')"
+            onclick="manejarClickMesa({{ $mesa->id }}, '{{ $mesa->numero }}', 'ocupada')"
 
         @elseif ($mesa->estado == 'ocupada' && $esCajero && !$esDeMiCaja)
             {{-- Bloqueada para este cajero --}}

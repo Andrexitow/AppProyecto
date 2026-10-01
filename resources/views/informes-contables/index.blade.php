@@ -623,7 +623,7 @@
             '.firma{margin-top:70px;display:flex;justify-content:space-between;}.linea{border-top:1px solid #111827;width:220px;text-align:center;padding-top:6px;font-size:11px;}' +
             '.legal{margin-top:24px;font-size:11px;color:#6B7280;}' +
             '</style></head><body>' +
-            '<div class="head"><div class="brand">📈 Nexora</div><div class="tit">Certificado de Retenciones</div>' +
+            '<div class="head"><div class="brand">📈 NussoraPos</div><div class="tit">Certificado de Retenciones</div>' +
             '<div style="font-size:12px;color:#6B7280;">Del ' + fmtFechaIf(desde) + ' al ' + fmtFechaIf(hasta) + '</div></div>' +
             '<p>Se certifica que a <b>' + escIf(f.nombre) + '</b>, identificado con documento <b>' + escIf(doc) + '</b>, ' +
             'se le practicaron las siguientes retenciones durante el período indicado:</p>' +
@@ -715,10 +715,10 @@
             'table{width:100%;border-collapse:collapse;font-size:11px;}th{background:#F8FAFC;text-align:left;padding:6px 8px;border-bottom:2px solid #E5E7EB;text-transform:uppercase;font-size:9px;color:#6B7280;}' +
             'td{padding:5px 8px;border-bottom:1px solid #F3F4F6;}' +
             '.foot{margin-top:20px;text-align:center;font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:10px;}' +
-            '</style></head><body><div class="head"><div><div class="brand">📈 Nexora</div><div class="sub">' + escIf(tituloInformeIf()) + '</div></div>' +
+            '</style></head><body><div class="head"><div><div class="brand">📈 NussoraPos</div><div class="sub">' + escIf(tituloInformeIf()) + '</div></div>' +
             '<div class="meta"><b>Período:</b> ' + escIf(periodo) + '<br><b>Generado:</b> ' + new Date().toLocaleString('es-CO') + '</div></div>' +
             tabla.outerHTML +
-            '<div class="foot">Generado desde Nexora — Sistema de Gestión POS</div></body></html>';
+            '<div class="foot">Generado desde NussoraPos — Sistema de Gestión POS</div></body></html>';
 
         var ventana = window.open('', '_blank', 'width=1000,height=700');
         if (!ventana) { notifIf('El navegador bloqueó la ventana de impresión. Habilite las ventanas emergentes.', 'error'); return; }

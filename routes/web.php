@@ -53,6 +53,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 
+// LANDING PÚBLICA (NussoraPos). El sistema vive en /pos.
+Route::view('/', 'landing')->name('landing');
+
 // LOGIN
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -60,7 +63,7 @@ Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::middleware(['auth', 'auditar', 'sesion.inactividad'])->group(function () {
 
-    Route::get('/', function () {
+    Route::get('/pos', function () {
         $user = Auth::user();
         if ($user && in_array($user->rol?->nombre, ['Mesero', 'Cajero'], true)) {
             return redirect()->route('facturacion.index');

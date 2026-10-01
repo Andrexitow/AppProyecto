@@ -7,7 +7,7 @@ return [
     | Plan contratado
     |--------------------------------------------------------------------------
     |
-    | Cada instalación de Nexora es de un solo cliente (no es multi-tenant),
+    | Cada instalación de NussoraPos es de un solo cliente (no es multi-tenant),
     | así que el plan es una propiedad de LA INSTALACIÓN, no del usuario.
     | Se define en el .env de cada restaurante:
     |

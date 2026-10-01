@@ -27,7 +27,7 @@ class EnsurePlanPro
 
         if ($request->wantsJson()) {
             return response()->json([
-                'message' => 'Esta función requiere el plan Pro de Nexora.',
+                'message' => 'Esta función requiere el plan Pro de NussoraPos.',
                 'plan_requerido' => 'pro',
             ], 403);
         }

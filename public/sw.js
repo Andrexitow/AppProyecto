@@ -1,4 +1,4 @@
-// Service worker de Nexora POS.
+// Service worker de NussoraPos.
 //
 // IMPORTANTE — por qué esta estrategia es deliberadamente conservadora:
 // este es un sistema de ventas en vivo (mesas, inventario, comandas de

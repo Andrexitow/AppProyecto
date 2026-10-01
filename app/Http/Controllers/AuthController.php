@@ -13,7 +13,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect('/');
+            return redirect('/pos');
         }
 
         // Evita que el navegador sirva esta página desde su caché (botón
@@ -82,7 +82,7 @@ class AuthController extends Controller
                 'Mesero'   => redirect('/facturacion'),
                 'Cajero'   => redirect('/facturacion'),
                 'Cocina'   => redirect('/cocina'),
-                default    => redirect('/'),
+                default    => redirect('/pos'),
             };
         }
 

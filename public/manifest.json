@@ -1,8 +1,8 @@
 {
-    "name": "Nexora POS",
-    "short_name": "Nexora",
+    "name": "NussoraPos",
+    "short_name": "NussoraPos",
     "description": "Sistema de punto de venta y gestión para restaurantes, bares y discotecas",
-    "start_url": "/",
+    "start_url": "/pos",
     "scope": "/",
     "display": "standalone",
     "background_color": "#1D4ED8",

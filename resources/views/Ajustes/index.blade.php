@@ -1,6 +1,6 @@
 <style>
     /* ═══════════════════════════════════════════════
-       AJUSTES DE INVENTARIO — ESTILO NEXORA / FACTURAS
+       AJUSTES DE INVENTARIO — ESTILO NUSSORAPOS / FACTURAS
     ═══════════════════════════════════════════════ */
 
     .aj-sec-header {

@@ -311,7 +311,7 @@
                 '</style></head><body>' +
                 liq.detalles.map(function (d) {
                     var e = d.empleado;
-                    return '<div class="desprendible"><div class="enc"><div><div class="brand">📈 Nexora</div><div style="font-size:11px;">Desprendible de Pago de Nómina</div></div>' +
+                    return '<div class="desprendible"><div class="enc"><div><div class="brand">📈 NussoraPos</div><div style="font-size:11px;">Desprendible de Pago de Nómina</div></div>' +
                         '<div class="meta"><b>' + e.nombre_completo + '</b><br>CC ' + e.cedula + (e.cargo ? ' — ' + e.cargo : '') + '<br>Período: ' + liq.periodo + ' · Pago: ' + fmtFechaNM(liq.fecha_pago) + '</div></div>' +
                         '<div class="tit">DEVENGADOS</div><table>' +
                         '<tr><td>Salario</td><td style="text-align:right;">' + fmtMoneyNM(d.salario_devengado) + '</td></tr>' +

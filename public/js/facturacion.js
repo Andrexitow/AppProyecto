@@ -7,6 +7,10 @@ window.ticket = [];
 window.mesaSeleccionadaId = null;
 window.idProductoAEliminar = null;
 window.accionConfirmar = null;
+// true mientras el selector de mesas está abierto para decidir a dónde
+// enviar un pedido ya armado (ver enviarPedido/abrirSelectorMesas) — en
+// ese modo, elegir una mesa envía el pedido en vez de solo "entrar" a ella.
+window.modoEnvioPedido = false;
 
 console.log('%c✅ facturacion.js cargado', 'color: green; font-weight: bold;');
 
@@ -48,6 +52,15 @@ document.addEventListener('DOMContentLoaded', function () {
 // HELPERS DE MODALES (llamados desde el blade con onclick)
 // ============================================================
 window.abrirSelectorMesas = function () {
+    // Si ya hay productos nuevos armados y todavía no hay mesa, abrir el
+    // selector significa "elegir a dónde enviar este pedido" — sin esto,
+    // tomar/entrar a una mesa normal (seleccionarMesa/cargarPedidoExistente)
+    // borraría el ticket que el mesero ya armó.
+    var tieneNuevos = window.ticket.some(function (i) { return !i.existente; });
+    if (tieneNuevos && !window.mesaSeleccionadaId) {
+        window.modoEnvioPedido = true;
+    }
+
     var m = document.getElementById('modalMesas');
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
 };
@@ -55,6 +68,65 @@ window.abrirSelectorMesas = function () {
 window.cerrarSelectorMesas = function () {
     var m = document.getElementById('modalMesas');
     if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    window.modoEnvioPedido = false;
+};
+
+// ============================================================
+// MESAS — DISPATCH DE CLICK (llamado desde la cuadrícula de mesas)
+// ============================================================
+// Centraliza qué hacer al hacer clic en una mesa: en modo normal, "tomar"
+// una mesa libre o entrar a una que ya tiene pedido; en modo envío
+// (ver abrirSelectorMesas), en cambio, cualquier mesa elegida es el
+// destino del pedido ya armado.
+window.manejarClickMesa = function (id, numero, tipo) {
+    if (window.modoEnvioPedido) {
+        window.confirmarEnvioAMesa(id, numero, tipo);
+        return;
+    }
+
+    if (tipo === 'disponible') {
+        window.seleccionarMesa(id, numero);
+    } else {
+        window.cargarPedidoExistente(id, numero);
+    }
+};
+
+// Envía el pedido ya armado (window.ticket) a la mesa elegida en el
+// selector. Si la mesa está libre, primero la bloquea (para que quede
+// asignada al mesero como cualquier mesa tomada normalmente); si ya
+// tiene un pedido propio/de la misma caja, se agrega directo a ese
+// pedido (el backend hace firstOrCreate por mesa_id).
+window.confirmarEnvioAMesa = async function (id, numero, tipo) {
+    if (tipo === 'disponible') {
+        try {
+            var res = await fetch('/mesas/' + id + '/bloquear', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+            var data = await res.json();
+            if (!res.ok || data.status !== 'success') {
+                window.notificar(data.message || 'No se pudo tomar la mesa', 'error');
+                return;
+            }
+        } catch (e) {
+            window.notificar(e.message || 'Error de conexión', 'error');
+            return;
+        }
+    }
+
+    window.mesaSeleccionadaId = id;
+    window.cerrarSelectorMesas();
+
+    var lA = document.getElementById('mesa-activa-label');
+    var lM = document.getElementById('mesa-label');
+    if (lA) lA.textContent = numero;
+    if (lM) lM.textContent = 'Mesa: ' + numero;
+
+    await enviarPedidoAMesa(id);
 };
 
 window.cerrarConfirm = function () {
@@ -125,13 +197,8 @@ window.actualizarBadgeTicket = function (cantidad) {
 // TICKET — AGREGAR
 // ============================================================
 window.agregarAlTicket = function (id, descripcion, precio, acompanamientoGrupoId) {
-    if (!window.mesaSeleccionadaId) {
-        window.notificar('Selecciona una mesa primero', 'warning');
-        if (typeof window.abrirSelectorMesas === 'function') {
-            setTimeout(function () { window.abrirSelectorMesas(); }, 400);
-        }
-        return;
-    }
+    // La mesa ya no se elige antes de comandar: se arma el ticket libremente
+    // y solo al pulsar "Enviar pedido" se pide la mesa (ver enviarPedido).
 
     // Un producto con acompañamiento (ej. Cubetazo Mix) no se apila con "+1"
     // como los demás: cada uno necesita su propio reparto, así que primero
@@ -493,7 +560,9 @@ async function refrescarMesas() {
         tmp.innerHTML = html;
 
         // Si la mesa vuelve a aparecer como disponible, expiró en servidor
-        if (tmp.querySelector('[onclick*="seleccionarMesa(' + window.mesaSeleccionadaId + ',"]')) {
+        // (el onclick de cada mesa ahora es manejarClickMesa(id, numero, tipo);
+        // 'disponible' es el tipo que se usa solo para mesas libres).
+        if (tmp.querySelector('[onclick*="manejarClickMesa(' + window.mesaSeleccionadaId + ',"][onclick*="\'disponible\'"]')) {
             window.mesaSeleccionadaId = null;
             window.clienteSeleccionado = null;
             var elCliente = document.getElementById('cliente-nombre-ticket');
@@ -532,16 +601,28 @@ async function ejecutarRefrescoVisual() {
 // ============================================================
 // ENVIAR PEDIDO
 // ============================================================
+// El pedido ya no requiere mesa seleccionada de antemano: primero se
+// arma el ticket con los productos y, al pulsar "Enviar pedido", si
+// todavía no hay mesa asignada se abre el selector (en modo envío) para
+// elegir a dónde va — confirmarEnvioAMesa termina el envío desde ahí.
 window.enviarPedido = async function () {
-    if (!window.mesaSeleccionadaId) { window.notificar('Selecciona una mesa primero', 'error'); return; }
+    var itemsNuevos = window.ticket.filter(function (item) { return !item.existente; });
+    if (!itemsNuevos.length) { window.notificar('No hay productos nuevos para enviar', 'warning'); return; }
 
+    if (!window.mesaSeleccionadaId) {
+        window.notificar('Selecciona la mesa para enviar el pedido', 'info');
+        window.abrirSelectorMesas();
+        return;
+    }
+
+    await enviarPedidoAMesa(window.mesaSeleccionadaId);
+};
+
+async function enviarPedidoAMesa(mesaId) {
     var itemsNuevos = window.ticket.filter(function (item) { return !item.existente; });
     if (!itemsNuevos.length) { window.notificar('No hay productos nuevos para enviar', 'warning'); return; }
 
     try {
-        var mesaId = window.mesaSeleccionadaId;
-        var nombreMesa = document.getElementById('mesa-activa-label').textContent;
-
         var res = await fetch('/pedidos/guardar', {
             method: 'POST',
             headers: {
@@ -602,7 +683,7 @@ window.enviarPedido = async function () {
         console.error('Error al enviar pedido:', e);
         window.notificar(e.message || 'Error de conexión', 'error');
     }
-};
+}
 
 // ============================================================
 // CARGAR PEDIDO EXISTENTE
@@ -794,7 +875,19 @@ window.vaciarTicket = function () {
         return;
     }
 
-    // Tiene items nuevos → confirmar antes de liberar
+    // Tiene items nuevos pero todavía no hay mesa asignada (se estaban
+    // armando antes de "Enviar pedido"): no hay nada que liberar en el
+    // servidor, solo se limpia el ticket local.
+    if (!window.mesaSeleccionadaId) {
+        window.ticket = [];
+        window.cerrarSelectorMesas(); // por si estaba abierto esperando la mesa de destino
+        renderizarTicket();
+        window.actualizarBadgeTicket(0);
+        window.notificar('Pedido cancelado', 'info');
+        return;
+    }
+
+    // Tiene items nuevos y mesa asignada → confirmar antes de liberar
     window.mostrarConfirm(
         '¿Cancelar la orden? Los productos nuevos se perderán y la mesa se liberará.',
         window.liberarMesaActual

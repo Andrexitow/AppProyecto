@@ -6,6 +6,16 @@ body {
     font-family: 'Inter', sans-serif;
 }
 
+/* iOS (Safari y PWA instalada con status bar "black-translucent") dibuja la
+   página debajo del notch/Dynamic Island y, en Safari normal, "100vh"
+   incluye zonas que la barra de direcciones/enlace del sitio puede tapar
+   después. body.h-screen (Tailwind) fija 100vh; dvh sigue el viewport
+   visible real y evita que el header/footer queden debajo de esas zonas. */
+body.h-screen {
+    height: 100vh;
+    height: 100dvh;
+}
+
 /* ── SCROLLBAR ── */
 .custom-scroll::-webkit-scrollbar {
     width: 3px;
@@ -528,6 +538,22 @@ body {
 /* #modalMesas.show {
             display: flex !important;
         } */
+
+/* ── SAFE AREA (notch / Dynamic Island / home indicator) ──
+   En iPhones con Dynamic Island (y en la PWA instalada, que por
+   apple-mobile-web-app-status-bar-style="black-translucent" dibuja la
+   página debajo de la barra de estado), el header pegado a top:0 queda
+   detrás de la cámara y los botones del pie de página quedan detrás del
+   home indicator o de la barra inferior de Safari. env(safe-area-inset-*)
+   solo tiene efecto con viewport-fit=cover en el <meta viewport>. */
+.pos-header,
+.mesas-modal-header {
+    padding-top: env(safe-area-inset-top);
+}
+
+.ticket-footer {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
 
 /* ── MOBILE ── */
 @media (max-width: 767px) {

@@ -428,13 +428,13 @@
             '.tot b{font-size:15px;}' +
             '.foot{margin-top:24px;text-align:center;font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:10px;}' +
             '</style></head><body>' +
-            '<div class="head"><div><div class="brand">📦 Nexora</div><div class="sub">Reporte de Existencias por Bodega</div></div>' +
+            '<div class="head"><div><div class="brand">📦 NussoraPos</div><div class="sub">Reporte de Existencias por Bodega</div></div>' +
             '<div class="meta"><b>Bodega:</b> ' + esc(EX.bodegaNombre) + '<br><b>Fecha:</b> ' + esc(fecha) + '</div></div>' +
             '<table><thead><tr><th>Código</th><th>Producto</th><th style="text-align:center;">Cant.</th>' +
             '<th style="text-align:right;">Vlr. Unit.</th><th style="text-align:right;">Vlr. Total</th><th style="text-align:center;">Estado</th></tr></thead>' +
             '<tbody>' + filas + '</tbody></table>' +
             '<div class="tot"><span>Total unidades: <b>' + totalUnidades + '</b></span><span>Valor inventario: <b>' + fmtMoneyEX(totalValor) + '</b></span></div>' +
-            '<div class="foot">Generado desde Nexora — Sistema de Gestión POS · ' + esc(fecha) + '</div>' +
+            '<div class="foot">Generado desde NussoraPos — Sistema de Gestión POS · ' + esc(fecha) + '</div>' +
             '</body></html>';
 
         abrirEImprimir(html);
@@ -451,7 +451,7 @@
 
         var txt = '';
         txt += lineaDoble + '\n';
-        txt += centrar('NEXORA', ancho) + '\n';
+        txt += centrar('NUSSORAPOS', ancho) + '\n';
         txt += centrar('Reporte de Existencias', ancho) + '\n';
         txt += lineaDoble + '\n';
         txt += 'Bodega : ' + EX.bodegaNombre + '\n';
